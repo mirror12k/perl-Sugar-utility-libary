@@ -70,6 +70,8 @@ sub as_archive {
 
 sub read {
 	my ($self) = @_;
+	croak "attempt to read non-existant file " . $self->path unless $self->exists;
+
 	my $data;
 	{ local $/; open my $file, "<", "$self->{file_path}" or return; $data = <$file>; close $file }
 	return $data
@@ -77,6 +79,7 @@ sub read {
 
 sub readlines {
 	my ($self) = @_;
+	croak "attempt to read non-existant file " . $self->path unless $self->exists;
 	
 	my $file = IO::File->new($self->{file_path}, 'r');
 	my @data = map s/\r?\n$//r, $file->getlines;
@@ -97,7 +100,7 @@ sub write {
 sub rm {
 	my ($self) = @_;
 
-	croak "attempt to rm missing file" unless $self->exists;
+	croak "attempt to rm non-existant file " . $self->path unless $self->exists;
 	unlink $self->{file_path}
 }
 
