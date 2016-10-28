@@ -44,7 +44,7 @@ sub new {
 	croak "path argument required" unless defined $path;
 
 	my $self = bless {}, $class;
-	$self->{file_path} = $path;
+	$self->{file_path} = "$path";
 
 	return $self
 }
