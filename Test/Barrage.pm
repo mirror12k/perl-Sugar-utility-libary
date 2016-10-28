@@ -86,7 +86,7 @@ sub run {
 	$testdir = $testdir->dir($subdir) if defined $subdir;
 
 	my @testfiles = $testdir->recursive_files;
-	@testfiles = grep $self->{test_files_regex} =~ $_, @testfiles if defined $self->{test_files_regex};
+	@testfiles = grep $_ =~ $self->{test_files_regex}, @testfiles if defined $self->{test_files_regex};
 	foreach my $testfile (@testfiles) {
 		say "test file $testfile";
 
