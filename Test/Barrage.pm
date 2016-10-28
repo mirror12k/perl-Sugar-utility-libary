@@ -12,6 +12,59 @@ use Sugar::IO::Dir;
 
 
 
+=pod
+
+=head1 what is Sugar::Test::Barrage?
+
+Barrage is a simple file-oriented testing utility for verifying an expiremental set of text line output against a control set
+
+=head1 Sugar::Test::Barrage->new(%args)
+
+initializes a new test barrage
+
+=head3 arguments:
+
+=over
+
+=item
+test_files_dir => required, defines the filepath to the directory of files/directories to test
+
+=item
+control_processor => required, processor which is assumed to return array of expected response lines
+
+=item
+test_processor => required, processor which is assumed to return array of expiremental response lines which will be compared against the expected response lines
+
+=item
+test_files_regex => optional regular expression reference, against which all test filepaths will be grepped. useful for isolating important files or files of a specific extension
+
+=back
+
+=head2 processors
+
+the control processor and test processor may be either one of a string command line or a subroutine reference
+
+
+=over
+
+=item command line processor - 
+passing a string as a processor indicates that it is a valid command line.
+any occurance of /$testfile\b/ will be replaced by the actual test filepath, and the resulting command executed on shell
+
+=item subroutine processor - 
+passing a subroutine reference as a processor indicates for it to be executed directly with the file argument
+the subroutine will receive as an argument, the test filepath as a Sugar::IO::File object
+
+=back
+
+=head1 $test->run([$subdir])
+
+starts the execution of tests and prints out the status of each test. optional subdir argument is directory name inside the given test_files_dir which will be
+tested specifically instead of all files in the test_files_dir
+
+=cut
+
+
 
 sub new {
 	my ($class, %args) = @_;
@@ -39,7 +92,7 @@ sub run {
 
 		my (@control_lines, @test_lines);
 		if (ref $self->{control_processor}) {
-			@control_lines = $self->{control_processor}->($self, $testfile);
+			@control_lines = $self->{control_processor}->($testfile);
 		} else {
 			my $control_command = $self->{control_processor};
 			$control_command =~ s/\$testfile\b/$testfile/g;
@@ -47,7 +100,7 @@ sub run {
 		}
 
 		if (ref $self->{test_processor}) {
-			@test_lines = $self->{test_processor}->($self, $testfile);
+			@test_lines = $self->{test_processor}->($testfile);
 		} else {
 			my $test_command = $self->{test_processor};
 			$test_command =~ s/\$testfile\b/$testfile/g;
