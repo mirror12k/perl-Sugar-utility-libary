@@ -16,22 +16,33 @@ use Sugar::IO::Archive;
 
 
 =pod
-sugar module for easily working with files
+
+=head1 what is Sugar::IO::File?
+
+a sugar module for easily working with files
 
 =head2 Sugar::IO::File->new($path)
 
+returns a new Sugar::IO::File object with a given path
 
 =head2 $file->path / $file->as_string / "$file"
+
 return string path to the directory that this represents
 
 =head2 $file->exists
+
 return true if a file already exists with the given path
 
 =head2 $file->read
+
 return a string containing all of the file's contents
+
 =head2 $file->readlines
+
 return a list of strings containing all of the file's contents as lines (newlines removed)
+
 =head2 $file->write($data)
+
 writes the given data to the file (creating it if it doesn't exist, or erasing any previous contents if it does)
 
 

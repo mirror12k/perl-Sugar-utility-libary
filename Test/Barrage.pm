@@ -18,7 +18,7 @@ use Sugar::IO::Dir;
 
 Barrage is a simple file-oriented testing utility for verifying an expiremental set of text line output against a control set
 
-=head1 Sugar::Test::Barrage->new(%args)
+=head2 Sugar::Test::Barrage->new(%args)
 
 initializes a new test barrage
 
@@ -57,7 +57,7 @@ the subroutine will receive as an argument, the test filepath as a Sugar::IO::Fi
 
 =back
 
-=head1 $test->run([$subdir])
+=head2 $test->run([$subdir])
 
 starts the execution of tests and prints out the status of each test. optional subdir argument is directory name inside the given test_files_dir which will be
 tested specifically instead of all files in the test_files_dir

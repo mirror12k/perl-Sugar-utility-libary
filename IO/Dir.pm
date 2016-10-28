@@ -15,39 +15,57 @@ use overload '""' => 'path';
 
 
 =pod
-sugar module for easily working with directories
+
+=head1 what is Sugar::IO::Dir?
+
+sugar module for easily working with directories,
 caches results to allow for irresponsible programming
 
 =head2 Sugar::IO::Dir->new($path)
 
+returns a new Sugar::IO::Dir object with a given path
 
 =head2 $dir->path / $dir->as_string / "$dir"
+
 return string path to the directory that this represents
 
 =head2 $dir->simplify
+
 return a new directory object with the path component stripped of redundant tokens
+
 =head2 $dir->abs_dir
+
 return a new directory object with the path converted to an absolute path (and simplified)
 
 =head2 $dir->list
+
 returns a list of Sugar::IO::File and Sugar::IO::Dir objects representing the contents of the directory
+
 =head2 $dir->files
+
 returns a list of Sugar::IO::File objects representing the files in the directory
+
 =head2 $dir->dirs
+
 returns a list of Sugar::IO::Dir objects representing the sub-directories in the directory
+
 =head2 $dir->recursive_files
+
 returns a list of Sugar::IO::File objects representing all files in the directory and all sub-directories
 
 =head2 $dir->file($name)
-safely checks that a file exists in the given directory with the given name, and returns a Sugar::IO::File representing it
+
+safely checks that a file exists in the given directory with the given name, and returns a Sugar::IO::File representing it.
 croaks if the name is invalid or the file doesn't exist (or isn't a file)
+
 =head2 $dir->dir($name)
-safely checks that a sub-directory exists in the given directory with the given name, and returns a Sugar::IO::Dir representing it
+
+safely checks that a sub-directory exists in the given directory with the given name, and returns a Sugar::IO::Dir representing it.
 croaks if the name is invalid or the dir doesn't exist (or isn't a directory)
 
 =head2 $dir->read_directory
-use to refresh a directory listing
 
+use to refresh a directory listing
 
 =cut
 
