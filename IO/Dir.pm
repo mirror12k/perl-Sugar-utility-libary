@@ -93,6 +93,12 @@ sub exists {
 
 
 
+sub name {
+	my ($self) = @_;
+	my $path = $self->{directory_path};
+	croak "invalid directory_path '$path'" unless $path =~ /([^\/]+)\/?$/m;
+	return $1
+}
 
 
 
@@ -142,7 +148,7 @@ sub read_directory {
 
 sub list {
 	my ($self) = @_;
-	return $self->files, $self->subdirs
+	return $self->files, $self->dirs
 }
 
 sub files {

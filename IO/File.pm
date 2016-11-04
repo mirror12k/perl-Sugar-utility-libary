@@ -78,6 +78,14 @@ sub as_archive {
 
 
 
+sub name {
+	my ($self) = @_;
+	my $path = $self->{file_path};
+	croak "invalid file_path '$path'" unless $path =~ /([^\/]+)\/?$/m;
+	return $1
+}
+
+
 
 sub read {
 	my ($self) = @_;
