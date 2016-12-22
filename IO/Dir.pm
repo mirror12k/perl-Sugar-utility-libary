@@ -58,10 +58,20 @@ returns a list of Sugar::IO::File objects representing all files in the director
 safely checks that a file exists in the given directory with the given name, and returns a Sugar::IO::File representing it.
 croaks if the name is invalid or the file doesn't exist (or isn't a file)
 
+=head2 $dir->new_file($name)
+
+safely checks that a file doesn't exists in the given directory with the given name, and returns a Sugar::IO::File representing it.
+croaks if the name is invalid or the file already exists
+
 =head2 $dir->dir($name)
 
 safely checks that a sub-directory exists in the given directory with the given name, and returns a Sugar::IO::Dir representing it.
 croaks if the name is invalid or the dir doesn't exist (or isn't a directory)
+
+=head2 $dir->new_dir($name)
+
+safely checks that a sub-directory doesn't exist in the given directory with the given name, and returns a Sugar::IO::Dir representing it.
+croaks if the name is invalid or the dir already exists
 
 =head2 $dir->read_directory
 
@@ -196,12 +206,32 @@ sub file {
 	return $file
 }
 
+sub new_file {
+	my ($self, $name) = @_;
+	croak "invalid filename '$name'" if $name =~ m#/# or $name eq '..' or $name eq '.';
+
+	my $file = Sugar::IO::File->new($self->path . "/$name");
+	croak "file already exists '$file'" if $file->exists;
+
+	return $file
+}
+
 sub dir {
 	my ($self, $name) = @_;
 	croak "invalid directory name '$name'" if $name =~ m#/# or $name eq '..' or $name eq '.';
 
 	my $dir = Sugar::IO::Dir->new($self->path . "/$name");
-	croak "missing dir '$dir'" unless $dir->exists;
+	croak "missing directory '$dir'" unless $dir->exists;
+
+	return $dir
+}
+
+sub new_dir {
+	my ($self, $name) = @_;
+	croak "invalid directory name '$name'" if $name =~ m#/# or $name eq '..' or $name eq '.';
+
+	my $dir = Sugar::IO::Dir->new($self->path . "/$name");
+	croak "directory already exists '$dir'" if $dir->exists;
 
 	return $dir
 }

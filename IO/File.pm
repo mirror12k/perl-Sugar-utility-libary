@@ -41,6 +41,10 @@ return a string containing all of the file's contents
 
 return a list of strings containing all of the file's contents as lines (newlines removed)
 
+=head2 $file->append($data)
+
+writes the given data to the end of the file (creating it if it doesn't exist, but preserving any existing content)
+
 =head2 $file->write($data)
 
 writes the given data to the file (creating it if it doesn't exist, or erasing any previous contents if it does)
@@ -111,6 +115,14 @@ sub write {
 	my ($self, $data) = @_;
 
 	my $file = IO::File->new($self->{file_path}, 'w');
+	$file->print($data);
+	$file->close;
+}
+
+sub append {
+	my ($self, $data) = @_;
+
+	my $file = IO::File->new($self->{file_path}, 'a');
 	$file->print($data);
 	$file->close;
 }
