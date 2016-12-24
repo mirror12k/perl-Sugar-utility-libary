@@ -44,6 +44,7 @@ sub compile_syntax_context {
 ';
 	my @items = @$context;
 	my $first_item = 1;
+	$self->{default_context_exit} = 1;
 	while (@items) {
 		my $condition = shift @items;
 		my $condition_code = $self->compile_syntax_condition($condition);
@@ -56,11 +57,21 @@ sub compile_syntax_context {
 		$first_item = 0;
 	}
 
-	$code .= "e {
-			\$self->confess_at_current_offset('unimplemented at $context_name context')
+	if ($self->{default_context_exit}) {
+		$code .= "e {
+			return \$self->exit_context;
 		}
-	}";
-
+";
+	} else {
+		$code .= "e {
+			\$self->confess_at_current_offset('unimplemented at $context_name context');
+		}
+";
+	}
+	$code .= "
+	return;
+}
+";
 	say "compiled code: ", $code;
 	return eval $code
 }
@@ -90,9 +101,21 @@ sub compile_syntax_action {
 		$spawn_code = "push \@{\$self->{current_context}{children}}, $action->{spawn};";
 	}
 
+	my $context_code = '';
+	if (defined $action->{context}) {
+		if ($action->{context} eq 'exit') {
+			$context_code = "return \$self->exit_context;";
+			$self->{default_context_exit} = 0;
+		} else {
+			die "unimplemented context value $action->{context}";
+		}
+	}
+
 	return "
 			\$self->next_token;
 			$follows_code
+			$spawn_code
+			$context_code
 "
 }
 
