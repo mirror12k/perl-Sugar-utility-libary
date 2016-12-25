@@ -7,8 +7,6 @@ use feature 'say';
 
 use Carp;
 
-use Sugar::IO::File;
-
 
 
 sub new {
@@ -25,14 +23,32 @@ sub parse {
 	my ($self) = @_;
 	$self->SUPER::parse;
 
-	$self->{current_context} = { type => 'root_context' };
+	$self->{current_context} = { type => 'context', context_type => 'root_context' };
 	$self->{context_stack} = [];
-	$self->{current_syntax_context} = $self->{syntax_definition}{$self->{current_context}{type}};
+	$self->{current_syntax_context} = $self->{syntax_definition}{$self->{current_context}{context_type}};
 
 	while ($self->more_tokens) {
 		$self->{current_syntax_context}->($self);
 	}
 
+}
+
+sub enter_context {
+	my ($self, $context_type) = @_;
+
+	my $new_context = { type => $context_type };
+	push @{$self->{current_context}{children}}, $new_context;
+	push @{$self->{context_stack}}, $self->{current_context};
+	$self->{current_context} = $new_context;
+	$self->{current_syntax_context} = $self->{syntax_definition}{$self->{current_context}{context_type}};
+}
+
+sub exit_context {
+	my ($self) = @_;
+	confess 'attempt to exit root context' if $self->{current_context}{context_type} eq 'root_context';
+
+	$self->{current_context} = pop @{$self->{context_stack}};
+	$self->{current_syntax_context} = $self->{syntax_definition}{$self->{current_context}{context_type}};
 }
 
 sub compile_syntax_context {
@@ -44,9 +60,13 @@ sub compile_syntax_context {
 ';
 	my @items = @$context;
 	my $first_item = 1;
-	$self->{default_context_exit} = 1;
+	$self->{context_default_case} = undef;
 	while (@items) {
 		my $condition = shift @items;
+		unless (defined $condition) {
+			$self->{context_default_case} = shift @items;
+			next
+		}
 		my $condition_code = $self->compile_syntax_condition($condition);
 		my $action = shift @items;
 		my $action_code = $self->compile_syntax_action($action);
@@ -57,17 +77,10 @@ sub compile_syntax_context {
 		$first_item = 0;
 	}
 
-	if ($self->{default_context_exit}) {
-		$code .= "e {
-			return \$self->exit_context;
-		}
-";
-	} else {
-		$code .= "e {
-			\$self->confess_at_current_offset('unimplemented at $context_name context');
-		}
-";
-	}
+	$self->{context_default_case} //= { exit_context => 1 };
+	my $action_code = $self->compile_syntax_default_action($self->{context_default_case});
+	$code .= "e {$action_code\t\t}\n";
+
 	$code .= "
 	return;
 }
@@ -102,13 +115,21 @@ sub compile_syntax_action {
 	}
 
 	my $context_code = '';
-	if (defined $action->{context}) {
-		if ($action->{context} eq 'exit') {
-			$context_code = "return \$self->exit_context;";
-			$self->{default_context_exit} = 0;
-		} else {
-			die "unimplemented context value $action->{context}";
-		}
+	if (defined $action->{exit_context}) {
+		$context_code = "\$self->exit_context;";
+		$self->{context_default_case} = { die => 'unexpected token' } unless defined $self->{context_default_case};
+	} elsif (defined $action->{enter_context}) {
+		$context_code = "\$self->enter_context('$action->{enter_context}');";
+	}
+
+	my $die_code = '';
+	if (defined $action->{die}) {
+		$die_code = "\$self->confess_at_current_offset('$action->{die}');";
+	}
+
+	my $warn_code = '';
+	if (defined $action->{warn}) {
+		$warn_code = "warn '$action->{warn}';";
 	}
 
 	return "
@@ -116,6 +137,42 @@ sub compile_syntax_action {
 			$follows_code
 			$spawn_code
 			$context_code
+			$warn_code
+			$die_code
+"
+}
+
+sub compile_syntax_default_action {
+	my ($self, $action) = @_;
+
+	my $spawn_code = '';
+	if (defined $action->{spawn}) {
+		$spawn_code = "push \@{\$self->{current_context}{children}}, $action->{spawn};";
+	}
+
+	my $context_code = '';
+	if (defined $action->{exit_context}) {
+		$context_code = "\$self->exit_context;";
+		$self->{context_default_case} = { die => 'unexpected token' } unless defined $self->{context_default_case};
+	} elsif (defined $action->{enter_context}) {
+		$context_code = "\$self->enter_context('$action->{enter_context}');";
+	}
+
+	my $die_code = '';
+	if (defined $action->{die}) {
+		$die_code = "\$self->confess_at_current_offset('$action->{die}');";
+	}
+
+	my $warn_code = '';
+	if (defined $action->{warn}) {
+		$warn_code = "warn '$action->{warn}';";
+	}
+
+	return "
+			$spawn_code
+			$context_code
+			$warn_code
+			$die_code
 "
 }
 
