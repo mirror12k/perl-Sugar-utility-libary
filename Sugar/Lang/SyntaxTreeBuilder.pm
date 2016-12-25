@@ -6,6 +6,7 @@ use warnings;
 use feature 'say';
 
 use Carp;
+use Data::Dumper;
 
 
 
@@ -39,7 +40,7 @@ sub enter_context {
 	my ($self, $context_type) = @_;
 
 	my $new_context = { type => 'context', context_type => $context_type };
-	push @{$self->{current_context}{children}}, $new_context;
+	# push @{$self->{current_context}{children}}, $new_context;
 	push @{$self->{context_stack}}, $self->{current_context};
 	$self->{current_context} = $new_context;
 	$self->{current_syntax_context} = $self->{syntax_definition}{$self->{current_context}{context_type}};
@@ -59,6 +60,37 @@ sub switch_context {
 
 	$self->{current_context}{context_type} = $context_type;
 	$self->{current_syntax_context} = $self->{syntax_definition}{$self->{current_context}{context_type}};
+}
+
+sub extract_context_result {
+	my ($self, $context_type) = @_;
+
+	my $previous_context = $self->{current_context};
+	$self->enter_context($context_type);
+	my $saved_context = $self->{current_context};
+
+	while ($self->{current_context} != $previous_context) {
+		say "debug", Dumper $self->{current_context};
+		$self->{current_syntax_context}->($self);
+	}
+	my ($result) = @{$saved_context->{children}};
+	say 'got result: ', Dumper $result;
+	return $result
+}
+
+sub extract_context {
+	my ($self, $context_type) = @_;
+
+	my $previous_context = $self->{current_context};
+	$self->enter_context($context_type);
+	my $saved_context = $self->{current_context};
+
+	while ($self->{current_context} != $previous_context) {
+		say "debug", Dumper $self->{current_context};
+		$self->{current_syntax_context}->($self);
+	}
+	$saved_context->{type} = $saved_context->{context_type};
+	return $saved_context
 }
 
 sub compile_syntax_context {
@@ -119,85 +151,80 @@ sub compile_syntax_condition {
 sub compile_syntax_action {
 	my ($self, $action) = @_;
 
-	my $follows_code = '';
+	my @actions;
 	if (defined $action->{follows}) {
-		$follows_code = "\$self->confess_at_current_offset('$action->{else}') unless "
+		push @actions, "\$self->confess_at_current_offset('$action->{else}') unless "
 			. $self->compile_syntax_condition($action->{follows}) . ';';
 
 		if (ref $action->{follows}) {
-			$follows_code .= "\n\t\t\t\$self->next_token;" x @{$action->{follows}};
+			push @actions, "\$self->next_token;" foreach 0 .. $#{$action->{follows}};
 		} else {
-			$follows_code .= "\n\t\t\t\$self->next_token;";
+			push @actions, "\$self->next_token;";
 		}
 	}
 
-	my $spawn_code = '';
 	if (defined $action->{spawn}) {
-		$spawn_code = "push \@{\$self->{current_context}{children}}, $action->{spawn};";
+		push @actions, "push \@{\$self->{current_context}{children}}, $action->{spawn};";
+	} elsif (defined $action->{extract}) {
+		my @extract_items = @{$action->{extract}};
+		while (@extract_items) {
+			my $field = quotemeta shift @extract_items;
+			my $context_type = quotemeta shift @extract_items;
+			push @actions, "\$self->{current_context}{'$field'} = \$self->extract_context_result('$context_type');";
+		}
+	} elsif (defined $action->{extract_context}) {
+		my $context_type = quotemeta $action->{extract_context};
+		push @actions, "push \@{\$self->{current_context}{children}}, \$self->extract_context('$context_type');";
 	}
 
-	my $context_code = '';
 	if (defined $action->{exit_context}) {
-		$context_code = "\$self->exit_context;";
+		push @actions, "\$self->exit_context;";
 		$self->{context_default_case} = { die => 'unexpected token' } unless defined $self->{context_default_case};
 	} elsif (defined $action->{enter_context}) {
-		$context_code = "\$self->enter_context('$action->{enter_context}');";
+		my $context_type = quotemeta $action->{enter_context};
+		push @actions, "\$self->enter_context('$context_type');";
 	} elsif (defined $action->{switch_context}) {
-		$context_code = "\$self->switch_context('$action->{switch_context}');";
+		my $context_type = quotemeta $action->{switch_context};
+		push @actions, "\$self->switch_context('$context_type');";
 	}
 
-	my $die_code = '';
 	if (defined $action->{die}) {
-		$die_code = "\$self->confess_at_current_offset('$action->{die}');";
+		my $msg = quotemeta $action->{die};
+		push @actions, "\$self->confess_at_current_offset('$msg');";
 	}
 
-	my $warn_code = '';
 	if (defined $action->{warn}) {
-		$warn_code = "warn '$action->{warn}';";
+		my $msg = quotemeta $action->{warn};
+		push @actions, "warn '$msg';";
 	}
 
-	return "
-			\$self->next_token;
-			$follows_code
-			$spawn_code
-			$context_code
-			$warn_code
-			$die_code
-"
+	return join ("\n\t\t\t", '', '$self->next_token;', @actions) . "\n";
 }
 
 sub compile_syntax_default_action {
 	my ($self, $action) = @_;
 
-	my $spawn_code = '';
+	my @actions;
 	if (defined $action->{spawn}) {
-		$spawn_code = "push \@{\$self->{current_context}{children}}, $action->{spawn};";
+		push @actions, "push \@{\$self->{current_context}{children}}, $action->{spawn};";
 	}
 
-	my $context_code = '';
 	if (defined $action->{exit_context}) {
-		$context_code = "\$self->exit_context;";
+		push @actions, "\$self->exit_context;";
 		$self->{context_default_case} = { die => 'unexpected token' } unless defined $self->{context_default_case};
 	} elsif (defined $action->{enter_context}) {
-		$context_code = "\$self->enter_context('$action->{enter_context}');";
+		push @actions, "\$self->enter_context('$action->{enter_context}');";
 	}
 
-	my $die_code = '';
 	if (defined $action->{die}) {
-		$die_code = "\$self->confess_at_current_offset('$action->{die}');";
+		push @actions, "\$self->confess_at_current_offset('$action->{die}');";
 	}
 
-	my $warn_code = '';
 	if (defined $action->{warn}) {
-		$warn_code = "warn '$action->{warn}';";
+		push @actions, "warn '$action->{warn}';";
 	}
 
-	return "
-			$spawn_code
-			$context_code
-			$warn_code
-			$die_code
-"
+	return join ("\n\t\t\t", '', @actions) . "\n";
 }
 
 1;
