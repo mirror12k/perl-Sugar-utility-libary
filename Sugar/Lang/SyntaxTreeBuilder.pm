@@ -24,6 +24,7 @@ sub parse {
 	$self->SUPER::parse;
 
 	$self->{current_context} = { type => 'context', context_type => 'root_context' };
+	$self->{syntax_tree} = $self->{current_context};
 	$self->{context_stack} = [];
 	$self->{current_syntax_context} = $self->{syntax_definition}{$self->{current_context}{context_type}};
 
@@ -31,6 +32,7 @@ sub parse {
 		$self->{current_syntax_context}->($self);
 	}
 
+	return $self->{syntax_tree}
 }
 
 sub enter_context {
@@ -48,6 +50,14 @@ sub exit_context {
 	confess 'attempt to exit root context' if $self->{current_context}{context_type} eq 'root_context';
 
 	$self->{current_context} = pop @{$self->{context_stack}};
+	$self->{current_syntax_context} = $self->{syntax_definition}{$self->{current_context}{context_type}};
+}
+
+sub switch_context {
+	my ($self, $context_type) = @_;
+	confess 'attempt to switch context on root context' if $self->{current_context}{context_type} eq 'root_context';
+
+	$self->{current_context}{context_type} = $context_type;
 	$self->{current_syntax_context} = $self->{syntax_definition}{$self->{current_context}{context_type}};
 }
 
@@ -83,8 +93,8 @@ sub compile_syntax_context {
 	$code .= "e {$action_code\t\t}\n";
 
 	$code .= "
-	return;
-}
+		return;
+	}
 ";
 	say "compiled code: ", $code;
 	return eval $code
@@ -132,6 +142,8 @@ sub compile_syntax_action {
 		$self->{context_default_case} = { die => 'unexpected token' } unless defined $self->{context_default_case};
 	} elsif (defined $action->{enter_context}) {
 		$context_code = "\$self->enter_context('$action->{enter_context}');";
+	} elsif (defined $action->{switch_context}) {
+		$context_code = "\$self->switch_context('$action->{switch_context}');";
 	}
 
 	my $die_code = '';
