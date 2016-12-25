@@ -199,38 +199,39 @@ sub compile_syntax_action {
 				push @actions, "\$self->{current_context}{'$field'} = " . $self->compile_syntax_spawn_expression($value) . ";";
 			}
 		}
-	} elsif (defined $action->{extract}) {
-		my @extract_items = @{$action->{extract}};
-		while (@extract_items) {
-			my $field = quotemeta shift @extract_items;
-			my $context_type = shift @extract_items;
-			if (ref $context_type eq 'ARRAY') {
-				$context_type = quotemeta $context_type->[0];
-				push @actions, "\$self->{current_context}{'$field'} = \$self->extract_context_result('$context_type', 'ARRAY');";
-			} else {
-				$context_type = quotemeta $context_type;
-				push @actions, "\$self->{current_context}{'$field'} = \$self->extract_context_result('$context_type');";
-			}
-		}
-	} elsif (defined $action->{extract_context}) {
-		my $context_type = quotemeta $action->{extract_context};
-		push @actions, "push \@{\$self->{current_context}{children}}, \$self->extract_context('$context_type');";
 	}
+	# elsif (defined $action->{extract}) {
+	# 	my @extract_items = @{$action->{extract}};
+	# 	while (@extract_items) {
+	# 		my $field = quotemeta shift @extract_items;
+	# 		my $context_type = shift @extract_items;
+	# 		if (ref $context_type eq 'ARRAY') {
+	# 			$context_type = quotemeta $context_type->[0];
+	# 			push @actions, "\$self->{current_context}{'$field'} = \$self->extract_context_result('$context_type', 'ARRAY');";
+	# 		} else {
+	# 			$context_type = quotemeta $context_type;
+	# 			push @actions, "\$self->{current_context}{'$field'} = \$self->extract_context_result('$context_type');";
+	# 		}
+	# 	}
+	# } elsif (defined $action->{extract_context}) {
+	# 	my $context_type = quotemeta $action->{extract_context};
+	# 	push @actions, "push \@{\$self->{current_context}{children}}, \$self->extract_context('$context_type');";
+	# }
 
-	if (defined $action->{assign_last}) {
-		my @assign_items = @{$action->{assign_last}};
-		while (@assign_items) {
-			my $field = shift @assign_items;
-			my $value = shift @assign_items;
-			if (ref $field eq 'ARRAY') {
-				$field = quotemeta $field->[0];
-				push @actions, "push \@{\$self->{current_context}{children}[-1]{'$field'}}, $value;";
-			} else {
-				$field = quotemeta $field;
-				push @actions, "\$self->{current_context}{children}[-1]{'$field'} = $value;";
-			}
-		}
-	}
+	# if (defined $action->{assign_last}) {
+	# 	my @assign_items = @{$action->{assign_last}};
+	# 	while (@assign_items) {
+	# 		my $field = shift @assign_items;
+	# 		my $value = shift @assign_items;
+	# 		if (ref $field eq 'ARRAY') {
+	# 			$field = quotemeta $field->[0];
+	# 			push @actions, "push \@{\$self->{current_context}{children}[-1]{'$field'}}, $value;";
+	# 		} else {
+	# 			$field = quotemeta $field;
+	# 			push @actions, "\$self->{current_context}{children}[-1]{'$field'} = $value;";
+	# 		}
+	# 	}
+	# }
 
 	if (defined $action->{exit_context}) {
 		push @actions, "\$self->exit_context;";
@@ -288,7 +289,10 @@ sub compile_syntax_default_action {
 
 sub compile_syntax_spawn_expression {
 	my ($self, $expression) = @_;
-	if (ref $expression eq 'ARRAY') {
+	if (ref $expression eq 'ARRAY' and @$expression == 1) {
+		my $context_type = quotemeta $expression->[0];
+		return "\$self->extract_context_result('$context_type', 'ARRAY')"
+	} elsif (ref $expression eq 'ARRAY') {
 		my $code = "{ ";
 		my @items = @$expression;
 		while (@items) {
