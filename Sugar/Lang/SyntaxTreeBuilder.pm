@@ -15,7 +15,10 @@ sub new {
 	my $self = $class->SUPER::new(%opts);
 
 	$self->{syntax_definition} = $opts{syntax_definition} // croak "syntax_definition argument required for Sugar::Lang::SyntaxTreeBuilder";
-	$self->{syntax_definition} = { map { $_ => $self->compile_syntax_context($_ => $self->{syntax_definition}{$_}) } keys %{$self->{syntax_definition}} };
+	$self->{syntax_definition} = {
+		map { $_ => $self->compile_syntax_context($_ => $self->{syntax_definition}{$_}) }
+		keys %{$self->{syntax_definition}}
+	};
 
 	return $self
 }
@@ -155,7 +158,11 @@ sub compile_syntax_context {
 	}
 ";
 	# say "compiled code: ", $code; # DEBUG INLINE TREE BUILDER
-	return eval $code
+	my $compiled = eval $code;
+	if ($@) {
+		confess "error compiling context type '$context_name': $@";
+	}
+	return $compiled
 }
 
 sub compile_syntax_condition {
@@ -282,11 +289,13 @@ sub compile_syntax_default_action {
 	}
 
 	if (defined $action->{die}) {
-		push @actions, "\$self->confess_at_current_offset('$action->{die}');";
+		my $msg = quotemeta $action->{die};
+		push @actions, "\$self->confess_at_current_offset('$msg');";
 	}
 
 	if (defined $action->{warn}) {
-		push @actions, "warn '$action->{warn}';";
+		my $msg = quotemeta $action->{warn};
+		push @actions, "warn '$msg';";
 	}
 
 	return join ("\n\t\t\t", '', @actions) . "\n";
