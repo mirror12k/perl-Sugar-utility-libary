@@ -98,6 +98,22 @@ sub extract_context {
 	return $saved_context
 }
 
+sub into_context {
+	my ($self, $context_object) = @_;
+	# my $store_type = $context_object->{type};
+	# $context_object->{type} = 'context';
+	my $previous_context = $self->{current_context};
+	push @{$self->{context_stack}}, $self->{current_context};
+	$self->{current_context} = $context_object;
+	$self->{current_syntax_context} = $self->{syntax_definition}{$self->{current_context}{context_type}};
+
+	while ($self->{current_context} != $previous_context) {
+		$self->{current_syntax_context}->($self);
+	}
+
+	return $context_object
+}
+
 sub compile_syntax_context {
 	my ($self, $context_name, $context) = @_;
 
@@ -167,6 +183,22 @@ sub compile_syntax_action {
 
 	if (defined $action->{spawn}) {
 		push @actions, "push \@{\$self->{current_context}{children}}, " . $self->compile_syntax_spawn_expression($action->{spawn}) . ";";
+	} elsif (defined $action->{spawn_into_context}) {
+		push @actions, "push \@{\$self->{current_context}{children}}, \$self->into_context("
+				. $self->compile_syntax_spawn_expression($action->{spawn_into_context}) . ");";
+	} elsif (defined $action->{assign}) {
+		my @assign_items = @{$action->{assign}};
+		while (@assign_items) {
+			my $field = shift @assign_items;
+			my $value = shift @assign_items;
+			if (ref $field eq 'ARRAY') {
+				$field = quotemeta $field->[0];
+				push @actions, "push \@{\$self->{current_context}{'$field'}}, " . $self->compile_syntax_spawn_expression($value) . ";";
+			} else {
+				$field = quotemeta $field;
+				push @actions, "\$self->{current_context}{'$field'} = " . $self->compile_syntax_spawn_expression($value) . ";";
+			}
+		}
 	} elsif (defined $action->{extract}) {
 		my @extract_items = @{$action->{extract}};
 		while (@extract_items) {
@@ -275,7 +307,7 @@ sub compile_syntax_spawn_sub_expression {
 	my ($self, $expression) = @_;
 
 	if ($expression =~ /\A\&([a-zA-Z_][a-zA-Z_0-9]*)\Z/) {
-		return "\$self->extract_context('$1')";
+		return "\$self->extract_context_result('$1')";
 	} elsif ($expression =~ /\A\$previous_spawn\Z/) {
 		return "pop \@{\$self->{current_context}{children}}";
 	} elsif ($expression =~ /\A\$tokens\[(\d+)\]\Z/) {
