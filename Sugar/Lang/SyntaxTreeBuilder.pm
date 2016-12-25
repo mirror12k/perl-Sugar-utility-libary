@@ -63,18 +63,23 @@ sub switch_context {
 }
 
 sub extract_context_result {
-	my ($self, $context_type) = @_;
+	my ($self, $context_type, $modifier) = @_;
 
 	my $previous_context = $self->{current_context};
 	$self->enter_context($context_type);
 	my $saved_context = $self->{current_context};
 
 	while ($self->{current_context} != $previous_context) {
-		say "debug", Dumper $self->{current_context};
+		# say "debug", Dumper $self->{current_context};
 		$self->{current_syntax_context}->($self);
 	}
-	my ($result) = @{$saved_context->{children}};
-	say 'got result: ', Dumper $result;
+	my $result;
+	if (defined $modifier and $modifier eq 'ARRAY') {
+		$result = [ @{$saved_context->{children}} ];
+	} else {
+		($result) = @{$saved_context->{children}};
+	}
+	# say 'got result: ', Dumper $result;
 	return $result
 }
 
@@ -86,10 +91,10 @@ sub extract_context {
 	my $saved_context = $self->{current_context};
 
 	while ($self->{current_context} != $previous_context) {
-		say "debug", Dumper $self->{current_context};
 		$self->{current_syntax_context}->($self);
 	}
 	$saved_context->{type} = $saved_context->{context_type};
+	delete $saved_context->{context_type};
 	return $saved_context
 }
 
@@ -112,7 +117,7 @@ sub compile_syntax_context {
 		}
 		my $condition_code = $self->compile_syntax_condition($condition);
 		my $action = shift @items;
-		my $action_code = $self->compile_syntax_action($action);
+		my $action_code = $self->compile_syntax_action($condition, $action);
 
 		$code .= "\t\t" if $first_item;
 		$code .= "if ($condition_code) { say 'in case $condition';$action_code\t\t} els";
@@ -149,14 +154,20 @@ sub compile_syntax_condition {
 }
 
 sub compile_syntax_action {
-	my ($self, $action) = @_;
-
+	my ($self, $condition, $action) = @_;
 	my @actions;
+
+	if (ref $condition eq 'ARRAY') {
+		push @actions, "\$self->next_token;" foreach 0 .. $#$condition;
+	} else {
+		push @actions, "\$self->next_token;";
+	}
+
 	if (defined $action->{follows}) {
 		push @actions, "\$self->confess_at_current_offset('$action->{else}') unless "
 			. $self->compile_syntax_condition($action->{follows}) . ';';
 
-		if (ref $action->{follows}) {
+		if (ref $action->{follows} eq 'ARRAY') {
 			push @actions, "\$self->next_token;" foreach 0 .. $#{$action->{follows}};
 		} else {
 			push @actions, "\$self->next_token;";
@@ -169,12 +180,33 @@ sub compile_syntax_action {
 		my @extract_items = @{$action->{extract}};
 		while (@extract_items) {
 			my $field = quotemeta shift @extract_items;
-			my $context_type = quotemeta shift @extract_items;
-			push @actions, "\$self->{current_context}{'$field'} = \$self->extract_context_result('$context_type');";
+			my $context_type = shift @extract_items;
+			if (ref $context_type eq 'ARRAY') {
+				$context_type = quotemeta $context_type->[0];
+				push @actions, "\$self->{current_context}{'$field'} = \$self->extract_context_result('$context_type', 'ARRAY');";
+			} else {
+				$context_type = quotemeta $context_type;
+				push @actions, "\$self->{current_context}{'$field'} = \$self->extract_context_result('$context_type');";
+			}
 		}
 	} elsif (defined $action->{extract_context}) {
 		my $context_type = quotemeta $action->{extract_context};
 		push @actions, "push \@{\$self->{current_context}{children}}, \$self->extract_context('$context_type');";
+	}
+
+	if (defined $action->{assign_last}) {
+		my @assign_items = @{$action->{assign_last}};
+		while (@assign_items) {
+			my $field = shift @assign_items;
+			my $value = shift @assign_items;
+			if (ref $field eq 'ARRAY') {
+				$field = quotemeta $field->[0];
+				push @actions, "push \@{\$self->{current_context}{children}[-1]{'$field'}}, $value;";
+			} else {
+				$field = quotemeta $field;
+				push @actions, "\$self->{current_context}{children}[-1]{'$field'} = $value;";
+			}
+		}
 	}
 
 	if (defined $action->{exit_context}) {
@@ -198,7 +230,7 @@ sub compile_syntax_action {
 		push @actions, "warn '$msg';";
 	}
 
-	return join ("\n\t\t\t", '', '$self->next_token;', @actions) . "\n";
+	return join ("\n\t\t\t", '', @actions) . "\n";
 }
 
 sub compile_syntax_default_action {
@@ -213,7 +245,11 @@ sub compile_syntax_default_action {
 		push @actions, "\$self->exit_context;";
 		$self->{context_default_case} = { die => 'unexpected token' } unless defined $self->{context_default_case};
 	} elsif (defined $action->{enter_context}) {
-		push @actions, "\$self->enter_context('$action->{enter_context}');";
+		my $context_type = quotemeta $action->{enter_context};
+		push @actions, "\$self->enter_context('$context_type');";
+	} elsif (defined $action->{switch_context}) {
+		my $context_type = quotemeta $action->{switch_context};
+		push @actions, "\$self->switch_context('$context_type');";
 	}
 
 	if (defined $action->{die}) {

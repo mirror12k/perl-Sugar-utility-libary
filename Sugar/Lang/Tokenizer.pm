@@ -117,8 +117,9 @@ sub is_token_type {
 sub is_token_val {
 	my ($self, $type, $val, $offset) = @_;
 	return 0 unless $self->more_tokens;
-	return (('*' eq $type or $self->{tokens}[$self->{tokens_index} + ($offset // 0)][0] eq $type) and
-			$self->{tokens}[$self->{tokens_index} + ($offset // 0)][1] eq $val)
+	my $token = $self->{tokens}[$self->{tokens_index} + ($offset // 0)];
+	return (('*' eq $type or $token->[0] eq $type) and
+			(ref $val ? $token->[1] =~ $val : $token->[1] eq $val))
 }
 
 sub assert_token_type {
