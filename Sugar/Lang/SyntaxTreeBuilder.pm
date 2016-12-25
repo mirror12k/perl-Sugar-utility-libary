@@ -83,20 +83,20 @@ sub extract_context_result {
 	return $result
 }
 
-sub extract_context {
-	my ($self, $context_type) = @_;
+# sub extract_context {
+# 	my ($self, $context_type) = @_;
 
-	my $previous_context = $self->{current_context};
-	$self->enter_context($context_type);
-	my $saved_context = $self->{current_context};
+# 	my $previous_context = $self->{current_context};
+# 	$self->enter_context($context_type);
+# 	my $saved_context = $self->{current_context};
 
-	while ($self->{current_context} != $previous_context) {
-		$self->{current_syntax_context}->($self);
-	}
-	$saved_context->{type} = $saved_context->{context_type};
-	delete $saved_context->{context_type};
-	return $saved_context
-}
+# 	while ($self->{current_context} != $previous_context) {
+# 		$self->{current_syntax_context}->($self);
+# 	}
+# 	$saved_context->{type} = $saved_context->{context_type};
+# 	delete $saved_context->{context_type};
+# 	return $saved_context
+# }
 
 sub into_context {
 	my ($self, $context_object) = @_;
@@ -120,8 +120,9 @@ sub compile_syntax_context {
 	my $code = '
 	sub {
 		my ($self) = @_;
-		say "in ' .$context_name. ' context";
 ';
+	# $code .= "\t\tsay 'in context $context_name';\n"; # DEBUG INLINE TREE BUILDER
+
 	my @items = @$context;
 	my $first_item = 1;
 	$self->{context_default_case} = undef;
@@ -135,8 +136,12 @@ sub compile_syntax_context {
 		my $action = shift @items;
 		my $action_code = $self->compile_syntax_action($condition, $action);
 
+		my $debug_code = '';
+		# $debug_code = "\n\t\t\tsay 'in case $condition';"; # DEBUG INLINE TREE BUILDER
+
+
 		$code .= "\t\t" if $first_item;
-		$code .= "if ($condition_code) { say 'in case $condition';$action_code\t\t} els";
+		$code .= "if ($condition_code) {$debug_code$action_code\t\t} els";
 
 		$first_item = 0;
 	}
@@ -149,7 +154,7 @@ sub compile_syntax_context {
 		return;
 	}
 ";
-	say "compiled code: ", $code;
+	# say "compiled code: ", $code; # DEBUG INLINE TREE BUILDER
 	return eval $code
 }
 
