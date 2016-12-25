@@ -157,21 +157,12 @@ sub compile_syntax_action {
 	my ($self, $condition, $action) = @_;
 	my @actions;
 
+	push @actions, "my \@tokens;";
+
 	if (ref $condition eq 'ARRAY') {
-		push @actions, "\$self->next_token;" foreach 0 .. $#$condition;
+		push @actions, "push \@tokens, \$self->next_token->[1];" foreach 0 .. $#$condition;
 	} else {
-		push @actions, "\$self->next_token;";
-	}
-
-	if (defined $action->{follows}) {
-		push @actions, "\$self->confess_at_current_offset('$action->{else}') unless "
-			. $self->compile_syntax_condition($action->{follows}) . ';';
-
-		if (ref $action->{follows} eq 'ARRAY') {
-			push @actions, "\$self->next_token;" foreach 0 .. $#{$action->{follows}};
-		} else {
-			push @actions, "\$self->next_token;";
-		}
+		push @actions, "push \@tokens, \$self->next_token->[1];";
 	}
 
 	if (defined $action->{spawn}) {
