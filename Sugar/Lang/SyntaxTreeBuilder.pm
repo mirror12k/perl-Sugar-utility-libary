@@ -166,7 +166,7 @@ sub compile_syntax_action {
 	}
 
 	if (defined $action->{spawn}) {
-		push @actions, "push \@{\$self->{current_context}{children}}, $action->{spawn};";
+		push @actions, "push \@{\$self->{current_context}{children}}, " . $self->compile_syntax_spawn_expression($action->{spawn}) . ";";
 	} elsif (defined $action->{extract}) {
 		my @extract_items = @{$action->{extract}};
 		while (@extract_items) {
@@ -252,6 +252,38 @@ sub compile_syntax_default_action {
 	}
 
 	return join ("\n\t\t\t", '', @actions) . "\n";
+}
+
+sub compile_syntax_spawn_expression {
+	my ($self, $expression) = @_;
+	if (ref $expression eq 'ARRAY') {
+		my $code = "{ ";
+		my @items = @$expression;
+		while (@items) {
+			my $field = quotemeta shift @items;
+			my $value = shift @items;
+			$code .= "'$field' => " . $self->compile_syntax_spawn_sub_expression($value) . ", ";
+		}
+		$code .= "}";
+		return $code
+	} else {
+		return $self->compile_syntax_spawn_sub_expression($expression)
+	}
+}
+
+sub compile_syntax_spawn_sub_expression {
+	my ($self, $expression) = @_;
+
+	if ($expression =~ /\A\&([a-zA-Z_][a-zA-Z_0-9]*)\Z/) {
+		return "\$self->extract_context('$1')";
+	} elsif ($expression =~ /\A\$previous_spawn\Z/) {
+		return "pop \@{\$self->{current_context}{children}}";
+	} elsif ($expression =~ /\A\$tokens\[(\d+)\]\Z/) {
+		return "\$tokens[$1]";
+	} else {
+		my $value = quotemeta $expression;
+		return "'$value'";
+	}
 }
 
 1;
