@@ -117,7 +117,7 @@ sub is_token_type {
 sub is_token_val {
 	my ($self, $type, $val, $offset) = @_;
 	return 0 unless $self->more_tokens;
-	return ($self->{tokens}[$self->{tokens_index} + ($offset // 0)][0] eq $type and
+	return (('*' eq $type or $self->{tokens}[$self->{tokens_index} + ($offset // 0)][0] eq $type) and
 			$self->{tokens}[$self->{tokens_index} + ($offset // 0)][1] eq $val)
 }
 

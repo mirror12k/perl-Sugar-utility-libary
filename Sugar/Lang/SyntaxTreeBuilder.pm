@@ -36,7 +36,7 @@ sub parse {
 sub enter_context {
 	my ($self, $context_type) = @_;
 
-	my $new_context = { type => $context_type };
+	my $new_context = { type => 'context', context_type => $context_type };
 	push @{$self->{current_context}{children}}, $new_context;
 	push @{$self->{context_stack}}, $self->{current_context};
 	$self->{current_context} = $new_context;
@@ -57,6 +57,7 @@ sub compile_syntax_context {
 	my $code = '
 	sub {
 		my ($self) = @_;
+		say "in ' .$context_name. ' context";
 ';
 	my @items = @$context;
 	my $first_item = 1;
@@ -72,7 +73,7 @@ sub compile_syntax_context {
 		my $action_code = $self->compile_syntax_action($action);
 
 		$code .= "\t\t" if $first_item;
-		$code .= "if ($condition_code) {$action_code\t\t} els";
+		$code .= "if ($condition_code) { say 'in case $condition';$action_code\t\t} els";
 
 		$first_item = 0;
 	}
@@ -90,8 +91,19 @@ sub compile_syntax_context {
 }
 
 sub compile_syntax_condition {
-	my ($self, $condition) = @_;
-	return "\$self->is_token_val('*' => '$condition')"
+	my ($self, $condition, $offset) = @_;
+	$offset //= 0;
+	if (ref $condition eq 'ARRAY') {
+		my @conditions = @$condition;
+		foreach my $i (0 .. $#conditions) {
+			$conditions[$i] = $self->compile_syntax_condition($conditions[$i], $i);
+		}
+		return join ' and ', @conditions
+	} elsif (ref $condition eq 'Regexp') {
+		return "\$self->is_token_val('*' => qr/$condition/, $offset)"
+	} else {
+		return "\$self->is_token_val('*' => '$condition', $offset)"
+	}
 }
 
 sub compile_syntax_action {
