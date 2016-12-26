@@ -69,23 +69,34 @@ sub new {
 			],
 		],
 		context_definition => [
-			'[' => [
-				spawn => [ '&match_list' ],
-				spawn => [ '&enter_match_action' ]
-			],
 			'}' => [
 				'exit_context',
 			],
+			undef
+				=> [
+					spawn => [ '&match_list' ],
+					spawn => [ '&enter_match_action' ]
+				]
 		],
+
 		match_list => [
-			[ $string_regex, ',' ] => [
+			$string_regex => [
 				spawn => '$0',
+				switch_context => 'match_list_more',
 			],
-			[ $string_regex, ']' ] => [
-				spawn => '$0',
-				'exit_context',
-			],
+			undef
+				=> [
+					die => 'unexpected end of match list',
+				],
 		],
+		match_list_more => [
+			',' => [
+				switch_context => 'match_list',
+			],
+			undef
+				=> [ 'exit_context' ]
+		],
+
 		enter_match_action => [
 			'{' => [
 				switch_context => 'match_action',
