@@ -256,7 +256,9 @@ sub compile_syntax_action {
 
 sub compile_syntax_spawn_expression {
 	my ($self, $expression) = @_;
-	if (ref $expression eq 'ARRAY' and @$expression == 1) {
+	if (not defined $expression) {
+		return 'undef'
+	} elsif (ref $expression eq 'ARRAY' and @$expression == 1) {
 		my $context_type = $expression->[0] =~ s/'/\\'/gr =~ s/\A\&//r;
 		return "\$self->extract_context_result('$context_type', 'ARRAY')"
 	} elsif (ref $expression eq 'ARRAY') {
@@ -277,14 +279,16 @@ sub compile_syntax_spawn_expression {
 sub compile_syntax_spawn_sub_expression {
 	my ($self, $expression) = @_;
 
-	if ($expression =~ /\A\&([a-zA-Z_][a-zA-Z_0-9]*)\Z/) {
+	if (not defined $expression) {
+		return "undef";
+	} elsif ($expression =~ /\A\&([a-zA-Z_][a-zA-Z_0-9]*)\Z/) {
 		return "\$self->extract_context_result('$1')";
 	} elsif ($expression =~ /\A\$previous_spawn\Z/) {
 		return "pop \@{\$self->{current_context}{children}}";
 	} elsif ($expression =~ /\A\$(\d+)\Z/) {
 		return "\$tokens[$1]";
 	} else {
-		my $value = quotemeta $expression;
+		my $value = $expression =~ s/\\(.)/$1/gr;
 		return "'$value'";
 	}
 }
