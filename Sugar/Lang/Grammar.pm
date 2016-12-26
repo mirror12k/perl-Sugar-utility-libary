@@ -17,7 +17,7 @@ our @keywords = qw/
 	root
 
 	default
-	
+
 	assign
 	spawn
 	respawn
@@ -25,6 +25,7 @@ our @keywords = qw/
 	switch_context
 	exit_context
 
+	undef
 /;
 our $keyword_chain = join '|', map quotemeta, @keywords;
 our $keywords_regex = qr/\b$keyword_chain\b/;
@@ -111,6 +112,10 @@ sub new {
 				=> [ die => "expected '{' after match directive" ],
 		],
 		match_action => [
+			'spawn' => [
+				spawn => 'spawn',
+				nest_context => 'spawn_expression',
+			],
 			[ 'enter_context', $variable_regex ] => [
 				spawn => 'enter_context',
 				spawn => '$1',
@@ -122,11 +127,42 @@ sub new {
 			'exit_context' => [
 				spawn => 'exit_context',
 			],
+			[ 'warn', $string_regex ] => [
+				spawn => 'warn',
+				spawn => '$1',
+			],
+			[ 'die', $string_regex ] => [
+				spawn => 'die',
+				spawn => '$1',
+			],
 			'}' => [
 				'exit_context',
 			],
 			undef
 				=> [ die => "expected '}' to close match actions list" ],
+		],
+		spawn_expression => [
+			qr/\$\d++/ => [
+				spawn => '$0',
+				'exit_context',
+			],
+			qr/\&\w++/ => [
+				spawn => '$0',
+				'exit_context',
+			],
+			'undef' => [
+				spawn => undef,
+				'exit_context',
+			],
+			$string_regex => [
+				spawn => '$0',
+				'exit_context',
+			],
+			# '$previous' => [
+			# 	spawn => '$0',
+			# ],
+			undef
+				=> [ die => "expression expected" ],
 		],
 	};
 

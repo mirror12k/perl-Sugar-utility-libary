@@ -51,6 +51,17 @@ sub enter_context {
 	# $self->{current_syntax_context} = $self->{syntax_definition}{$self->{current_context}{context_type}};
 }
 
+sub nest_context {
+	my ($self, $context_type) = @_;
+
+	$self->{current_context}{children} //= [];
+	my $new_context = { type => 'context', context_type => $context_type, children => $self->{current_context}{children} };
+	# push @{$self->{current_context}{children}}, $new_context;
+	push @{$self->{context_stack}}, $self->{current_context};
+	$self->{current_context} = $new_context;
+	# $self->{current_syntax_context} = $self->{syntax_definition}{$self->{current_context}{context_type}};
+}
+
 sub exit_context {
 	my ($self) = @_;
 	confess 'attempt to exit root context' if $self->{current_context}{context_type} eq 'root';
@@ -236,6 +247,9 @@ sub compile_syntax_action {
 		} elsif ($action eq 'switch_context') {
 			my $context_type = quotemeta shift @actions;
 			push @code, "\$self->switch_context('$context_type');";
+		} elsif ($action eq 'nest_context') {
+			my $context_type = quotemeta shift @actions;
+			push @code, "\$self->nest_context('$context_type');";
 		}
 
 		if ($action eq 'die') {
