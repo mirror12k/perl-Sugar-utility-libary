@@ -6,6 +6,11 @@ use warnings;
 
 use feature 'say';
 
+use Data::Dumper;
+
+use Sugar::IO::File;
+
+
 
 our @keywords = qw/
 	context
@@ -22,11 +27,11 @@ our @keywords = qw/
 our $keyword_chain = join '|', map quotemeta, @keywords;
 our $keywords_regex = qr/\b$keyword_chain\b/;
 
-our @symbols = qw/
-	{ } => =
-/;
+our @symbols = (qw/
+	{ } [ ] => =
+/, ',');
 our $symbol_chain = join '|', map quotemeta, @symbols;
-our $symbols_regex = qr/\b$symbol_chain\b/;
+our $symbols_regex = qr/$symbol_chain/;
 
 our $string_regex = qr/'([^\\']|\\[\\'])*+'/s;
 our $variable_regex = qr/[\$\&]\w++/;
@@ -54,18 +59,47 @@ sub new {
 	$args{syntax_definition} = {
 		root => [
 			[ 'context', $identifier_regex, '{' ] => [
-				spawn_into_context => [
-					type => 'context',
-					rule_name => '$1',
-					context_type => 'context_definition',
-				],
+				spawn => '$1',
+				spawn => [ '&context_definition' ],
+				# spawn_into_context => [
+				# 	type => 'context',
+				# 	context_name => '$1',
+				# 	context_type => 'context_definition',
+				# ],
 			],
 		],
-		# context_definition => [
-		# 	[$string_regex] => {
-
-		# 	},
-		# ],
+		context_definition => [
+			'[' => [
+				spawn => [ '&match_list' ],
+				spawn => [ '&enter_match_action' ]
+			],
+			'}' => [
+				'exit_context',
+			],
+		],
+		match_list => [
+			[ $string_regex, ',' ] => [
+				spawn => '$0',
+			],
+			[ $string_regex, ']' ] => [
+				spawn => '$0',
+				'exit_context',
+			],
+		],
+		enter_match_action => [
+			'{' => [
+				switch_context => 'match_action',
+			],
+			undef
+				=> [ die => "expected '{' after match directive" ],
+		],
+		match_action => [
+			'}' => [
+				'exit_context',
+			],
+			undef
+				=> [ die => "expected '}' to close match actions list" ],
+		],
 	};
 
 	my $self = $class->SUPER::new(%args);
@@ -75,6 +109,10 @@ sub new {
 
 sub main {
 	my $parser = Sugar::Lang::Grammar->new;
+	foreach my $file (@_) {
+		$parser->{filepath} = Sugar::IO::File->new($file);
+		say Dumper $parser->parse;
+	}
 }
 
 caller or main(@ARGV);

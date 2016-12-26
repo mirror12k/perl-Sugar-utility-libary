@@ -30,10 +30,12 @@ sub parse {
 	$self->{current_context} = { type => 'context', context_type => 'root' };
 	$self->{syntax_tree} = $self->{current_context};
 	$self->{context_stack} = [];
-	$self->{current_syntax_context} = $self->{syntax_definition}{$self->{current_context}{context_type}};
+	# $self->{current_syntax_context} = $self->{syntax_definition}{$self->{current_context}{context_type}};
 
 	while ($self->more_tokens) {
-		$self->{current_syntax_context}->($self);
+		confess "undefined context_type referenced '$self->{current_context}{context_type}'"
+				unless defined $self->{syntax_definition}{$self->{current_context}{context_type}};
+		$self->{syntax_definition}{$self->{current_context}{context_type}}->($self);
 	}
 
 	return $self->{syntax_tree}
@@ -46,7 +48,7 @@ sub enter_context {
 	# push @{$self->{current_context}{children}}, $new_context;
 	push @{$self->{context_stack}}, $self->{current_context};
 	$self->{current_context} = $new_context;
-	$self->{current_syntax_context} = $self->{syntax_definition}{$self->{current_context}{context_type}};
+	# $self->{current_syntax_context} = $self->{syntax_definition}{$self->{current_context}{context_type}};
 }
 
 sub exit_context {
@@ -54,7 +56,7 @@ sub exit_context {
 	confess 'attempt to exit root context' if $self->{current_context}{context_type} eq 'root';
 
 	$self->{current_context} = pop @{$self->{context_stack}};
-	$self->{current_syntax_context} = $self->{syntax_definition}{$self->{current_context}{context_type}};
+	# $self->{current_syntax_context} = $self->{syntax_definition}{$self->{current_context}{context_type}};
 }
 
 sub switch_context {
@@ -62,7 +64,7 @@ sub switch_context {
 	confess 'attempt to switch context on root context' if $self->{current_context}{context_type} eq 'root';
 
 	$self->{current_context}{context_type} = $context_type;
-	$self->{current_syntax_context} = $self->{syntax_definition}{$self->{current_context}{context_type}};
+	# $self->{current_syntax_context} = $self->{syntax_definition}{$self->{current_context}{context_type}};
 }
 
 sub extract_context_result {
@@ -74,11 +76,13 @@ sub extract_context_result {
 
 	while ($self->{current_context} != $previous_context) {
 		# say "debug", Dumper $self->{current_context};
-		$self->{current_syntax_context}->($self);
+		confess "undefined context_type referenced '$self->{current_context}{context_type}'"
+				unless defined $self->{syntax_definition}{$self->{current_context}{context_type}};
+		$self->{syntax_definition}{$self->{current_context}{context_type}}->($self);
 	}
 	my $result;
 	if (defined $modifier and $modifier eq 'ARRAY') {
-		$result = [ @{$saved_context->{children}} ];
+		$result = [ @{$saved_context->{children} // []} ];
 	} else {
 		($result) = @{$saved_context->{children}};
 	}
@@ -108,10 +112,12 @@ sub into_context {
 	my $previous_context = $self->{current_context};
 	push @{$self->{context_stack}}, $self->{current_context};
 	$self->{current_context} = $context_object;
-	$self->{current_syntax_context} = $self->{syntax_definition}{$self->{current_context}{context_type}};
+	# $self->{current_syntax_context} = $self->{syntax_definition}{$self->{current_context}{context_type}};
 
 	while ($self->{current_context} != $previous_context) {
-		$self->{current_syntax_context}->($self);
+		confess "undefined context_type referenced '$self->{current_context}{context_type}'"
+				unless defined $self->{syntax_definition}{$self->{current_context}{context_type}};
+		$self->{syntax_definition}{$self->{current_context}{context_type}}->($self);
 	}
 
 	return $context_object
@@ -140,7 +146,7 @@ sub compile_syntax_context {
 		my $action_code = $self->compile_syntax_action($condition, $action);
 
 		my $debug_code = '';
-		$debug_code = "\n\t\t\tsay 'in case " . (ref $condition ? join ', ', @$condition : $condition) =~ s/'/\\'/gr . "';"; # DEBUG INLINE TREE BUILDER
+		$debug_code = "\n\t\t\tsay 'in case " . (ref $condition eq 'ARRAY' ? join ', ', @$condition : $condition) =~ s/'/\\'/gr . "';"; # DEBUG INLINE TREE BUILDER
 
 
 		$code .= "\t\t" if $first_item;
@@ -196,7 +202,7 @@ sub compile_syntax_action {
 	} elsif (defined $condition) {
 		push @code, "push \@tokens, \$self->next_token->[1];";
 	}
-
+	
 	my @actions = @$actions_list;
 	while (@actions) {
 		my $action = shift @actions;
@@ -223,7 +229,7 @@ sub compile_syntax_action {
 
 		if ($action eq 'exit_context') {
 			push @code, "\$self->exit_context;";
-			$self->{context_default_case} = { die => 'unexpected token' } unless defined $self->{context_default_case};
+			$self->{context_default_case} = [ die => 'unexpected token' ] unless defined $self->{context_default_case};
 		} elsif ($action eq 'enter_context') {
 			my $context_type = quotemeta shift @actions;
 			push @code, "\$self->enter_context('$context_type');";
@@ -251,7 +257,7 @@ sub compile_syntax_action {
 sub compile_syntax_spawn_expression {
 	my ($self, $expression) = @_;
 	if (ref $expression eq 'ARRAY' and @$expression == 1) {
-		my $context_type = quotemeta $expression->[0];
+		my $context_type = $expression->[0] =~ s/'/\\'/gr =~ s/\A\&//r;
 		return "\$self->extract_context_result('$context_type', 'ARRAY')"
 	} elsif (ref $expression eq 'ARRAY') {
 		my $code = "{ ";
