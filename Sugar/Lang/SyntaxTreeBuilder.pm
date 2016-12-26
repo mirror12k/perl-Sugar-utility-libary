@@ -27,7 +27,7 @@ sub parse {
 	my ($self) = @_;
 	$self->SUPER::parse;
 
-	$self->{current_context} = { type => 'context', context_type => 'root_context' };
+	$self->{current_context} = { type => 'context', context_type => 'root' };
 	$self->{syntax_tree} = $self->{current_context};
 	$self->{context_stack} = [];
 	$self->{current_syntax_context} = $self->{syntax_definition}{$self->{current_context}{context_type}};
@@ -51,7 +51,7 @@ sub enter_context {
 
 sub exit_context {
 	my ($self) = @_;
-	confess 'attempt to exit root context' if $self->{current_context}{context_type} eq 'root_context';
+	confess 'attempt to exit root context' if $self->{current_context}{context_type} eq 'root';
 
 	$self->{current_context} = pop @{$self->{context_stack}};
 	$self->{current_syntax_context} = $self->{syntax_definition}{$self->{current_context}{context_type}};
@@ -59,7 +59,7 @@ sub exit_context {
 
 sub switch_context {
 	my ($self, $context_type) = @_;
-	confess 'attempt to switch context on root context' if $self->{current_context}{context_type} eq 'root_context';
+	confess 'attempt to switch context on root context' if $self->{current_context}{context_type} eq 'root';
 
 	$self->{current_context}{context_type} = $context_type;
 	$self->{current_syntax_context} = $self->{syntax_definition}{$self->{current_context}{context_type}};
@@ -124,7 +124,7 @@ sub compile_syntax_context {
 	sub {
 		my ($self) = @_;
 ';
-	# $code .= "\t\tsay 'in context $context_name';\n"; # DEBUG INLINE TREE BUILDER
+	$code .= "\t\tsay 'in context $context_name';\n"; # DEBUG INLINE TREE BUILDER
 
 	my @items = @$context;
 	my $first_item = 1;
@@ -140,7 +140,7 @@ sub compile_syntax_context {
 		my $action_code = $self->compile_syntax_action($condition, $action);
 
 		my $debug_code = '';
-		# $debug_code = "\n\t\t\tsay 'in case $condition';"; # DEBUG INLINE TREE BUILDER
+		$debug_code = "\n\t\t\tsay 'in case " . (ref $condition ? join ', ', @$condition : $condition) =~ s/'/\\'/gr . "';"; # DEBUG INLINE TREE BUILDER
 
 
 		$code .= "\t\t" if $first_item;
@@ -149,7 +149,7 @@ sub compile_syntax_context {
 		$first_item = 0;
 	}
 
-	$self->{context_default_case} //= { exit_context => 1 };
+	$self->{context_default_case} //= [ 'exit_context' ];
 	my $action_code = $self->compile_syntax_action(undef, $self->{context_default_case});
 	unless ($first_item) {
 		$code .= "e {$action_code\t\t}\n";
@@ -161,7 +161,7 @@ sub compile_syntax_context {
 		return;
 	}
 ";
-	# say "compiled code: ", $code; # DEBUG INLINE TREE BUILDER
+	say "compiled code: ", $code; # DEBUG INLINE TREE BUILDER
 	my $compiled = eval $code;
 	if ($@) {
 		confess "error compiling context type '$context_name': $@";
@@ -186,124 +186,67 @@ sub compile_syntax_condition {
 }
 
 sub compile_syntax_action {
-	my ($self, $condition, $action) = @_;
-	my @actions;
+	my ($self, $condition, $actions_list) = @_;
 
-	push @actions, "my \@tokens;";
+	my @code;
+	push @code, "my \@tokens;";
 
 	if (defined $condition and ref $condition eq 'ARRAY') {
-		push @actions, "push \@tokens, \$self->next_token->[1];" foreach 0 .. $#$condition;
+		push @code, "push \@tokens, \$self->next_token->[1];" foreach 0 .. $#$condition;
 	} elsif (defined $condition) {
-		push @actions, "push \@tokens, \$self->next_token->[1];";
+		push @code, "push \@tokens, \$self->next_token->[1];";
 	}
 
-	if (defined $action->{spawn}) {
-		push @actions, "push \@{\$self->{current_context}{children}}, " . $self->compile_syntax_spawn_expression($action->{spawn}) . ";";
-	} elsif (defined $action->{spawn_into_context}) {
-		push @actions, "push \@{\$self->{current_context}{children}}, \$self->into_context("
-				. $self->compile_syntax_spawn_expression($action->{spawn_into_context}) . ");";
-	} elsif (defined $action->{assign}) {
-		my @assign_items = @{$action->{assign}};
-		while (@assign_items) {
-			my $field = shift @assign_items;
-			my $value = shift @assign_items;
-			if (ref $field eq 'ARRAY') {
-				$field = quotemeta $field->[0];
-				push @actions, "push \@{\$self->{current_context}{'$field'}}, " . $self->compile_syntax_spawn_expression($value) . ";";
-			} else {
-				$field = quotemeta $field;
-				push @actions, "\$self->{current_context}{'$field'} = " . $self->compile_syntax_spawn_expression($value) . ";";
+	my @actions = @$actions_list;
+	while (@actions) {
+		my $action = shift @actions;
+
+		if ($action eq 'spawn') {
+			push @code, "push \@{\$self->{current_context}{children}}, " . $self->compile_syntax_spawn_expression(shift @actions) . ";";
+		} elsif ($action eq 'spawn_into_context') {
+			push @code, "push \@{\$self->{current_context}{children}}, \$self->into_context("
+					. $self->compile_syntax_spawn_expression(shift @actions) . ");";
+		} elsif ($action eq 'assign') {
+			my @assign_items = @{shift @actions};
+			while (@assign_items) {
+				my $field = shift @assign_items;
+				my $value = shift @assign_items;
+				if (ref $field eq 'ARRAY') {
+					$field = quotemeta $field->[0];
+					push @code, "push \@{\$self->{current_context}{'$field'}}, " . $self->compile_syntax_spawn_expression($value) . ";";
+				} else {
+					$field = quotemeta $field;
+					push @code, "\$self->{current_context}{'$field'} = " . $self->compile_syntax_spawn_expression($value) . ";";
+				}
 			}
 		}
-	}
-	# elsif (defined $action->{extract}) {
-	# 	my @extract_items = @{$action->{extract}};
-	# 	while (@extract_items) {
-	# 		my $field = quotemeta shift @extract_items;
-	# 		my $context_type = shift @extract_items;
-	# 		if (ref $context_type eq 'ARRAY') {
-	# 			$context_type = quotemeta $context_type->[0];
-	# 			push @actions, "\$self->{current_context}{'$field'} = \$self->extract_context_result('$context_type', 'ARRAY');";
-	# 		} else {
-	# 			$context_type = quotemeta $context_type;
-	# 			push @actions, "\$self->{current_context}{'$field'} = \$self->extract_context_result('$context_type');";
-	# 		}
-	# 	}
-	# } elsif (defined $action->{extract_context}) {
-	# 	my $context_type = quotemeta $action->{extract_context};
-	# 	push @actions, "push \@{\$self->{current_context}{children}}, \$self->extract_context('$context_type');";
-	# }
 
-	# if (defined $action->{assign_last}) {
-	# 	my @assign_items = @{$action->{assign_last}};
-	# 	while (@assign_items) {
-	# 		my $field = shift @assign_items;
-	# 		my $value = shift @assign_items;
-	# 		if (ref $field eq 'ARRAY') {
-	# 			$field = quotemeta $field->[0];
-	# 			push @actions, "push \@{\$self->{current_context}{children}[-1]{'$field'}}, $value;";
-	# 		} else {
-	# 			$field = quotemeta $field;
-	# 			push @actions, "\$self->{current_context}{children}[-1]{'$field'} = $value;";
-	# 		}
-	# 	}
-	# }
+		if ($action eq 'exit_context') {
+			push @code, "\$self->exit_context;";
+			$self->{context_default_case} = { die => 'unexpected token' } unless defined $self->{context_default_case};
+		} elsif ($action eq 'enter_context') {
+			my $context_type = quotemeta shift @actions;
+			push @code, "\$self->enter_context('$context_type');";
+		} elsif ($action eq 'switch_context') {
+			my $context_type = quotemeta shift @actions;
+			push @code, "\$self->switch_context('$context_type');";
+		}
 
-	if (defined $action->{exit_context}) {
-		push @actions, "\$self->exit_context;";
-		$self->{context_default_case} = { die => 'unexpected token' } unless defined $self->{context_default_case};
-	} elsif (defined $action->{enter_context}) {
-		my $context_type = quotemeta $action->{enter_context};
-		push @actions, "\$self->enter_context('$context_type');";
-	} elsif (defined $action->{switch_context}) {
-		my $context_type = quotemeta $action->{switch_context};
-		push @actions, "\$self->switch_context('$context_type');";
+		if ($action eq 'die') {
+			my $msg = quotemeta shift @actions;
+			push @code, "\$self->confess_at_current_offset('$msg');";
+		}
+
+		if ($action eq 'warn') {
+			my $msg = quotemeta shift @actions;
+			push @code, "warn '$msg';";
+		}
 	}
 
-	if (defined $action->{die}) {
-		my $msg = quotemeta $action->{die};
-		push @actions, "\$self->confess_at_current_offset('$msg');";
-	}
 
-	if (defined $action->{warn}) {
-		my $msg = quotemeta $action->{warn};
-		push @actions, "warn '$msg';";
-	}
 
-	return join ("\n\t\t\t", '', @actions) . "\n";
+	return join ("\n\t\t\t", '', @code) . "\n";
 }
-
-# sub compile_syntax_default_action {
-# 	my ($self, $action) = @_;
-
-# 	my @actions;
-# 	if (defined $action->{spawn}) {
-# 		push @actions, "push \@{\$self->{current_context}{children}}, $action->{spawn};";
-# 	}
-
-# 	if (defined $action->{exit_context}) {
-# 		push @actions, "\$self->exit_context;";
-# 		$self->{context_default_case} = { die => 'unexpected token' } unless defined $self->{context_default_case};
-# 	} elsif (defined $action->{enter_context}) {
-# 		my $context_type = quotemeta $action->{enter_context};
-# 		push @actions, "\$self->enter_context('$context_type');";
-# 	} elsif (defined $action->{switch_context}) {
-# 		my $context_type = quotemeta $action->{switch_context};
-# 		push @actions, "\$self->switch_context('$context_type');";
-# 	}
-
-# 	if (defined $action->{die}) {
-# 		my $msg = quotemeta $action->{die};
-# 		push @actions, "\$self->confess_at_current_offset('$msg');";
-# 	}
-
-# 	if (defined $action->{warn}) {
-# 		my $msg = quotemeta $action->{warn};
-# 		push @actions, "warn '$msg';";
-# 	}
-
-# 	return join ("\n\t\t\t", '', @actions) . "\n";
-# }
 
 sub compile_syntax_spawn_expression {
 	my ($self, $expression) = @_;
@@ -332,7 +275,7 @@ sub compile_syntax_spawn_sub_expression {
 		return "\$self->extract_context_result('$1')";
 	} elsif ($expression =~ /\A\$previous_spawn\Z/) {
 		return "pop \@{\$self->{current_context}{children}}";
-	} elsif ($expression =~ /\A\$tokens\[(\d+)\]\Z/) {
+	} elsif ($expression =~ /\A\$(\d+)\Z/) {
 		return "\$tokens[$1]";
 	} else {
 		my $value = quotemeta $expression;
