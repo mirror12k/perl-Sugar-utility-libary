@@ -38,7 +38,7 @@ our $symbol_chain = join '|', map quotemeta, @symbols;
 our $symbols_regex = qr/$symbol_chain/;
 
 our $string_regex = qr/'([^\\']|\\[\\'])*+'/s;
-our $regex_regex = qr#/([^\\/]|\\.)*+/#s;
+our $regex_regex = qr#/([^\\/]|\\.)*+/[msixpodualn]*#s;
 our $variable_regex = qr/\$\w++/;
 our $context_reference_regex = qr/\!\w++/;
 our $identifier_regex = qr/[a-zA-Z_][a-zA-Z0-9_]*+/;
@@ -65,6 +65,9 @@ sub new {
 	$args{ignored_tokens} = [qw/ comment whitespace /];
 
 	$args{syntax_definition_intermediate} = {
+		variables => {
+			regex_regex => "/\\/([^\\\\\\/]|\\\\.)*?\\/[msixpodualn]*/",
+		},
 		contexts => {
 			root => [
 				[ "/$identifier_regex/", "'='" ] => [
@@ -83,7 +86,7 @@ sub new {
 					spawn => '$0',
 					'exit_context'
 				],
-				"/\\/([^\\\\\\/]|\\\\.)*?\\//" => [
+				"\$regex_regex" => [
 					spawn => '$0',
 					'exit_context',
 				],
@@ -106,10 +109,10 @@ sub new {
 			],
 
 			match_list => [
-				[ "/\\/([^\\\\\\/]|\\\\.)*?\\//", "','" ] => [
+				[ "\$regex_regex", "','" ] => [
 					spawn => '$0',
 				],
-				"/\\/([^\\\\\\/]|\\\\.)*?\\//" => [
+				"\$regex_regex" => [
 					spawn => '$0',
 					'exit_context',
 				],

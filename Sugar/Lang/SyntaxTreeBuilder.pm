@@ -39,6 +39,12 @@ sub parse {
 	return $self->{syntax_tree}
 }
 
+sub get_variable {
+	my ($self, $identifier) = @_;
+	confess "undefined variable requested: '$identifier'" unless exists $self->{syntax_definition_intermediate}{variables}{$identifier};
+	return $self->{syntax_definition_intermediate}{variables}{$identifier}
+}
+
 sub get_context {
 	my ($self, $value) = @_;
 	if ($value =~ /\A\!(\w++)\Z/) {
@@ -202,8 +208,11 @@ sub compile_syntax_condition {
 	} elsif (ref $condition eq 'Regexp') {
 		$condition =~ s#/#\\/#g;
 		return "\$self->is_token_val('*' => qr/$condition/, $offset)"
-	} elsif ($condition =~ m#\A/.*/\Z#s) {
-		return "\$self->is_token_val('*' => qr$condition, $offset)"
+	} elsif ($condition =~ m#\A\$(\w++)\Z#s) {
+		my $value = $self->get_variable($1);
+		return $self->compile_syntax_condition($value)
+	} elsif ($condition =~ m#\A/(.*)/([msixpodualn]*)\Z#s) {
+		return "\$self->is_token_val('*' => qr/\\A$1\\Z/$2, $offset)"
 	} elsif ($condition =~ /\A'.*'\Z/s) {
 		return "\$self->is_token_val('*' => $condition, $offset)"
 	} else {
