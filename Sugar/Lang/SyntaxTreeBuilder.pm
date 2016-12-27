@@ -43,7 +43,7 @@ sub parse {
 
 sub get_context {
 	my ($self, $value) = @_;
-	if ($value =~ /\A\&(\w++)\Z/) {
+	if ($value =~ /\A\!(\w++)\Z/) {
 		my $context_type = $1;
 		confess "undefined context requested: '$context_type'" unless defined $self->{syntax_definition}{$context_type};
 		return $context_type
@@ -250,13 +250,14 @@ sub compile_syntax_action {
 		}
 
 		if ($action eq 'die') {
-			my $msg = shift (@actions) =~ s/(['\\])/\\$1/gr;
-			push @code, "\$self->confess_at_current_offset('$msg');";
+			# my $msg = shift (@actions) =~ s/(['\\])/\\$1/gr;
+			push @code, "\$self->confess_at_current_offset(" . $self->compile_syntax_spawn_sub_expression(shift @actions) . ");";
+			# push @code, "\$self->confess_at_current_offset('$msg');";
 		}
 
 		if ($action eq 'warn') {
-			my $msg = shift (@actions) =~ s/(['\\])/\\$1/gr;
-			push @code, "warn '$msg';";
+			# my $msg = shift (@actions) =~ s/(['\\])/\\$1/gr;
+			push @code, "warn " . $self->compile_syntax_spawn_sub_expression(shift @actions) . ";";
 		}
 	}
 
@@ -270,7 +271,7 @@ sub compile_syntax_spawn_expression {
 	if (not defined $expression) {
 		return 'undef'
 	} elsif (ref $expression eq 'ARRAY' and @$expression == 1) {
-		my $context_type = $expression->[0] =~ s/'/\\'/gr =~ s/\A\&//r;
+		my $context_type = $expression->[0] =~ s/'/\\'/gr =~ s/\A\!//r;
 		return "\$self->extract_context_result('$context_type', 'ARRAY')"
 	} elsif (ref $expression eq 'ARRAY') {
 		my $code = "{ ";
@@ -292,14 +293,14 @@ sub compile_syntax_spawn_sub_expression {
 
 	if (not defined $expression) {
 		return "undef";
-	} elsif ($expression =~ /\A\&([a-zA-Z_][a-zA-Z_0-9]*)\Z/) {
+	} elsif ($expression =~ /\A\!([a-zA-Z_][a-zA-Z_0-9]*)\Z/) {
 		return "\$self->extract_context_result('$1')";
 	} elsif ($expression =~ /\A\$previous_spawn\Z/) {
 		return "pop \@{\$self->{current_context}{children}}";
 	} elsif ($expression =~ /\A\$(\d+)\Z/) {
 		return "\$tokens[$1]";
 	} elsif ($expression =~ /\A'(.*)'\Z/s) {
-		my $value = $1 =~ s/\\(.)/$1/gr;
+		my $value = $1;
 		return "'$value'";
 	} else {
 		confess "invalid spawn expression: '$expression'";

@@ -37,7 +37,7 @@ our $symbol_chain = join '|', map quotemeta, @symbols;
 our $symbols_regex = qr/$symbol_chain/;
 
 our $string_regex = qr/'([^\\']|\\[\\'])*+'/s;
-our $variable_regex = qr/[\$\&]\w++/;
+our $variable_regex = qr/[\$\!]\w++/;
 our $identifier_regex = qr/[a-zA-Z_][a-zA-Z0-9_]*+/;
 
 our $comment_regex = qr/\#[^\n]*+\n/s;
@@ -63,7 +63,7 @@ sub new {
 		root => [
 			[ 'context', $identifier_regex, '{' ] => [
 				spawn => '$1',
-				spawn => [ '&context_definition' ],
+				spawn => [ '!context_definition' ],
 			],
 		],
 		context_definition => [
@@ -72,28 +72,28 @@ sub new {
 			],
 			'default' => [
 				spawn => undef,
-				spawn => [ '&enter_match_action' ],
+				spawn => [ '!enter_match_action' ],
 			],
 			undef
 				=> [
-					spawn => [ '&match_list' ],
-					spawn => [ '&enter_match_action' ],
+					spawn => [ '!match_list' ],
+					spawn => [ '!enter_match_action' ],
 				]
 		],
 
 		match_list => [
 			$string_regex => [
 				spawn => '$0',
-				switch_context => '&match_list_more',
+				switch_context => '!match_list_more',
 			],
 			undef
 				=> [
-					die => 'unexpected end of match list',
+					die => "'unexpected end of match list'",
 				],
 		],
 		match_list_more => [
 			',' => [
-				switch_context => '&match_list',
+				switch_context => '!match_list',
 			],
 			undef
 				=> [ 'exit_context' ]
@@ -101,15 +101,15 @@ sub new {
 
 		enter_match_action => [
 			'{' => [
-				switch_context => '&match_action',
+				switch_context => '!match_action',
 			],
 			undef
-				=> [ die => "expected '{' after match directive" ],
+				=> [ die => "'expected \\'{\\' after match directive'" ],
 		],
 		match_action => [
 			'spawn' => [
 				spawn => "'spawn'",
-				nest_context => '&spawn_expression',
+				nest_context => '!spawn_expression',
 			],
 			[ 'enter_context', $variable_regex ] => [
 				spawn => "'enter_context'",
@@ -134,14 +134,14 @@ sub new {
 				'exit_context',
 			],
 			undef
-				=> [ die => "expected '}' to close match actions list" ],
+				=> [ die => "'expected \\'}\\' to close match actions list'" ],
 		],
 		spawn_expression => [
 			qr/\$\d++/ => [
 				spawn => '$0',
 				'exit_context',
 			],
-			qr/\&\w++/ => [
+			qr/\!\w++/ => [
 				spawn => '$0',
 				'exit_context',
 			],
@@ -153,11 +153,23 @@ sub new {
 				spawn => '$0',
 				'exit_context',
 			],
+			[ '[', ] => [
+				spawn => [ '!spawn_expression_list' ],
+				'exit_context',
+			],
 			# '$previous' => [
 			# 	spawn => '$0',
 			# ],
 			undef
-				=> [ die => "expression expected" ],
+				=> [ die => "'expression expected'" ],
+		],
+		spawn_expression_list => [
+			[ qr/\!\w++/, ']' ] => [
+				spawn => '$0',
+				'exit_context',
+			],
+			undef
+				=> [ die => "'spawn expression list expected'" ],
 		],
 	};
 
