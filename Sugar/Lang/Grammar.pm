@@ -23,6 +23,7 @@ our @keywords = qw/
 	respawn
 	enter_context
 	switch_context
+	nest_context
 	exit_context
 
 	undef
@@ -37,6 +38,7 @@ our $symbol_chain = join '|', map quotemeta, @symbols;
 our $symbols_regex = qr/$symbol_chain/;
 
 our $string_regex = qr/'([^\\']|\\[\\'])*+'/s;
+# our $regex_regex = qr#/([^\\/]|\\.)*+/#s;
 our $variable_regex = qr/[\$\!]\w++/;
 our $identifier_regex = qr/[a-zA-Z_][a-zA-Z0-9_]*+/;
 
@@ -59,118 +61,148 @@ sub new {
 	];
 	$args{ignored_tokens} = [qw/ comment whitespace /];
 
-	$args{syntax_definition} = {
-		root => [
-			[ 'context', $identifier_regex, '{' ] => [
-				spawn => '$1',
-				spawn => [ '!context_definition' ],
-			],
-		],
-		context_definition => [
-			'}' => [
-				'exit_context',
-			],
-			'default' => [
-				spawn => undef,
-				spawn => [ '!enter_match_action' ],
-			],
-			undef
-				=> [
-					spawn => [ '!match_list' ],
-					spawn => [ '!enter_match_action' ],
-				]
-		],
-
-		match_list => [
-			$string_regex => [
-				spawn => '$0',
-				switch_context => '!match_list_more',
-			],
-			undef
-				=> [
-					die => "'unexpected end of match list'",
+	$args{syntax_definition_intermediate} = {
+		contexts => {
+			root => [
+				[ $identifier_regex, '=' ] => [
+					assign => [
+						 "'variables'" => {} => '$0' => '!def_value',
+						 # "'variables'" => [] => '!def_value',
+					],
+					# spawn => '$0',
+					# nest_context => '!def_value',
 				],
-		],
-		match_list_more => [
-			',' => [
-				switch_context => '!match_list',
+				[ 'context', $identifier_regex, '{' ] => [
+					assign => [
+						 "'contexts'" => {} => '$1' => [ '!context_definition' ],
+						 # "'contexts'" => [] => ,
+						# '$1' => [ '!context_definition' ],
+					]
+					# spawn => '$1',
+					# spawn => [ '!context_definition' ],
+				],
 			],
-			undef
-				=> [ 'exit_context' ]
-		],
+			def_value => [
+				$string_regex => [
+					spawn => '$0',
+					'exit_context'
+				],
+				undef
+					=> [ die => "'expected value'" ],
+			],
+			context_definition => [
+				'}' => [
+					'exit_context',
+				],
+				'default' => [
+					spawn => undef,
+					spawn => [ '!enter_match_action' ],
+				],
+				undef
+					=> [
+						spawn => [ '!match_list' ],
+						spawn => [ '!enter_match_action' ],
+					]
+			],
 
-		enter_match_action => [
-			'{' => [
-				switch_context => '!match_action',
+			match_list => [
+				[ $string_regex, ',' ] => [
+					spawn => '$0',
+				],
+				$string_regex => [
+					spawn => '$0',
+					'exit_context',
+				],
+				undef
+					=> [
+						die => "'unexpected end of match list'",
+					],
 			],
-			undef
-				=> [ die => "'expected \\'{\\' after match directive'" ],
-		],
-		match_action => [
-			'spawn' => [
-				spawn => "'spawn'",
-				nest_context => '!spawn_expression',
-			],
-			[ 'enter_context', $variable_regex ] => [
-				spawn => "'enter_context'",
-				spawn => '$1',
-			],
-			[ 'switch_context', $variable_regex ] => [
-				spawn => "'switch_context'",
-				spawn => '$1',
-			],
-			'exit_context' => [
-				spawn => "'exit_context'",
-			],
-			[ 'warn', $string_regex ] => [
-				spawn => "'warn'",
-				spawn => '$1',
-			],
-			[ 'die', $string_regex ] => [
-				spawn => "'die'",
-				spawn => '$1',
-			],
-			'}' => [
-				'exit_context',
-			],
-			undef
-				=> [ die => "'expected \\'}\\' to close match actions list'" ],
-		],
-		spawn_expression => [
-			qr/\$\d++/ => [
-				spawn => '$0',
-				'exit_context',
-			],
-			qr/\!\w++/ => [
-				spawn => '$0',
-				'exit_context',
-			],
-			'undef' => [
-				spawn => undef,
-				'exit_context',
-			],
-			$string_regex => [
-				spawn => '$0',
-				'exit_context',
-			],
-			[ '[', ] => [
-				spawn => [ '!spawn_expression_list' ],
-				'exit_context',
-			],
-			# '$previous' => [
-			# 	spawn => '$0',
+			# match_list_more => [
+			# 	',' => [
+			# 		switch_context => '!match_list',
+			# 	],
+			# 	undef
+			# 		=> [ 'exit_context' ]
 			# ],
-			undef
-				=> [ die => "'expression expected'" ],
-		],
-		spawn_expression_list => [
-			[ qr/\!\w++/, ']' ] => [
-				spawn => '$0',
-				'exit_context',
+
+			enter_match_action => [
+				'{' => [
+					switch_context => '!match_action',
+				],
+				undef
+					=> [ die => "'expected \\'{\\' after match directive'" ],
 			],
-			undef
-				=> [ die => "'spawn expression list expected'" ],
-		],
+			match_action => [
+				'spawn' => [
+					spawn => "'spawn'",
+					nest_context => '!spawn_expression',
+				],
+				[ 'enter_context', $variable_regex ] => [
+					spawn => "'enter_context'",
+					spawn => '$1',
+				],
+				[ 'switch_context', $variable_regex ] => [
+					spawn => "'switch_context'",
+					spawn => '$1',
+				],
+				[ 'nest_context', $variable_regex ] => [
+					spawn => "'nest_context'",
+					spawn => '$1',
+				],
+				'exit_context' => [
+					spawn => "'exit_context'",
+				],
+				[ 'warn', $string_regex ] => [
+					spawn => "'warn'",
+					spawn => '$1',
+				],
+				[ 'die', $string_regex ] => [
+					spawn => "'die'",
+					spawn => '$1',
+				],
+				'}' => [
+					'exit_context',
+				],
+				undef
+					=> [ die => "'expected \\'}\\' to close match actions list'" ],
+			],
+			spawn_expression => [
+				qr/\$\d++/ => [
+					spawn => '$0',
+					'exit_context',
+				],
+				qr/\!\w++/ => [
+					spawn => '$0',
+					'exit_context',
+				],
+				'undef' => [
+					spawn => undef,
+					'exit_context',
+				],
+				$string_regex => [
+					spawn => '$0',
+					'exit_context',
+				],
+				[ '[', ] => [
+					spawn => [ '!spawn_expression_list' ],
+					'exit_context',
+				],
+				# '$previous' => [
+				# 	spawn => '$0',
+				# ],
+				undef
+					=> [ die => "'expression expected'" ],
+			],
+			spawn_expression_list => [
+				[ qr/\!\w++/, ']' ] => [
+					spawn => '$0',
+					'exit_context',
+				],
+				undef
+					=> [ die => "'spawn expression list expected'" ],
+			],
+		},
 	};
 
 	my $self = $class->SUPER::new(%args);

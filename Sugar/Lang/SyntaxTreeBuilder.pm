@@ -14,11 +14,9 @@ sub new {
 	my ($class, %opts) = @_;
 	my $self = $class->SUPER::new(%opts);
 
-	$self->{syntax_definition} = $opts{syntax_definition} // croak "syntax_definition argument required for Sugar::Lang::SyntaxTreeBuilder";
-	$self->{syntax_definition} = {
-		map { $_ => $self->compile_syntax_context($_ => $self->{syntax_definition}{$_}) }
-		keys %{$self->{syntax_definition}}
-	};
+	$self->{syntax_definition_intermediate} = $opts{syntax_definition_intermediate}
+			// croak "syntax_definition_intermediate argument required for Sugar::Lang::SyntaxTreeBuilder";
+	$self->compile_syntax_intermediate;
 
 	return $self
 }
@@ -131,6 +129,16 @@ sub into_context {
 	return $context_object
 }
 
+sub compile_syntax_intermediate {
+	my ($self) = @_;
+
+	$self->{syntax_definition} = {};
+	foreach my $context_type (keys %{$self->{syntax_definition_intermediate}{contexts}}) {
+		my $context_definition = $self->{syntax_definition_intermediate}{contexts}{$context_type};
+		$self->{syntax_definition}{$context_type} = $self->compile_syntax_context($context_type, $context_definition);
+	}
+}
+
 sub compile_syntax_context {
 	my ($self, $context_name, $context) = @_;
 
@@ -225,12 +233,19 @@ sub compile_syntax_action {
 			while (@assign_items) {
 				my $field = shift @assign_items;
 				my $value = shift @assign_items;
-				if (ref $field eq 'ARRAY') {
-					$field = quotemeta $field->[0];
-					push @code, "push \@{\$self->{current_context}{'$field'}}, " . $self->compile_syntax_spawn_expression($value) . ";";
+				if (ref $value eq 'HASH') {
+					my $key = shift @assign_items;
+					$key = $self->compile_syntax_spawn_sub_expression($key);
+					$value = shift @assign_items;
+					$field = $self->compile_syntax_spawn_sub_expression($field);
+					push @code, "\$self->{current_context}{$field}{$key} = " . $self->compile_syntax_spawn_expression($value) . ";";
+				} elsif (ref $value eq 'ARRAY' and @$value == 0) {
+					$value = shift @assign_items;
+					$field = $self->compile_syntax_spawn_sub_expression($field);
+					push @code, "push \@{\$self->{current_context}{$field}}, " . $self->compile_syntax_spawn_expression($value) . ";";
 				} else {
-					$field = quotemeta $field;
-					push @code, "\$self->{current_context}{'$field'} = " . $self->compile_syntax_spawn_expression($value) . ";";
+					$field = $self->compile_syntax_spawn_sub_expression($field);
+					push @code, "\$self->{current_context}{$field} = " . $self->compile_syntax_spawn_expression($value) . ";";
 				}
 			}
 		}
