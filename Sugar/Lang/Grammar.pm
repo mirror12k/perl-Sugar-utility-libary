@@ -38,8 +38,9 @@ our $symbol_chain = join '|', map quotemeta, @symbols;
 our $symbols_regex = qr/$symbol_chain/;
 
 our $string_regex = qr/'([^\\']|\\[\\'])*+'/s;
-# our $regex_regex = qr#/([^\\/]|\\.)*+/#s;
-our $variable_regex = qr/[\$\!]\w++/;
+our $regex_regex = qr#/([^\\/]|\\.)*+/#s;
+our $variable_regex = qr/\$\w++/;
+our $context_reference_regex = qr/\!\w++/;
 our $identifier_regex = qr/[a-zA-Z_][a-zA-Z0-9_]*+/;
 
 our $comment_regex = qr/\#[^\n]*+\n/s;
@@ -54,7 +55,9 @@ sub new {
 
 		string => $string_regex,
 		variable => $variable_regex,
+		context_reference => $context_reference_regex,
 		identifier => $identifier_regex,
+		regex => $regex_regex,
 
 		comment => $comment_regex,
 		whitespace => $whitespace_regex,
@@ -66,26 +69,23 @@ sub new {
 			root => [
 				[ $identifier_regex, '=' ] => [
 					assign => [
-						 "'variables'" => {} => '$0' => '!def_value',
-						 # "'variables'" => [] => '!def_value',
+						"'variables'" => {} => '$0' => '!def_value',
 					],
-					# spawn => '$0',
-					# nest_context => '!def_value',
 				],
 				[ 'context', $identifier_regex, '{' ] => [
 					assign => [
-						 "'contexts'" => {} => '$1' => [ '!context_definition' ],
-						 # "'contexts'" => [] => ,
-						# '$1' => [ '!context_definition' ],
+						"'contexts'" => {} => '$1' => [ '!context_definition' ],
 					]
-					# spawn => '$1',
-					# spawn => [ '!context_definition' ],
 				],
 			],
 			def_value => [
 				$string_regex => [
 					spawn => '$0',
 					'exit_context'
+				],
+				$regex_regex => [
+					spawn => '$0',
+					'exit_context',
 				],
 				undef
 					=> [ die => "'expected value'" ],
@@ -106,6 +106,13 @@ sub new {
 			],
 
 			match_list => [
+				[ $regex_regex, ',' ] => [
+					spawn => '$0',
+				],
+				$regex_regex => [
+					spawn => '$0',
+					'exit_context',
+				],
 				[ $string_regex, ',' ] => [
 					spawn => '$0',
 				],
@@ -142,15 +149,15 @@ sub new {
 					spawn => "'spawn'",
 					nest_context => '!spawn_expression',
 				],
-				[ 'enter_context', $variable_regex ] => [
+				[ 'enter_context', $context_reference_regex ] => [
 					spawn => "'enter_context'",
 					spawn => '$1',
 				],
-				[ 'switch_context', $variable_regex ] => [
+				[ 'switch_context', $context_reference_regex ] => [
 					spawn => "'switch_context'",
 					spawn => '$1',
 				],
-				[ 'nest_context', $variable_regex ] => [
+				[ 'nest_context', $context_reference_regex ] => [
 					spawn => "'nest_context'",
 					spawn => '$1',
 				],

@@ -202,6 +202,7 @@ sub compile_syntax_condition {
 		}
 		return join ' and ', @conditions
 	} elsif (ref $condition eq 'Regexp') {
+		$condition =~ s#/#\\/#g;
 		return "\$self->is_token_val('*' => qr/$condition/, $offset)"
 	} else {
 		return "\$self->is_token_val('*' => '$condition', $offset)"
