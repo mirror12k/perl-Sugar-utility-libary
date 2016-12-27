@@ -89,7 +89,7 @@ sub new {
 		match_list => [
 			$string_regex => [
 				spawn => '$0',
-				switch_context => 'match_list_more',
+				switch_context => '&match_list_more',
 			],
 			undef
 				=> [
@@ -98,7 +98,7 @@ sub new {
 		],
 		match_list_more => [
 			',' => [
-				switch_context => 'match_list',
+				switch_context => '&match_list',
 			],
 			undef
 				=> [ 'exit_context' ]
@@ -106,7 +106,7 @@ sub new {
 
 		enter_match_action => [
 			'{' => [
-				switch_context => 'match_action',
+				switch_context => '&match_action',
 			],
 			undef
 				=> [ die => "expected '{' after match directive" ],
@@ -114,7 +114,7 @@ sub new {
 		match_action => [
 			'spawn' => [
 				spawn => 'spawn',
-				nest_context => 'spawn_expression',
+				nest_context => '&spawn_expression',
 			],
 			[ 'enter_context', $variable_regex ] => [
 				spawn => 'enter_context',

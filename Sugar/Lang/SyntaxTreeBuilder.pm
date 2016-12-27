@@ -33,12 +33,24 @@ sub parse {
 	# $self->{current_syntax_context} = $self->{syntax_definition}{$self->{current_context}{context_type}};
 
 	while ($self->more_tokens) {
-		confess "undefined context_type referenced '$self->{current_context}{context_type}'"
-				unless defined $self->{syntax_definition}{$self->{current_context}{context_type}};
+		# confess "undefined context_type referenced '$self->{current_context}{context_type}'"
+		# 		unless defined $self->{syntax_definition}{$self->{current_context}{context_type}};
 		$self->{syntax_definition}{$self->{current_context}{context_type}}->($self);
 	}
 
 	return $self->{syntax_tree}
+}
+
+sub get_context {
+	my ($self, $value) = @_;
+	if ($value =~ /\A\&(\w++)\Z/) {
+		my $context_type = $1;
+		confess "undefined context requested: '$context_type'" unless defined $self->{syntax_definition}{$context_type};
+		return $context_type
+
+	} else {
+		confess "unknown context type requested: '$value'";
+	}
 }
 
 sub enter_context {
@@ -87,8 +99,8 @@ sub extract_context_result {
 
 	while ($self->{current_context} != $previous_context) {
 		# say "debug", Dumper $self->{current_context};
-		confess "undefined context_type referenced '$self->{current_context}{context_type}'"
-				unless defined $self->{syntax_definition}{$self->{current_context}{context_type}};
+		# confess "undefined context_type referenced '$self->{current_context}{context_type}'"
+		# 		unless defined $self->{syntax_definition}{$self->{current_context}{context_type}};
 		$self->{syntax_definition}{$self->{current_context}{context_type}}->($self);
 	}
 	my $result;
@@ -101,21 +113,6 @@ sub extract_context_result {
 	return $result
 }
 
-# sub extract_context {
-# 	my ($self, $context_type) = @_;
-
-# 	my $previous_context = $self->{current_context};
-# 	$self->enter_context($context_type);
-# 	my $saved_context = $self->{current_context};
-
-# 	while ($self->{current_context} != $previous_context) {
-# 		$self->{current_syntax_context}->($self);
-# 	}
-# 	$saved_context->{type} = $saved_context->{context_type};
-# 	delete $saved_context->{context_type};
-# 	return $saved_context
-# }
-
 sub into_context {
 	my ($self, $context_object) = @_;
 	# my $store_type = $context_object->{type};
@@ -126,8 +123,8 @@ sub into_context {
 	# $self->{current_syntax_context} = $self->{syntax_definition}{$self->{current_context}{context_type}};
 
 	while ($self->{current_context} != $previous_context) {
-		confess "undefined context_type referenced '$self->{current_context}{context_type}'"
-				unless defined $self->{syntax_definition}{$self->{current_context}{context_type}};
+		# confess "undefined context_type referenced '$self->{current_context}{context_type}'"
+		# 		unless defined $self->{syntax_definition}{$self->{current_context}{context_type}};
 		$self->{syntax_definition}{$self->{current_context}{context_type}}->($self);
 	}
 
@@ -220,9 +217,9 @@ sub compile_syntax_action {
 
 		if ($action eq 'spawn') {
 			push @code, "push \@{\$self->{current_context}{children}}, " . $self->compile_syntax_spawn_expression(shift @actions) . ";";
-		} elsif ($action eq 'spawn_into_context') {
-			push @code, "push \@{\$self->{current_context}{children}}, \$self->into_context("
-					. $self->compile_syntax_spawn_expression(shift @actions) . ");";
+		# } elsif ($action eq 'spawn_into_context') {
+		# 	push @code, "push \@{\$self->{current_context}{children}}, \$self->into_context("
+		# 			. $self->compile_syntax_spawn_expression(shift @actions) . ");";
 		} elsif ($action eq 'assign') {
 			my @assign_items = @{shift @actions};
 			while (@assign_items) {
@@ -242,23 +239,23 @@ sub compile_syntax_action {
 			push @code, "\$self->exit_context;";
 			$self->{context_default_case} = [ die => 'unexpected token' ] unless defined $self->{context_default_case};
 		} elsif ($action eq 'enter_context') {
-			my $context_type = quotemeta shift @actions;
-			push @code, "\$self->enter_context('$context_type');";
+			my $context_type = shift (@actions) =~ s/(['\\])/\\$1/gr;
+			push @code, "\$self->enter_context(\$self->get_context('$context_type'));";
 		} elsif ($action eq 'switch_context') {
-			my $context_type = quotemeta shift @actions;
-			push @code, "\$self->switch_context('$context_type');";
+			my $context_type = shift (@actions) =~ s/(['\\])/\\$1/gr;
+			push @code, "\$self->switch_context(\$self->get_context('$context_type'));";
 		} elsif ($action eq 'nest_context') {
-			my $context_type = quotemeta shift @actions;
-			push @code, "\$self->nest_context('$context_type');";
+			my $context_type = shift (@actions) =~ s/(['\\])/\\$1/gr;
+			push @code, "\$self->nest_context(\$self->get_context('$context_type'));";
 		}
 
 		if ($action eq 'die') {
-			my $msg = quotemeta shift @actions;
+			my $msg = shift (@actions) =~ s/(['\\])/\\$1/gr;
 			push @code, "\$self->confess_at_current_offset('$msg');";
 		}
 
 		if ($action eq 'warn') {
-			my $msg = quotemeta shift @actions;
+			my $msg = shift (@actions) =~ s/(['\\])/\\$1/gr;
 			push @code, "warn '$msg';";
 		}
 	}
