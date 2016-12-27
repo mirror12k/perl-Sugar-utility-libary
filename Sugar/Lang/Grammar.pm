@@ -188,6 +188,14 @@ sub new {
 					spawn => '$0',
 					'exit_context',
 				],
+				[ '[', ']' ] => [
+					spawn => [],
+					'exit_context',
+				],
+				[ '{', '}' ] => [
+					spawn => {},
+					'exit_context',
+				],
 				[ '[', ] => [
 					spawn => [ '!spawn_expression_list' ],
 					'exit_context',

@@ -60,7 +60,7 @@ sub parse_tokens {
 		$line_number += ()= ($token_text =~ /\n/g);
 	}
 
-	die "error parsing file at " . substr ($text, pos $text // 0) if not defined pos $text or pos $text != length $text;
+	confess "error parsing file on line $line_number:\nHERE ---->" . substr ($text, pos $text // 0) if not defined pos $text or pos $text != length $text;
 
 	if (defined $self->{ignored_tokens}) {
 		foreach my $ignored_token (@{$self->{ignored_tokens}}) {
