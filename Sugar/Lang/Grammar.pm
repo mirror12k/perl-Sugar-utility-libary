@@ -64,11 +64,6 @@ sub new {
 			[ 'context', $identifier_regex, '{' ] => [
 				spawn => '$1',
 				spawn => [ '&context_definition' ],
-				# spawn_into_context => [
-				# 	type => 'context',
-				# 	context_name => '$1',
-				# 	context_type => 'context_definition',
-				# ],
 			],
 		],
 		context_definition => [
@@ -113,26 +108,26 @@ sub new {
 		],
 		match_action => [
 			'spawn' => [
-				spawn => 'spawn',
+				spawn => "'spawn'",
 				nest_context => '&spawn_expression',
 			],
 			[ 'enter_context', $variable_regex ] => [
-				spawn => 'enter_context',
+				spawn => "'enter_context'",
 				spawn => '$1',
 			],
 			[ 'switch_context', $variable_regex ] => [
-				spawn => 'switch_context',
+				spawn => "'switch_context'",
 				spawn => '$1',
 			],
 			'exit_context' => [
-				spawn => 'exit_context',
+				spawn => "'exit_context'",
 			],
 			[ 'warn', $string_regex ] => [
-				spawn => 'warn',
+				spawn => "'warn'",
 				spawn => '$1',
 			],
 			[ 'die', $string_regex ] => [
-				spawn => 'die',
+				spawn => "'die'",
 				spawn => '$1',
 			],
 			'}' => [

@@ -298,9 +298,11 @@ sub compile_syntax_spawn_sub_expression {
 		return "pop \@{\$self->{current_context}{children}}";
 	} elsif ($expression =~ /\A\$(\d+)\Z/) {
 		return "\$tokens[$1]";
-	} else {
-		my $value = $expression =~ s/\\(.)/$1/gr;
+	} elsif ($expression =~ /\A'(.*)'\Z/s) {
+		my $value = $1 =~ s/\\(.)/$1/gr;
 		return "'$value'";
+	} else {
+		confess "invalid spawn expression: '$expression'";
 	}
 }
 
