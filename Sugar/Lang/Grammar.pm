@@ -109,6 +109,13 @@ sub new {
 			],
 
 			match_list => [
+				[ "/$variable_regex/", "','" ] => [
+					spawn => '$0',
+				],
+				"/$variable_regex/" => [
+					spawn => '$0',
+					'exit_context',
+				],
 				[ "\$regex_regex", "','" ] => [
 					spawn => '$0',
 				],

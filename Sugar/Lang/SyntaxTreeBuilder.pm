@@ -25,7 +25,7 @@ sub parse {
 	my ($self) = @_;
 	$self->SUPER::parse;
 
-	$self->{current_context} = { type => 'context', context_type => 'root' };
+	$self->{current_context} = { context_type => 'root' };
 	$self->{syntax_tree} = $self->{current_context};
 	$self->{context_stack} = [];
 	# $self->{current_syntax_context} = $self->{syntax_definition}{$self->{current_context}{context_type}};
@@ -60,7 +60,7 @@ sub get_context {
 sub enter_context {
 	my ($self, $context_type) = @_;
 
-	my $new_context = { type => 'context', context_type => $context_type };
+	my $new_context = { context_type => $context_type };
 	# push @{$self->{current_context}{children}}, $new_context;
 	push @{$self->{context_stack}}, $self->{current_context};
 	$self->{current_context} = $new_context;
@@ -70,7 +70,7 @@ sub enter_context {
 sub nest_context {
 	my ($self, $context_type) = @_;
 	$self->{current_context}{children} //= [];
-	my $new_context = { type => 'context', context_type => $context_type, children => $self->{current_context}{children} };
+	my $new_context = { context_type => $context_type, children => $self->{current_context}{children} };
 	# push @{$self->{current_context}{children}}, $new_context;
 	push @{$self->{context_stack}}, $self->{current_context};
 	$self->{current_context} = $new_context;
@@ -210,7 +210,7 @@ sub compile_syntax_condition {
 		return "\$self->is_token_val('*' => qr/$condition/, $offset)"
 	} elsif ($condition =~ m#\A\$(\w++)\Z#s) {
 		my $value = $self->get_variable($1);
-		return $self->compile_syntax_condition($value)
+		return $self->compile_syntax_condition($value, $offset)
 	} elsif ($condition =~ m#\A/(.*)/([msixpodualn]*)\Z#s) {
 		return "\$self->is_token_val('*' => qr/\\A$1\\Z/$2, $offset)"
 	} elsif ($condition =~ /\A'.*'\Z/s) {
@@ -303,8 +303,8 @@ sub compile_syntax_spawn_expression {
 	} elsif (ref $expression eq 'ARRAY' and @$expression == 0) {
 		return '[]'
 	} elsif (ref $expression eq 'ARRAY' and @$expression == 1) {
-		my $context_type = $expression->[0] =~ s/'/\\'/gr =~ s/\A\!//r;
-		return "\$self->extract_context_result('$context_type', 'ARRAY')"
+		my $context_type = $expression->[0] =~ s/'/\\'/gr;
+		return "\$self->extract_context_result(\$self->get_context('$context_type'), 'ARRAY')"
 	} elsif (ref $expression eq 'ARRAY') {
 		my $code = "{ ";
 		my @items = @$expression;
@@ -325,8 +325,8 @@ sub compile_syntax_spawn_sub_expression {
 
 	if (not defined $expression) {
 		return "undef";
-	} elsif ($expression =~ /\A\!([a-zA-Z_][a-zA-Z_0-9]*)\Z/) {
-		return "\$self->extract_context_result('$1')";
+	} elsif ($expression =~ /\A\![a-zA-Z_][a-zA-Z_0-9]*\Z/) {
+		return "\$self->extract_context_result(\$self->get_context('$expression'))";
 	} elsif ($expression =~ /\A\$previous_spawn\Z/) {
 		return "pop \@{\$self->{current_context}{children}}";
 	} elsif ($expression =~ /\A\$(\d+)\Z/) {
