@@ -41,6 +41,7 @@ sub parse {
 
 sub get_context {
 	my ($self, $value) = @_;
+	say "getting context: $value";
 	if ($value =~ /\A\!(\w++)\Z/) {
 		my $context_type = $1;
 		confess "undefined context requested: '$context_type'" unless defined $self->{syntax_definition}{$context_type};
@@ -63,7 +64,7 @@ sub enter_context {
 
 sub nest_context {
 	my ($self, $context_type) = @_;
-
+	say "debug nest_context: $context_type";
 	$self->{current_context}{children} //= [];
 	my $new_context = { type => 'context', context_type => $context_type, children => $self->{current_context}{children} };
 	# push @{$self->{current_context}{children}}, $new_context;
@@ -285,6 +286,10 @@ sub compile_syntax_spawn_expression {
 	my ($self, $expression) = @_;
 	if (not defined $expression) {
 		return 'undef'
+	} elsif (ref $expression eq 'HASH') {
+		return '{}'
+	} elsif (ref $expression eq 'ARRAY' and @$expression == 0) {
+		return '[]'
 	} elsif (ref $expression eq 'ARRAY' and @$expression == 1) {
 		my $context_type = $expression->[0] =~ s/'/\\'/gr =~ s/\A\!//r;
 		return "\$self->extract_context_result('$context_type', 'ARRAY')"

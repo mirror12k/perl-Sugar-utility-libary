@@ -134,6 +134,10 @@ sub new {
 					=> [ die => "'expected \\'{\\' after match directive'" ],
 			],
 			match_action => [
+				[ 'assign', '{' ] => [
+					spawn => "'assign'",
+					spawn => [ '!assign_scope' ],
+				],
 				'spawn' => [
 					spawn => "'spawn'",
 					nest_context => '!spawn_expression',
@@ -201,6 +205,36 @@ sub new {
 				],
 				undef
 					=> [ die => "'spawn expression list expected'" ],
+			],
+			assign_scope => [
+				[ $string_regex, '=>' ] => [
+					spawn => '$0',
+					nest_context => '!spawn_expression',
+				],
+				[ $string_regex, '[', ']', '=>' ] => [
+					spawn => '$0',
+					spawn => [],
+					nest_context => '!spawn_expression',
+				],
+				[ $string_regex, '{' ] => [
+					spawn => '$0',
+					spawn => {},
+					spawn => '!spawn_expression',
+					nest_context => '!assign_hash',
+				],
+				'}' => [
+					'exit_context'
+				],
+				undef
+					=> [ die => "'assign expression expected'" ],
+			],
+
+			assign_hash => [
+				[ '}', '=>' ] => [
+					switch_context => '!spawn_expression',
+				],
+				undef
+					=> [ die => "'\\'}\\' expected to close hash assignment'" ],
 			],
 		},
 	};
