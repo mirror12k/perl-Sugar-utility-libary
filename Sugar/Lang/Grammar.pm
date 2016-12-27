@@ -29,7 +29,7 @@ our @keywords = qw/
 	undef
 /;
 our $keyword_chain = join '|', map quotemeta, @keywords;
-our $keywords_regex = qr/\b$keyword_chain\b/;
+our $keywords_regex = qr/\b($keyword_chain)\b/;
 
 our @symbols = (qw/
 	{ } [ ] => =
@@ -66,7 +66,7 @@ sub new {
 
 	$args{syntax_definition_intermediate} = {
 		variables => {
-			regex_regex => "/\\/([^\\\\\\/]|\\\\.)*?\\/[msixpodualn]*/",
+			regex_regex => "/\\/([^\\\\\\/]|\\\\.)*+\\/[msixpodualn]*/",
 		},
 		contexts => {
 			root => [
@@ -80,6 +80,8 @@ sub new {
 						"'contexts'" => {} => '$1' => [ '!context_definition' ],
 					]
 				],
+				undef
+					=> [ die => "'expected definition statement'" ],
 			],
 			def_value => [
 				"/$string_regex/" => [
@@ -263,6 +265,7 @@ sub new {
 			],
 		},
 	};
+	# $args{syntax_definition_intermediate} = ;
 
 	my $self = $class->SUPER::new(%args);
 
