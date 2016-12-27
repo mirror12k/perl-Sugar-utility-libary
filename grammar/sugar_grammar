@@ -1,18 +1,50 @@
 
 # Sugar grammar language parser
 
+
+symbol_regex = /\{|\}|\[|\]|=>|=|,/
+
 identifier_regex = /[a-zA-Z_][a-zA-Z0-9_]*+/
 string_regex = /'([^\\']|\\[\\'])*+'/s
 regex_regex = /\/([^\\\/]|\\.)*+\/[msixpodualn]*/s
 variable_regex = /\$\w++/
 context_reference_regex = /!\w++/
 
+comment_regex = /\#[^\n]*+\n/s
+whitespace_regex = /\s++/s
 
+tokens {
+	symbol => $symbol_regex
+
+	identifier => $identifier_regex
+	string => $string_regex
+	regex => $regex_regex
+	variable => $variable_regex
+	context_reference => $context_reference_regex
+
+	comment => $comment_regex
+	whitespace => $whitespace_regex
+}
+
+ignored_tokens {
+	comment
+	whitespace
+}
 
 context root {
 	$identifier_regex, '=' {
 		assign {
 			'variables'{$0} => !def_value
+		}
+	}
+	'tokens', '{' {
+		assign {
+			'tokens' => [ !token_definition ]
+		}
+	}
+	'ignored_tokens', '{' {
+		assign {
+			'ignored_tokens' => [ !ignored_tokens_list ]
 		}
 	}
 	'context', $identifier_regex, '{' {
@@ -31,8 +63,37 @@ context def_value {
 		spawn $0
 		exit_context
 	}
+	$variable_regex {
+		spawn $0
+		exit_context
+	}
 	default {
-		die 'unexpected value'
+		die 'unexpected token in def_value'
+	}
+}
+
+context token_definition {
+	'}' {
+		exit_context
+	}
+	$identifier_regex, '=>' {
+		spawn $0
+		spawn !def_value
+	}
+	default {
+		die 'unexpected token in token_definition'
+	}
+}
+
+context ignored_tokens_list {
+	'}' {
+		exit_context
+	}
+	$identifier_regex {
+		spawn $0
+	}
+	default {
+		die 'unexpected token in ignored_tokens_list'
 	}
 }
 

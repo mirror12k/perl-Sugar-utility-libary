@@ -1,146 +1,135 @@
-package Sugar::Lang::SyntaxTreeBuilder;
-use parent 'Sugar::Lang::Tokenizer';
+package Sugar::Lang::SyntaxIntermediateCompiler;
 use strict;
 use warnings;
 
 use feature 'say';
 
 use Carp;
-use Data::Dumper;
 
 
 
 sub new {
 	my ($class, %opts) = @_;
-	my $self = $class->SUPER::new(%opts);
+	my $self = bless {}, $class;
 
 	$self->{syntax_definition_intermediate} = $opts{syntax_definition_intermediate}
-			// croak "syntax_definition_intermediate argument required for Sugar::Lang::SyntaxTreeBuilder";
+			// croak "syntax_definition_intermediate argument required for Sugar::Lang::SyntaxIntermediateCompiler";
+
+	$self->{variables} = $self->{syntax_definition_intermediate}{variables};
+	$self->{tokens} = [];
+	$self->{ignored_tokens} = $self->{syntax_definition_intermediate}{ignored_tokens};
+	$self->{code_definitions} = {};
 	$self->compile_syntax_intermediate;
 
 	return $self
 }
 
-sub parse {
+sub to_package {
 	my ($self) = @_;
-	$self->SUPER::parse;
 
-	$self->{current_context} = { context_type => 'root' };
-	$self->{syntax_tree} = $self->{current_context};
-	$self->{context_stack} = [];
-	# $self->{current_syntax_context} = $self->{syntax_definition}{$self->{current_context}{context_type}};
+	my $code = '';
 
-	while ($self->more_tokens) {
-		# confess "undefined context_type referenced '$self->{current_context}{context_type}'"
-		# 		unless defined $self->{syntax_definition}{$self->{current_context}{context_type}};
-		$self->{syntax_definition}{$self->{current_context}{context_type}}->($self);
+	$code .= 'package PACKAGE_NAME;
+use parent "Sugar::Lang::BaseSyntaxParser";
+use strict;
+use warnings;
+
+use feature "say";
+
+use Data::Dumper;
+
+use Sugar::IO::File;
+
+
+
+';
+
+	$code .= "our \$tokens = [\n";
+	foreach my $i (0 .. $#{$self->{tokens}} / 2) {
+		$code .= "\t'$self->{tokens}[$i*2]' => $self->{tokens}[$i*2+1],\n";
+	}
+	$code .= "];\n\n";
+
+	$code .= "our \$ignored_tokens = [\n";
+	foreach my $token (@{$self->{ignored_tokens}}) {
+		$code .= "\t'$token',\n";
+	}
+	$code .= "];\n\n";
+
+	$code .= "our \$contexts = {\n";
+	foreach my $context_type (sort keys %{$self->{code_definitions}}) {
+		$code .= "\t$context_type => \\&context_$context_type,\n";
+	}
+	$code .= "};\n\n";
+
+	$code .= '
+
+sub new {
+	my ($class, %opts) = @_;
+
+	$opts{token_regexes} = $tokens;
+	$opts{ignored_tokens} = $ignored_tokens;
+	$opts{contexts} = $contexts;
+
+	my $self = $class->SUPER::new(%opts);
+
+	return $self
+}
+
+# use Sugar::Lang::SyntaxIntermediateCompiler;
+
+sub main {
+	my $parser = PACKAGE_NAME->new;
+	foreach my $file (@_) {
+		$parser->{filepath} = Sugar::IO::File->new($file);
+		my $tree = $parser->parse;
+		say Dumper $tree;
+
+		# my $compiler = Sugar::Lang::SyntaxIntermediateCompiler->new(syntax_definition_intermediate => $tree);
+		# say $compiler->to_package;
+	}
+}
+
+caller or main(@ARGV);
+
+';
+
+	foreach my $context_type (sort keys %{$self->{code_definitions}}) {
+		$code .= $self->{code_definitions}{$context_type} =~ s/\A(\s*)sub {/$1sub context_$context_type {/r;
 	}
 
-	return $self->{syntax_tree}
+	return $code
 }
 
 sub get_variable {
 	my ($self, $identifier) = @_;
-	confess "undefined variable requested: '$identifier'" unless exists $self->{syntax_definition_intermediate}{variables}{$identifier};
-	return $self->{syntax_definition_intermediate}{variables}{$identifier}
-}
-
-sub get_context {
-	my ($self, $value) = @_;
-	if ($value =~ /\A\!(\w++)\Z/) {
-		my $context_type = $1;
-		confess "undefined context requested: '$context_type'" unless defined $self->{syntax_definition}{$context_type};
-		return $context_type
-
-	} else {
-		confess "unknown context type requested: '$value'";
-	}
-}
-
-sub enter_context {
-	my ($self, $context_type) = @_;
-
-	my $new_context = { context_type => $context_type };
-	# push @{$self->{current_context}{children}}, $new_context;
-	push @{$self->{context_stack}}, $self->{current_context};
-	$self->{current_context} = $new_context;
-	# $self->{current_syntax_context} = $self->{syntax_definition}{$self->{current_context}{context_type}};
-}
-
-sub nest_context {
-	my ($self, $context_type) = @_;
-	$self->{current_context}{children} //= [];
-	my $new_context = { context_type => $context_type, children => $self->{current_context}{children} };
-	# push @{$self->{current_context}{children}}, $new_context;
-	push @{$self->{context_stack}}, $self->{current_context};
-	$self->{current_context} = $new_context;
-	# $self->{current_syntax_context} = $self->{syntax_definition}{$self->{current_context}{context_type}};
-}
-
-sub exit_context {
-	my ($self) = @_;
-	confess 'attempt to exit root context' if $self->{current_context}{context_type} eq 'root';
-
-	$self->{current_context} = pop @{$self->{context_stack}};
-	# $self->{current_syntax_context} = $self->{syntax_definition}{$self->{current_context}{context_type}};
-}
-
-sub switch_context {
-	my ($self, $context_type) = @_;
-	confess 'attempt to switch context on root context' if $self->{current_context}{context_type} eq 'root';
-
-	$self->{current_context}{context_type} = $context_type;
-	# $self->{current_syntax_context} = $self->{syntax_definition}{$self->{current_context}{context_type}};
-}
-
-sub extract_context_result {
-	my ($self, $context_type, $modifier) = @_;
-
-	my $previous_context = $self->{current_context};
-	$self->enter_context($context_type);
-	my $saved_context = $self->{current_context};
-
-	while ($self->{current_context} != $previous_context) {
-		# say "debug", Dumper $self->{current_context};
-		# confess "undefined context_type referenced '$self->{current_context}{context_type}'"
-		# 		unless defined $self->{syntax_definition}{$self->{current_context}{context_type}};
-		$self->{syntax_definition}{$self->{current_context}{context_type}}->($self);
-	}
-	my $result;
-	if (defined $modifier and $modifier eq 'ARRAY') {
-		$result = [ @{$saved_context->{children} // []} ];
-	} else {
-		($result) = @{$saved_context->{children}};
-	}
-	# say 'got result: ', Dumper $result;
-	return $result
-}
-
-sub into_context {
-	my ($self, $context_object) = @_;
-	# my $store_type = $context_object->{type};
-	# $context_object->{type} = 'context';
-	my $previous_context = $self->{current_context};
-	push @{$self->{context_stack}}, $self->{current_context};
-	$self->{current_context} = $context_object;
-	# $self->{current_syntax_context} = $self->{syntax_definition}{$self->{current_context}{context_type}};
-
-	while ($self->{current_context} != $previous_context) {
-		# confess "undefined context_type referenced '$self->{current_context}{context_type}'"
-		# 		unless defined $self->{syntax_definition}{$self->{current_context}{context_type}};
-		$self->{syntax_definition}{$self->{current_context}{context_type}}->($self);
-	}
-
-	return $context_object
+	confess "undefined variable requested: '$identifier'" unless exists $self->{variables}{$identifier};
+	return $self->{variables}{$identifier}
 }
 
 sub compile_syntax_intermediate {
 	my ($self) = @_;
 
-	$self->{syntax_definition} = {};
+	my @token_definitions = @{$self->{syntax_definition_intermediate}{tokens}};
+	while (@token_definitions) {
+		my $key = shift @token_definitions;
+		my $value = $self->compile_syntax_token_value(shift @token_definitions);
+		push @{$self->{tokens}}, $key, $value;
+	}
 	foreach my $context_type (keys %{$self->{syntax_definition_intermediate}{contexts}}) {
 		my $context_definition = $self->{syntax_definition_intermediate}{contexts}{$context_type};
-		$self->{syntax_definition}{$context_type} = $self->compile_syntax_context($context_type, $context_definition);
+		$self->{code_definitions}{$context_type} = $self->compile_syntax_context($context_type, $context_definition);
+	}
+}
+
+sub compile_syntax_token_value {
+	my ($self, $value) = @_;
+	if ($value =~ m#\A/([^\\/]|\\.)*+/[msixpodualn]*\Z#s) {
+		return "qr$value"
+	} elsif ($value =~ /\A\$(\w++)\Z/) {
+		return $self->compile_syntax_token_value($self->get_variable($1))
+	} else {
+		confess "invalid syntax token value: $value";
 	}
 }
 
@@ -189,11 +178,12 @@ sub compile_syntax_context {
 	}
 ";
 	# say "compiled code: ", $code; # DEBUG INLINE TREE BUILDER
-	my $compiled = eval $code;
-	if ($@) {
-		confess "error compiling context type '$context_name': $@";
-	}
-	return $compiled
+	# my $compiled = eval $code;
+	# if ($@) {
+	# 	confess "error compiling context type '$context_name': $@";
+	# }
+	# return $compiled
+	return $code
 }
 
 sub compile_syntax_condition {

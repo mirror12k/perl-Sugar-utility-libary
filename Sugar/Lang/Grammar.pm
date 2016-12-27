@@ -9,6 +9,7 @@ use feature 'say';
 use Data::Dumper;
 
 use Sugar::IO::File;
+use Sugar::Lang::SyntaxIntermediateCompiler;
 
 
 
@@ -265,7 +266,500 @@ sub new {
 			],
 		},
 	};
-	# $args{syntax_definition_intermediate} = ;
+	$args{syntax_definition_intermediate} = {
+          'variables' => {
+                           'regex_regex' => '/\\/([^\\\\\\/]|\\\\.)*+\\/[msixpodualn]*/s',
+                           'identifier_regex' => '/[a-zA-Z_][a-zA-Z0-9_]*+/',
+                           'context_reference_regex' => '/!\\w++/',
+                           'string_regex' => '/\'([^\\\\\']|\\\\[\\\\\'])*+\'/s',
+                           'variable_regex' => '/\\$\\w++/'
+                         },
+          'contexts' => {
+                          'spawn_expression_list' => [
+                                                       [
+                                                         '$context_reference_regex',
+                                                         '\']\''
+                                                       ],
+                                                       [
+                                                         'spawn',
+                                                         '$0',
+                                                         'exit_context'
+                                                       ],
+                                                       undef,
+                                                       [
+                                                         'die',
+                                                         '\'spawn expression list expected\''
+                                                       ]
+                                                     ],
+                          'context_definition' => [
+                                                    [
+                                                      '\'}\''
+                                                    ],
+                                                    [
+                                                      'exit_context'
+                                                    ],
+                                                    [
+                                                      '\'default\''
+                                                    ],
+                                                    [
+                                                      'spawn',
+                                                      undef,
+                                                      'spawn',
+                                                      [
+                                                        '!enter_match_action'
+                                                      ]
+                                                    ],
+                                                    undef,
+                                                    [
+                                                      'spawn',
+                                                      [
+                                                        '!match_list'
+                                                      ],
+                                                      'spawn',
+                                                      [
+                                                        '!enter_match_action'
+                                                      ]
+                                                    ]
+                                                  ],
+                          'enter_match_action' => [
+                                                    [
+                                                      '\'{\''
+                                                    ],
+                                                    [
+                                                      'switch_context',
+                                                      '!match_action'
+                                                    ],
+                                                    undef,
+                                                    [
+                                                      'die',
+                                                      '\'expected \\\'{\\\' after match directive\''
+                                                    ]
+                                                  ],
+                          'assign_scope' => [
+                                              [
+                                                '$string_regex',
+                                                '\'=>\''
+                                              ],
+                                              [
+                                                'spawn',
+                                                '$0',
+                                                'nest_context',
+                                                '!spawn_expression'
+                                              ],
+                                              [
+                                                '$string_regex',
+                                                '\'[\'',
+                                                '\']\'',
+                                                '\'=>\''
+                                              ],
+                                              [
+                                                'spawn',
+                                                '$0',
+                                                'spawn',
+                                                [],
+                                                'nest_context',
+                                                '!spawn_expression'
+                                              ],
+                                              [
+                                                '$string_regex',
+                                                '\'{\''
+                                              ],
+                                              [
+                                                'spawn',
+                                                '$0',
+                                                'spawn',
+                                                {},
+                                                'spawn',
+                                                '!spawn_expression',
+                                                'nest_context',
+                                                '!assign_hash'
+                                              ],
+                                              [
+                                                '\'}\''
+                                              ],
+                                              [
+                                                'exit_context'
+                                              ],
+                                              undef,
+                                              [
+                                                'die',
+                                                '\'assign expression expected\''
+                                              ]
+                                            ],
+                          'ignored_tokens_list' => [
+                                                     [
+                                                       '\'}\''
+                                                     ],
+                                                     [
+                                                       'exit_context'
+                                                     ],
+                                                     [
+                                                       '$identifier_regex'
+                                                     ],
+                                                     [
+                                                       'spawn',
+                                                       '$0'
+                                                     ],
+                                                     undef,
+                                                     [
+                                                       'die',
+                                                       '\'unexpected token in ignored_tokens_list\''
+                                                     ]
+                                                   ],
+                          'token_definition' => [
+                                                  [
+                                                    '\'}\''
+                                                  ],
+                                                  [
+                                                    'exit_context'
+                                                  ],
+                                                  [
+                                                    '$identifier_regex',
+                                                    '\'=>\''
+                                                  ],
+                                                  [
+                                                    'spawn',
+                                                    '$0',
+                                                    'spawn',
+                                                    '!def_value'
+                                                  ],
+                                                  undef,
+                                                  [
+                                                    'die',
+                                                    '\'unexpected token in token_definition\''
+                                                  ]
+                                                ],
+                          'def_value' => [
+                                           [
+                                             '$string_regex'
+                                           ],
+                                           [
+                                             'spawn',
+                                             '$0',
+                                             'exit_context'
+                                           ],
+                                           [
+                                             '$regex_regex'
+                                           ],
+                                           [
+                                             'spawn',
+                                             '$0',
+                                             'exit_context'
+                                           ],
+                                           [
+                                             '$variable_regex'
+                                           ],
+                                           [
+                                             'spawn',
+                                             '$0',
+                                             'exit_context'
+                                           ],
+                                           undef,
+                                           [
+                                             'die',
+                                             '\'unexpected token in def_value\''
+                                           ]
+                                         ],
+                          'spawn_expression' => [
+                                                  [
+                                                    '/\\$\\d++/'
+                                                  ],
+                                                  [
+                                                    'spawn',
+                                                    '$0',
+                                                    'exit_context'
+                                                  ],
+                                                  [
+                                                    '$context_reference_regex'
+                                                  ],
+                                                  [
+                                                    'spawn',
+                                                    '$0',
+                                                    'exit_context'
+                                                  ],
+                                                  [
+                                                    '$string_regex'
+                                                  ],
+                                                  [
+                                                    'spawn',
+                                                    '$0',
+                                                    'exit_context'
+                                                  ],
+                                                  [
+                                                    '\'undef\''
+                                                  ],
+                                                  [
+                                                    'spawn',
+                                                    undef,
+                                                    'exit_context'
+                                                  ],
+                                                  [
+                                                    '\'[\'',
+                                                    '\']\''
+                                                  ],
+                                                  [
+                                                    'spawn',
+                                                    [],
+                                                    'exit_context'
+                                                  ],
+                                                  [
+                                                    '\'{\'',
+                                                    '\'}\''
+                                                  ],
+                                                  [
+                                                    'spawn',
+                                                    {},
+                                                    'exit_context'
+                                                  ],
+                                                  [
+                                                    '\'[\''
+                                                  ],
+                                                  [
+                                                    'spawn',
+                                                    [
+                                                      '!spawn_expression_list'
+                                                    ],
+                                                    'exit_context'
+                                                  ],
+                                                  undef,
+                                                  [
+                                                    'die',
+                                                    '\'spawn expression expected\''
+                                                  ]
+                                                ],
+                          'match_list' => [
+                                            [
+                                              '$variable_regex',
+                                              '\',\''
+                                            ],
+                                            [
+                                              'spawn',
+                                              '$0'
+                                            ],
+                                            [
+                                              '$variable_regex'
+                                            ],
+                                            [
+                                              'spawn',
+                                              '$0',
+                                              'exit_context'
+                                            ],
+                                            [
+                                              '$regex_regex',
+                                              '\',\''
+                                            ],
+                                            [
+                                              'spawn',
+                                              '$0'
+                                            ],
+                                            [
+                                              '$regex_regex'
+                                            ],
+                                            [
+                                              'spawn',
+                                              '$0',
+                                              'exit_context'
+                                            ],
+                                            [
+                                              '$string_regex',
+                                              '\',\''
+                                            ],
+                                            [
+                                              'spawn',
+                                              '$0'
+                                            ],
+                                            [
+                                              '$string_regex'
+                                            ],
+                                            [
+                                              'spawn',
+                                              '$0',
+                                              'exit_context'
+                                            ],
+                                            undef,
+                                            [
+                                              'die',
+                                              '\'unexpected end of match list\''
+                                            ]
+                                          ],
+                          'root' => [
+                                      [
+                                        '$identifier_regex',
+                                        '\'=\''
+                                      ],
+                                      [
+                                        'assign',
+                                        [
+                                          '\'variables\'',
+                                          {},
+                                          '$0',
+                                          '!def_value'
+                                        ]
+                                      ],
+                                      [
+                                        '\'tokens\'',
+                                        '\'{\''
+                                      ],
+                                      [
+                                        'assign',
+                                        [
+                                          '\'tokens\'',
+                                          [
+                                            '!token_definition'
+                                          ]
+                                        ]
+                                      ],
+                                      [
+                                        '\'ignored_tokens\'',
+                                        '\'{\''
+                                      ],
+                                      [
+                                        'assign',
+                                        [
+                                          '\'ignored_tokens\'',
+                                          [
+                                            '!ignored_tokens_list'
+                                          ]
+                                        ]
+                                      ],
+                                      [
+                                        '\'context\'',
+                                        '$identifier_regex',
+                                        '\'{\''
+                                      ],
+                                      [
+                                        'assign',
+                                        [
+                                          '\'contexts\'',
+                                          {},
+                                          '$1',
+                                          [
+                                            '!context_definition'
+                                          ]
+                                        ]
+                                      ]
+                                    ],
+                          'assign_hash' => [
+                                             [
+                                               '\'}\'',
+                                               '\'=>\''
+                                             ],
+                                             [
+                                               'switch_context',
+                                               '!spawn_expression'
+                                             ],
+                                             undef,
+                                             [
+                                               'die',
+                                               '\'\\\'}\\\' expected to close hash assignment\''
+                                             ]
+                                           ],
+                          'match_action' => [
+                                              [
+                                                '\'assign\'',
+                                                '\'{\''
+                                              ],
+                                              [
+                                                'spawn',
+                                                '\'assign\'',
+                                                'spawn',
+                                                [
+                                                  '!assign_scope'
+                                                ]
+                                              ],
+                                              [
+                                                '\'spawn\''
+                                              ],
+                                              [
+                                                'spawn',
+                                                '\'spawn\'',
+                                                'nest_context',
+                                                '!spawn_expression'
+                                              ],
+                                              [
+                                                '\'enter_context\'',
+                                                '$context_reference_regex'
+                                              ],
+                                              [
+                                                'spawn',
+                                                '\'enter_context\'',
+                                                'spawn',
+                                                '$1'
+                                              ],
+                                              [
+                                                '\'switch_context\'',
+                                                '$context_reference_regex'
+                                              ],
+                                              [
+                                                'spawn',
+                                                '\'switch_context\'',
+                                                'spawn',
+                                                '$1'
+                                              ],
+                                              [
+                                                '\'nest_context\'',
+                                                '$context_reference_regex'
+                                              ],
+                                              [
+                                                'spawn',
+                                                '\'nest_context\'',
+                                                'spawn',
+                                                '$1'
+                                              ],
+                                              [
+                                                '\'exit_context\''
+                                              ],
+                                              [
+                                                'spawn',
+                                                '\'exit_context\''
+                                              ],
+                                              [
+                                                '\'warn\'',
+                                                '$string_regex'
+                                              ],
+                                              [
+                                                'spawn',
+                                                '\'warn\'',
+                                                'spawn',
+                                                '$1'
+                                              ],
+                                              [
+                                                '\'die\'',
+                                                '$string_regex'
+                                              ],
+                                              [
+                                                'spawn',
+                                                '\'die\'',
+                                                'spawn',
+                                                '$1'
+                                              ],
+                                              [
+                                                '\'}\''
+                                              ],
+                                              [
+                                                'exit_context'
+                                              ],
+                                              undef,
+                                              [
+                                                'die',
+                                                '\'expected \\\'}\\\' to close match actions list\''
+                                              ]
+                                            ]
+                        },
+          'tokens' => [
+                        'identifier',
+                        '$identifier_regex',
+                        'string',
+                        '$string_regex',
+                        'regex',
+                        '$regex_regex',
+                        'variable',
+                        '$variable_regex',
+                        'context_reference',
+                        '$context_reference_regex'
+                      ],
+          'context_type' => 'root'
+        };
 
 	my $self = $class->SUPER::new(%args);
 
@@ -276,7 +770,11 @@ sub main {
 	my $parser = Sugar::Lang::Grammar->new;
 	foreach my $file (@_) {
 		$parser->{filepath} = Sugar::IO::File->new($file);
-		say Dumper $parser->parse;
+		my $tree = $parser->parse;
+		# say Dumper $tree;
+
+		my $compiler = Sugar::Lang::SyntaxIntermediateCompiler->new(syntax_definition_intermediate => $tree);
+		say $compiler->to_package;
 	}
 }
 
