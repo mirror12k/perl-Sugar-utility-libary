@@ -41,7 +41,6 @@ sub parse {
 
 sub get_context {
 	my ($self, $value) = @_;
-	say "getting context: $value";
 	if ($value =~ /\A\!(\w++)\Z/) {
 		my $context_type = $1;
 		confess "undefined context requested: '$context_type'" unless defined $self->{syntax_definition}{$context_type};
@@ -64,7 +63,6 @@ sub enter_context {
 
 sub nest_context {
 	my ($self, $context_type) = @_;
-	say "debug nest_context: $context_type";
 	$self->{current_context}{children} //= [];
 	my $new_context = { type => 'context', context_type => $context_type, children => $self->{current_context}{children} };
 	# push @{$self->{current_context}{children}}, $new_context;
@@ -204,8 +202,12 @@ sub compile_syntax_condition {
 	} elsif (ref $condition eq 'Regexp') {
 		$condition =~ s#/#\\/#g;
 		return "\$self->is_token_val('*' => qr/$condition/, $offset)"
+	} elsif ($condition =~ m#\A/.*/\Z#s) {
+		return "\$self->is_token_val('*' => qr$condition, $offset)"
+	} elsif ($condition =~ /\A'.*'\Z/s) {
+		return "\$self->is_token_val('*' => $condition, $offset)"
 	} else {
-		return "\$self->is_token_val('*' => '$condition', $offset)"
+		confess "invalid syntax condition '$condition'";
 	}
 }
 

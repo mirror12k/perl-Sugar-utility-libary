@@ -67,23 +67,23 @@ sub new {
 	$args{syntax_definition_intermediate} = {
 		contexts => {
 			root => [
-				[ $identifier_regex, '=' ] => [
+				[ "/$identifier_regex/", "'='" ] => [
 					assign => [
 						"'variables'" => {} => '$0' => '!def_value',
 					],
 				],
-				[ 'context', $identifier_regex, '{' ] => [
+				[ "'context'", "/$identifier_regex/", "'{'" ] => [
 					assign => [
 						"'contexts'" => {} => '$1' => [ '!context_definition' ],
 					]
 				],
 			],
 			def_value => [
-				$string_regex => [
+				"/$string_regex/" => [
 					spawn => '$0',
 					'exit_context'
 				],
-				$regex_regex => [
+				"/\\/([^\\\\\\/]|\\\\.)*?\\//" => [
 					spawn => '$0',
 					'exit_context',
 				],
@@ -91,10 +91,10 @@ sub new {
 					=> [ die => "'expected value'" ],
 			],
 			context_definition => [
-				'}' => [
+				"'}'" => [
 					'exit_context',
 				],
-				'default' => [
+				"'default'" => [
 					spawn => undef,
 					spawn => [ '!enter_match_action' ],
 				],
@@ -106,17 +106,17 @@ sub new {
 			],
 
 			match_list => [
-				[ $regex_regex, ',' ] => [
+				[ "/\\/([^\\\\\\/]|\\\\.)*?\\//", "','" ] => [
 					spawn => '$0',
 				],
-				$regex_regex => [
+				"/\\/([^\\\\\\/]|\\\\.)*?\\//" => [
 					spawn => '$0',
 					'exit_context',
 				],
-				[ $string_regex, ',' ] => [
+				[ "/$string_regex/", "','" ] => [
 					spawn => '$0',
 				],
-				$string_regex => [
+				"/$string_regex/" => [
 					spawn => '$0',
 					'exit_context',
 				],
@@ -134,76 +134,76 @@ sub new {
 			# ],
 
 			enter_match_action => [
-				'{' => [
+				"'{'" => [
 					switch_context => '!match_action',
 				],
 				undef
 					=> [ die => "'expected \\'{\\' after match directive'" ],
 			],
 			match_action => [
-				[ 'assign', '{' ] => [
+				[ "'assign'", "'{'" ] => [
 					spawn => "'assign'",
 					spawn => [ '!assign_scope' ],
 				],
-				'spawn' => [
+				"'spawn'" => [
 					spawn => "'spawn'",
 					nest_context => '!spawn_expression',
 				],
-				[ 'enter_context', $context_reference_regex ] => [
+				[ "'enter_context'", "/$context_reference_regex/" ] => [
 					spawn => "'enter_context'",
 					spawn => '$1',
 				],
-				[ 'switch_context', $context_reference_regex ] => [
+				[ "'switch_context'", "/$context_reference_regex/" ] => [
 					spawn => "'switch_context'",
 					spawn => '$1',
 				],
-				[ 'nest_context', $context_reference_regex ] => [
+				[ "'nest_context'", "/$context_reference_regex/" ] => [
 					spawn => "'nest_context'",
 					spawn => '$1',
 				],
-				'exit_context' => [
+				"'exit_context'" => [
 					spawn => "'exit_context'",
 				],
-				[ 'warn', $string_regex ] => [
+				[ "'warn'", "/$string_regex/" ] => [
 					spawn => "'warn'",
 					spawn => '$1',
 				],
-				[ 'die', $string_regex ] => [
+				[ "'die'", "/$string_regex/" ] => [
 					spawn => "'die'",
 					spawn => '$1',
 				],
-				'}' => [
+				"'}'" => [
 					'exit_context',
 				],
 				undef
 					=> [ die => "'expected \\'}\\' to close match actions list'" ],
 			],
 			spawn_expression => [
-				qr/\$\d++/ => [
+				'/\\$\\d++/' => [
 					spawn => '$0',
 					'exit_context',
 				],
-				qr/\!\w++/ => [
+				'/!\\w++/' => [
 					spawn => '$0',
 					'exit_context',
 				],
-				'undef' => [
+				"'undef'" => [
 					spawn => undef,
 					'exit_context',
 				],
-				$string_regex => [
+				"/$string_regex/" => [
 					spawn => '$0',
 					'exit_context',
 				],
-				[ '[', ']' ] => [
+				[ "'['", "']'" ] => [
 					spawn => [],
 					'exit_context',
 				],
-				[ '{', '}' ] => [
+				[ "'{'", "'}'" ] => [
 					spawn => {},
 					'exit_context',
 				],
-				[ '[', ] => [
+				[ "'['", ] => [
 					spawn => [ '!spawn_expression_list' ],
 					'exit_context',
 				],
@@ -214,7 +214,7 @@ sub new {
 					=> [ die => "'expression expected'" ],
 			],
 			spawn_expression_list => [
-				[ qr/\!\w++/, ']' ] => [
+				[ '/!\\w++/', "']'" ] => [
 					spawn => '$0',
 					'exit_context',
 				],
@@ -222,22 +222,22 @@ sub new {
 					=> [ die => "'spawn expression list expected'" ],
 			],
 			assign_scope => [
-				[ $string_regex, '=>' ] => [
+				[ "/$string_regex/", "'=>'" ] => [
 					spawn => '$0',
 					nest_context => '!spawn_expression',
 				],
-				[ $string_regex, '[', ']', '=>' ] => [
+				[ "/$string_regex/", "'['", "']'", "'=>'" ] => [
 					spawn => '$0',
 					spawn => [],
 					nest_context => '!spawn_expression',
 				],
-				[ $string_regex, '{' ] => [
+				[ "/$string_regex/", "'{'" ] => [
 					spawn => '$0',
 					spawn => {},
 					spawn => '!spawn_expression',
 					nest_context => '!assign_hash',
 				],
-				'}' => [
+				"'}'" => [
 					'exit_context'
 				],
 				undef
@@ -245,7 +245,7 @@ sub new {
 			],
 
 			assign_hash => [
-				[ '}', '=>' ] => [
+				[ "'}'", "'=>'" ] => [
 					switch_context => '!spawn_expression',
 				],
 				undef
