@@ -1,0 +1,204 @@
+
+# Sugar grammar language parser
+
+identifier_regex = /[a-zA-Z_][a-zA-Z0-9_]*+/
+string_regex = /'([^\\']|\\[\\'])*+'/s
+regex_regex = /\/([^\\\/]|\\.)*+\/[msixpodualn]*/s
+variable_regex = /\$\w++/
+context_reference_regex = /!\w++/
+
+
+
+context root {
+	$identifier_regex, '=' {
+		assign {
+			'variables'{$0} => !def_value
+		}
+	}
+	'context', $identifier_regex, '{' {
+		assign {
+			'contexts'{$1} => [ !context_definition ]
+		}
+	}
+}
+
+context def_value {
+	$string_regex {
+		spawn $0
+		exit_context
+	}
+	$regex_regex {
+		spawn $0
+		exit_context
+	}
+	default {
+		die 'unexpected value'
+	}
+}
+
+context context_definition {
+	'}' {
+		exit_context
+	}
+	'default' {
+		spawn undef
+		spawn [ !enter_match_action ]
+	}
+	default {
+		spawn [ !match_list ]
+		spawn [ !enter_match_action ]
+	}
+}
+
+context match_list {
+	$variable_regex, ',' {
+		spawn $0
+	}
+	$variable_regex {
+		spawn $0
+		exit_context
+	}
+	$regex_regex, ',' {
+		spawn $0
+	}
+	$regex_regex {
+		spawn $0
+		exit_context
+	}
+	$string_regex, ',' {
+		spawn $0
+	}
+	$string_regex {
+		spawn $0
+		exit_context
+	}
+	default {
+		die 'unexpected end of match list'
+	}
+}
+
+context enter_match_action {
+	'{' {
+		switch_context !match_action
+	}
+	default {
+		die 'expected \'{\' after match directive'
+	}
+}
+
+context match_action {
+	'assign', '{' {
+		spawn 'assign'
+		spawn [ !assign_scope ]
+	}
+	'spawn' {
+		spawn 'spawn'
+		nest_context !spawn_expression
+	}
+	'enter_context', $context_reference_regex {
+		spawn 'enter_context'
+		spawn $1
+	}
+	'switch_context', $context_reference_regex {
+		spawn 'switch_context'
+		spawn $1
+	}
+	'nest_context', $context_reference_regex {
+		spawn 'nest_context'
+		spawn $1
+	}
+	'exit_context' {
+		spawn 'exit_context'
+	}
+	'warn', $string_regex {
+		spawn 'warn'
+		spawn $1
+	}
+	'die', $string_regex {
+		spawn 'die'
+		spawn $1
+	}
+	'}' {
+		exit_context
+	}
+	default {
+		die 'expected \'}\' to close match actions list'
+	}
+}
+
+context spawn_expression {
+	/\$\d++/ {
+		spawn $0
+		exit_context
+	}
+	$context_reference_regex {
+		spawn $0
+		exit_context
+	}
+	$string_regex {
+		spawn $0
+		exit_context
+	}
+	'undef' {
+		spawn undef
+		exit_context
+	}
+	'[', ']' {
+		spawn []
+		exit_context
+	}
+	'{', '}' {
+		spawn {}
+		exit_context
+	}
+	'[' {
+		spawn [ !spawn_expression_list ]
+		exit_context
+	}
+	default {
+		die 'spawn expression expected'
+	}
+}
+
+context spawn_expression_list {
+	$context_reference_regex, ']' {
+		spawn $0
+		exit_context
+	}
+	default {
+		die 'spawn expression list expected'
+	}
+}
+
+context assign_scope {
+	$string_regex, '=>' {
+		spawn $0
+		nest_context !spawn_expression
+	}
+	$string_regex, '[', ']', '=>' {
+		spawn $0
+		spawn []
+		nest_context !spawn_expression
+	}
+	$string_regex, '{' {
+		spawn $0
+		spawn {}
+		spawn !spawn_expression
+		nest_context !assign_hash
+	}
+	'}' {
+		exit_context
+	}
+	default {
+		die 'assign expression expected'
+	}
+}
+
+context assign_hash {
+	'}', '=>' {
+		switch_context !spawn_expression
+	}
+	default {
+		die '\'}\' expected to close hash assignment'
+	}
+}

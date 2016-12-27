@@ -1,0 +1,32 @@
+
+
+asdf = 'qert'
+qwert = /testing/msix
+
+context root {
+	'context', 'root' {
+		enter_context !asdf
+		switch_context !asdf
+		exit_context
+	}
+	'asdf' {
+		spawn undef
+		spawn $0
+		spawn 'asdf'
+		spawn !asdf
+		spawn [ !asdf ]
+	}
+	'qwerty', /\d+/i {
+		assign {
+			'asdf' => 'qwerty'
+			'qwerty'[] => 'zxcv'
+			'zxvc'{'key'} => 'uiop'
+		}
+		spawn []
+		spawn {}
+	}
+	default {
+		warn 'default path'
+		exit_context
+	}
+}
