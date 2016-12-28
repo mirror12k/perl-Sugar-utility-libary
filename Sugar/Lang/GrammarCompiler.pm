@@ -72,52 +72,58 @@ sub main {
 caller or main(@ARGV);
 
 
-	sub context_assign_hash {
-		my ($self) = @_;
+sub context_assign_hash {
+	my ($self) = @_;
+
+	while ($self->more_tokens) {
 		if ($self->{tokens}[$self->{tokens_index} + 0][1] eq '}' and $self->{tokens}[$self->{tokens_index} + 1][1] eq '=>') {
 			my @tokens = $self->step_tokens(2);
-			$self->switch_context($self->get_context('!spawn_expression'));
+			return $self->switch_context($self->get_context('!spawn_expression'));
 		} else {
 			my @tokens;
 			$self->confess_at_current_offset('\'}\' expected to close hash assignment');
 		}
 
-		return;
 	}
+}
 
-	sub context_assign_scope {
-		my ($self) = @_;
+sub context_assign_scope {
+	my ($self) = @_;
+
+	while ($self->more_tokens) {
 		if ($self->{tokens}[$self->{tokens_index} + 0][1] =~ /\A'([^\\']|\\[\\'])*+'\Z/s and $self->{tokens}[$self->{tokens_index} + 1][1] eq '=>') {
 			my @tokens = $self->step_tokens(2);
 			push @{$self->{current_context}{children}}, $tokens[0][1];
-			$self->nest_context($self->get_context('!spawn_expression'));
+			return $self->nest_context($self->get_context('!spawn_expression'));
 		} elsif ($self->{tokens}[$self->{tokens_index} + 0][1] =~ /\A'([^\\']|\\[\\'])*+'\Z/s and $self->{tokens}[$self->{tokens_index} + 1][1] eq '[' and $self->{tokens}[$self->{tokens_index} + 2][1] eq ']' and $self->{tokens}[$self->{tokens_index} + 3][1] eq '=>') {
 			my @tokens = $self->step_tokens(4);
 			push @{$self->{current_context}{children}}, $tokens[0][1];
 			push @{$self->{current_context}{children}}, [];
-			$self->nest_context($self->get_context('!spawn_expression'));
+			return $self->nest_context($self->get_context('!spawn_expression'));
 		} elsif ($self->{tokens}[$self->{tokens_index} + 0][1] =~ /\A'([^\\']|\\[\\'])*+'\Z/s and $self->{tokens}[$self->{tokens_index} + 1][1] eq '{') {
 			my @tokens = $self->step_tokens(2);
 			push @{$self->{current_context}{children}}, $tokens[0][1];
 			push @{$self->{current_context}{children}}, {};
 			push @{$self->{current_context}{children}}, $self->extract_context_result($self->get_context('!spawn_expression'));
-			$self->nest_context($self->get_context('!assign_hash'));
+			return $self->nest_context($self->get_context('!assign_hash'));
 		} elsif ($self->{tokens}[$self->{tokens_index} + 0][1] eq '}') {
 			my @tokens = $self->step_tokens(1);
-			$self->exit_context;
+			return $self->exit_context;
 		} else {
 			my @tokens;
 			$self->confess_at_current_offset('assign expression expected');
 		}
 
-		return;
 	}
+}
 
-	sub context_context_definition {
-		my ($self) = @_;
+sub context_context_definition {
+	my ($self) = @_;
+
+	while ($self->more_tokens) {
 		if ($self->{tokens}[$self->{tokens_index} + 0][1] eq '}') {
 			my @tokens = $self->step_tokens(1);
-			$self->exit_context;
+			return $self->exit_context;
 		} elsif ($self->{tokens}[$self->{tokens_index} + 0][1] eq 'default') {
 			my @tokens = $self->step_tokens(1);
 			push @{$self->{current_context}{children}}, undef;
@@ -128,49 +134,55 @@ caller or main(@ARGV);
 			push @{$self->{current_context}{children}}, $self->extract_context_result($self->get_context('!enter_match_action'), 'ARRAY');
 		}
 
-		return;
 	}
+}
 
-	sub context_def_value {
-		my ($self) = @_;
+sub context_def_value {
+	my ($self) = @_;
+
+	while ($self->more_tokens) {
 		if ($self->{tokens}[$self->{tokens_index} + 0][1] =~ /\A'([^\\']|\\[\\'])*+'\Z/s) {
 			my @tokens = $self->step_tokens(1);
 			push @{$self->{current_context}{children}}, $tokens[0][1];
-			$self->exit_context;
+			return $self->exit_context;
 		} elsif ($self->{tokens}[$self->{tokens_index} + 0][1] =~ /\A\/([^\\\/]|\\.)*+\/[msixpodualn]*\Z/s) {
 			my @tokens = $self->step_tokens(1);
 			push @{$self->{current_context}{children}}, $tokens[0][1];
-			$self->exit_context;
+			return $self->exit_context;
 		} elsif ($self->{tokens}[$self->{tokens_index} + 0][1] =~ /\A\$\w++\Z/) {
 			my @tokens = $self->step_tokens(1);
 			push @{$self->{current_context}{children}}, $tokens[0][1];
-			$self->exit_context;
+			return $self->exit_context;
 		} else {
 			my @tokens;
 			$self->confess_at_current_offset('unexpected token in def_value');
 		}
 
-		return;
 	}
+}
 
-	sub context_enter_match_action {
-		my ($self) = @_;
+sub context_enter_match_action {
+	my ($self) = @_;
+
+	while ($self->more_tokens) {
 		if ($self->{tokens}[$self->{tokens_index} + 0][1] eq '{') {
 			my @tokens = $self->step_tokens(1);
-			$self->switch_context($self->get_context('!match_action'));
+			return $self->switch_context($self->get_context('!match_action'));
 		} else {
 			my @tokens;
 			$self->confess_at_current_offset('expected \'{\' after match directive');
 		}
 
-		return;
 	}
+}
 
-	sub context_ignored_tokens_list {
-		my ($self) = @_;
+sub context_ignored_tokens_list {
+	my ($self) = @_;
+
+	while ($self->more_tokens) {
 		if ($self->{tokens}[$self->{tokens_index} + 0][1] eq '}') {
 			my @tokens = $self->step_tokens(1);
-			$self->exit_context;
+			return $self->exit_context;
 		} elsif ($self->{tokens}[$self->{tokens_index} + 0][1] =~ /\A[a-zA-Z_][a-zA-Z0-9_]*+\Z/) {
 			my @tokens = $self->step_tokens(1);
 			push @{$self->{current_context}{children}}, $tokens[0][1];
@@ -179,11 +191,13 @@ caller or main(@ARGV);
 			$self->confess_at_current_offset('unexpected token in ignored_tokens_list');
 		}
 
-		return;
 	}
+}
 
-	sub context_match_action {
-		my ($self) = @_;
+sub context_match_action {
+	my ($self) = @_;
+
+	while ($self->more_tokens) {
 		if ($self->{tokens}[$self->{tokens_index} + 0][1] eq 'assign' and $self->{tokens}[$self->{tokens_index} + 1][1] eq '{') {
 			my @tokens = $self->step_tokens(2);
 			push @{$self->{current_context}{children}}, 'assign';
@@ -191,7 +205,7 @@ caller or main(@ARGV);
 		} elsif ($self->{tokens}[$self->{tokens_index} + 0][1] eq 'spawn') {
 			my @tokens = $self->step_tokens(1);
 			push @{$self->{current_context}{children}}, 'spawn';
-			$self->nest_context($self->get_context('!spawn_expression'));
+			return $self->nest_context($self->get_context('!spawn_expression'));
 		} elsif ($self->{tokens}[$self->{tokens_index} + 0][1] eq 'enter_context' and $self->{tokens}[$self->{tokens_index} + 1][1] =~ /\A!\w++\Z/) {
 			my @tokens = $self->step_tokens(2);
 			push @{$self->{current_context}{children}}, 'enter_context';
@@ -217,48 +231,52 @@ caller or main(@ARGV);
 			push @{$self->{current_context}{children}}, $tokens[1][1];
 		} elsif ($self->{tokens}[$self->{tokens_index} + 0][1] eq '}') {
 			my @tokens = $self->step_tokens(1);
-			$self->exit_context;
+			return $self->exit_context;
 		} else {
 			my @tokens;
 			$self->confess_at_current_offset('expected \'}\' to close match actions list');
 		}
 
-		return;
 	}
+}
 
-	sub context_match_list {
-		my ($self) = @_;
+sub context_match_list {
+	my ($self) = @_;
+
+	while ($self->more_tokens) {
 		if ($self->{tokens}[$self->{tokens_index} + 0][1] =~ /\A\$\w++\Z/ and $self->{tokens}[$self->{tokens_index} + 1][1] eq ',') {
 			my @tokens = $self->step_tokens(2);
 			push @{$self->{current_context}{children}}, $tokens[0][1];
 		} elsif ($self->{tokens}[$self->{tokens_index} + 0][1] =~ /\A\$\w++\Z/) {
 			my @tokens = $self->step_tokens(1);
 			push @{$self->{current_context}{children}}, $tokens[0][1];
-			$self->exit_context;
+			return $self->exit_context;
 		} elsif ($self->{tokens}[$self->{tokens_index} + 0][1] =~ /\A\/([^\\\/]|\\.)*+\/[msixpodualn]*\Z/s and $self->{tokens}[$self->{tokens_index} + 1][1] eq ',') {
 			my @tokens = $self->step_tokens(2);
 			push @{$self->{current_context}{children}}, $tokens[0][1];
 		} elsif ($self->{tokens}[$self->{tokens_index} + 0][1] =~ /\A\/([^\\\/]|\\.)*+\/[msixpodualn]*\Z/s) {
 			my @tokens = $self->step_tokens(1);
 			push @{$self->{current_context}{children}}, $tokens[0][1];
-			$self->exit_context;
+			return $self->exit_context;
 		} elsif ($self->{tokens}[$self->{tokens_index} + 0][1] =~ /\A'([^\\']|\\[\\'])*+'\Z/s and $self->{tokens}[$self->{tokens_index} + 1][1] eq ',') {
 			my @tokens = $self->step_tokens(2);
 			push @{$self->{current_context}{children}}, $tokens[0][1];
 		} elsif ($self->{tokens}[$self->{tokens_index} + 0][1] =~ /\A'([^\\']|\\[\\'])*+'\Z/s) {
 			my @tokens = $self->step_tokens(1);
 			push @{$self->{current_context}{children}}, $tokens[0][1];
-			$self->exit_context;
+			return $self->exit_context;
 		} else {
 			my @tokens;
 			$self->confess_at_current_offset('unexpected end of match list');
 		}
 
-		return;
 	}
+}
 
-	sub context_root {
-		my ($self) = @_;
+sub context_root {
+	my ($self) = @_;
+
+	while ($self->more_tokens) {
 		if ($self->{tokens}[$self->{tokens_index} + 0][1] =~ /\A[a-zA-Z_][a-zA-Z0-9_]*+\Z/ and $self->{tokens}[$self->{tokens_index} + 1][1] eq '=') {
 			my @tokens = $self->step_tokens(2);
 			$self->{current_context}{'variables'}{$tokens[0][1]} = $self->extract_context_result($self->get_context('!def_value'));
@@ -273,69 +291,75 @@ caller or main(@ARGV);
 			$self->{current_context}{'contexts'}{$tokens[1][1]} = $self->extract_context_result($self->get_context('!context_definition'), 'ARRAY');
 		} else {
 			my @tokens;
-			$self->exit_context;
+			return $self->exit_context;
 		}
 
-		return;
 	}
+}
 
-	sub context_spawn_expression {
-		my ($self) = @_;
+sub context_spawn_expression {
+	my ($self) = @_;
+
+	while ($self->more_tokens) {
 		if ($self->{tokens}[$self->{tokens_index} + 0][1] =~ /\A\$\d++\Z/) {
 			my @tokens = $self->step_tokens(1);
 			push @{$self->{current_context}{children}}, $tokens[0][1];
-			$self->exit_context;
+			return $self->exit_context;
 		} elsif ($self->{tokens}[$self->{tokens_index} + 0][1] =~ /\A!\w++\Z/) {
 			my @tokens = $self->step_tokens(1);
 			push @{$self->{current_context}{children}}, $tokens[0][1];
-			$self->exit_context;
+			return $self->exit_context;
 		} elsif ($self->{tokens}[$self->{tokens_index} + 0][1] =~ /\A'([^\\']|\\[\\'])*+'\Z/s) {
 			my @tokens = $self->step_tokens(1);
 			push @{$self->{current_context}{children}}, $tokens[0][1];
-			$self->exit_context;
+			return $self->exit_context;
 		} elsif ($self->{tokens}[$self->{tokens_index} + 0][1] eq 'undef') {
 			my @tokens = $self->step_tokens(1);
 			push @{$self->{current_context}{children}}, undef;
-			$self->exit_context;
+			return $self->exit_context;
 		} elsif ($self->{tokens}[$self->{tokens_index} + 0][1] eq '[' and $self->{tokens}[$self->{tokens_index} + 1][1] eq ']') {
 			my @tokens = $self->step_tokens(2);
 			push @{$self->{current_context}{children}}, [];
-			$self->exit_context;
+			return $self->exit_context;
 		} elsif ($self->{tokens}[$self->{tokens_index} + 0][1] eq '{' and $self->{tokens}[$self->{tokens_index} + 1][1] eq '}') {
 			my @tokens = $self->step_tokens(2);
 			push @{$self->{current_context}{children}}, {};
-			$self->exit_context;
+			return $self->exit_context;
 		} elsif ($self->{tokens}[$self->{tokens_index} + 0][1] eq '[') {
 			my @tokens = $self->step_tokens(1);
 			push @{$self->{current_context}{children}}, $self->extract_context_result($self->get_context('!spawn_expression_list'), 'ARRAY');
-			$self->exit_context;
+			return $self->exit_context;
 		} else {
 			my @tokens;
 			$self->confess_at_current_offset('spawn expression expected');
 		}
 
-		return;
 	}
+}
 
-	sub context_spawn_expression_list {
-		my ($self) = @_;
+sub context_spawn_expression_list {
+	my ($self) = @_;
+
+	while ($self->more_tokens) {
 		if ($self->{tokens}[$self->{tokens_index} + 0][1] =~ /\A!\w++\Z/ and $self->{tokens}[$self->{tokens_index} + 1][1] eq ']') {
 			my @tokens = $self->step_tokens(2);
 			push @{$self->{current_context}{children}}, $tokens[0][1];
-			$self->exit_context;
+			return $self->exit_context;
 		} else {
 			my @tokens;
 			$self->confess_at_current_offset('spawn expression list expected');
 		}
 
-		return;
 	}
+}
 
-	sub context_token_definition {
-		my ($self) = @_;
+sub context_token_definition {
+	my ($self) = @_;
+
+	while ($self->more_tokens) {
 		if ($self->{tokens}[$self->{tokens_index} + 0][1] eq '}') {
 			my @tokens = $self->step_tokens(1);
-			$self->exit_context;
+			return $self->exit_context;
 		} elsif ($self->{tokens}[$self->{tokens_index} + 0][1] =~ /\A[a-zA-Z_][a-zA-Z0-9_]*+\Z/ and $self->{tokens}[$self->{tokens_index} + 1][1] eq '=>') {
 			my @tokens = $self->step_tokens(2);
 			push @{$self->{current_context}{children}}, $tokens[0][1];
@@ -345,6 +369,6 @@ caller or main(@ARGV);
 			$self->confess_at_current_offset('unexpected token in token_definition');
 		}
 
-		return;
 	}
+}
 

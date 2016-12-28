@@ -136,11 +136,13 @@ sub compile_syntax_context {
 	my ($self, $context_name, $context) = @_;
 
 	my $code = '
-	sub {
-		my ($self) = @_;
+sub {
+	my ($self) = @_;
 ';
 	# $code .= "\t\tsay 'in context $context_name';\n"; # DEBUG INLINE TREE BUILDER
-
+	$code .= '
+	while ($self->more_tokens) {
+';
 	my @items = @$context;
 	my $first_item = 1;
 	$self->{context_default_case} = undef;
@@ -173,8 +175,8 @@ sub compile_syntax_context {
 	}
 
 	$code .= "
-		return;
 	}
+}
 ";
 	# say "compiled code: ", $code; # DEBUG INLINE TREE BUILDER
 	# my $compiled = eval $code;
@@ -258,17 +260,17 @@ sub compile_syntax_action {
 		}
 
 		if ($action eq 'exit_context') {
-			push @code, "\$self->exit_context;";
+			push @code, "return \$self->exit_context;";
 			$self->{context_default_case} = [ die => 'unexpected token' ] unless defined $self->{context_default_case};
 		} elsif ($action eq 'enter_context') {
 			my $context_type = shift (@actions) =~ s/(['\\])/\\$1/gr;
-			push @code, "\$self->enter_context(\$self->get_context('$context_type'));";
+			push @code, "return \$self->enter_context(\$self->get_context('$context_type'));";
 		} elsif ($action eq 'switch_context') {
 			my $context_type = shift (@actions) =~ s/(['\\])/\\$1/gr;
-			push @code, "\$self->switch_context(\$self->get_context('$context_type'));";
+			push @code, "return \$self->switch_context(\$self->get_context('$context_type'));";
 		} elsif ($action eq 'nest_context') {
 			my $context_type = shift (@actions) =~ s/(['\\])/\\$1/gr;
-			push @code, "\$self->nest_context(\$self->get_context('$context_type'));";
+			push @code, "return \$self->nest_context(\$self->get_context('$context_type'));";
 		}
 
 		if ($action eq 'die') {

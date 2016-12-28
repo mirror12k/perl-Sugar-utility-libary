@@ -29,11 +29,13 @@ sub parse {
 	$self->{context_stack} = [];
 	# $self->{current_syntax_context} = $self->{contexts}{$self->{current_context}{context_type}};
 
-	while ($self->more_tokens) {
+	# while ($self->more_tokens) {
 		# confess "undefined context_type referenced '$self->{current_context}{context_type}'"
 		# 		unless defined $self->{contexts}{$self->{current_context}{context_type}};
 		$self->{contexts}{$self->{current_context}{context_type}}->($self);
-	}
+	# }
+
+	$self->confess_at_current_offset("more tokens after parsing complete") if $self->more_tokens;
 
 	return $self->{syntax_tree}
 }
