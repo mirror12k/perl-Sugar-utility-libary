@@ -39,6 +39,7 @@ use feature "say";
 use Data::Dumper;
 
 use Sugar::IO::File;
+use Sugar::Lang::SyntaxIntermediateCompiler;
 
 
 
@@ -76,17 +77,15 @@ sub new {
 	return $self
 }
 
-# use Sugar::Lang::SyntaxIntermediateCompiler;
-
 sub main {
 	my $parser = PACKAGE_NAME->new;
 	foreach my $file (@_) {
 		$parser->{filepath} = Sugar::IO::File->new($file);
 		my $tree = $parser->parse;
-		say Dumper $tree;
+		# say Dumper $tree;
 
-		# my $compiler = Sugar::Lang::SyntaxIntermediateCompiler->new(syntax_definition_intermediate => $tree);
-		# say $compiler->to_package;
+		my $compiler = Sugar::Lang::SyntaxIntermediateCompiler->new(syntax_definition_intermediate => $tree);
+		say $compiler->to_package;
 	}
 }
 

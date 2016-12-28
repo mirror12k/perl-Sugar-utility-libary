@@ -8,6 +8,7 @@ use feature "say";
 use Data::Dumper;
 
 use Sugar::IO::File;
+use Sugar::Lang::SyntaxIntermediateCompiler;
 
 
 
@@ -55,8 +56,6 @@ sub new {
 
 	return $self
 }
-
-use Sugar::Lang::SyntaxIntermediateCompiler;
 
 sub main {
 	my $parser = Sugar::Lang::GrammarCompiler->new;
