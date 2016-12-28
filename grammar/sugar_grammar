@@ -1,7 +1,7 @@
 
 # Sugar grammar language parser
 
-
+# regex definitions
 symbol_regex = /\{|\}|\[|\]|=>|=|,/
 
 identifier_regex = /[a-zA-Z_][a-zA-Z0-9_]*+/
@@ -13,6 +13,7 @@ context_reference_regex = /!\w++/
 comment_regex = /\#[^\n]*+\n/s
 whitespace_regex = /\s++/s
 
+# tokens specified to the token parser
 tokens {
 	symbol => $symbol_regex
 
@@ -26,11 +27,13 @@ tokens {
 	whitespace => $whitespace_regex
 }
 
+# tokens that will get filtered off
 ignored_tokens {
 	comment
 	whitespace
 }
 
+# context definitions
 context root {
 	$identifier_regex, '=' {
 		assign {
