@@ -1,9 +1,9 @@
 package Sugar::Lang::GrammarCompiler;
-use parent "Sugar::Lang::BaseSyntaxParser";
+use parent 'Sugar::Lang::BaseSyntaxParser';
 use strict;
 use warnings;
 
-use feature "say";
+use feature 'say';
 
 use Data::Dumper;
 
@@ -14,6 +14,7 @@ use Sugar::Lang::SyntaxIntermediateCompiler;
 
 our $tokens = [
 	'symbol' => qr/\{|\}|\[|\]|=>|=|,/,
+	'package_identifier' => qr/[a-zA-Z_][a-zA-Z0-9_]*+(\:\:[a-zA-Z_][a-zA-Z0-9_]*+)++/,
 	'identifier' => qr/[a-zA-Z_][a-zA-Z0-9_]*+/,
 	'string' => qr/'([^\\']|\\[\\'])*+'/s,
 	'regex' => qr/\/([^\\\/]|\\.)*+\/[msixpodualn]*/s,
@@ -58,7 +59,7 @@ sub new {
 }
 
 sub main {
-	my $parser = Sugar::Lang::GrammarCompiler->new;
+	my $parser = __PACKAGE__->new;
 	foreach my $file (@_) {
 		$parser->{filepath} = Sugar::IO::File->new($file);
 		my $tree = $parser->parse;
@@ -94,12 +95,12 @@ sub context_assign_scope {
 		if ($self->{tokens}[$self->{tokens_index} + 0][1] =~ /\A'([^\\']|\\[\\'])*+'\Z/s and $self->{tokens}[$self->{tokens_index} + 1][1] eq '=>') {
 			my @tokens = $self->step_tokens(2);
 			push @{$self->{current_context}{children}}, $tokens[0][1];
-			return $self->nest_context($self->get_context('!spawn_expression'));
+			push @{$self->{current_context}{children}}, $self->extract_context_result($self->get_context('!spawn_expression'));
 		} elsif ($self->{tokens}[$self->{tokens_index} + 0][1] =~ /\A'([^\\']|\\[\\'])*+'\Z/s and $self->{tokens}[$self->{tokens_index} + 1][1] eq '[' and $self->{tokens}[$self->{tokens_index} + 2][1] eq ']' and $self->{tokens}[$self->{tokens_index} + 3][1] eq '=>') {
 			my @tokens = $self->step_tokens(4);
 			push @{$self->{current_context}{children}}, $tokens[0][1];
 			push @{$self->{current_context}{children}}, [];
-			return $self->nest_context($self->get_context('!spawn_expression'));
+			push @{$self->{current_context}{children}}, $self->extract_context_result($self->get_context('!spawn_expression'));
 		} elsif ($self->{tokens}[$self->{tokens_index} + 0][1] =~ /\A'([^\\']|\\[\\'])*+'\Z/s and $self->{tokens}[$self->{tokens_index} + 1][1] eq '{') {
 			my @tokens = $self->step_tokens(2);
 			push @{$self->{current_context}{children}}, $tokens[0][1];
@@ -205,7 +206,7 @@ sub context_match_action {
 		} elsif ($self->{tokens}[$self->{tokens_index} + 0][1] eq 'spawn') {
 			my @tokens = $self->step_tokens(1);
 			push @{$self->{current_context}{children}}, 'spawn';
-			return $self->nest_context($self->get_context('!spawn_expression'));
+			push @{$self->{current_context}{children}}, $self->extract_context_result($self->get_context('!spawn_expression'));
 		} elsif ($self->{tokens}[$self->{tokens_index} + 0][1] eq 'enter_context' and $self->{tokens}[$self->{tokens_index} + 1][1] =~ /\A!\w++\Z/) {
 			my @tokens = $self->step_tokens(2);
 			push @{$self->{current_context}{children}}, 'enter_context';
@@ -280,6 +281,9 @@ sub context_root {
 		if ($self->{tokens}[$self->{tokens_index} + 0][1] =~ /\A[a-zA-Z_][a-zA-Z0-9_]*+\Z/ and $self->{tokens}[$self->{tokens_index} + 1][1] eq '=') {
 			my @tokens = $self->step_tokens(2);
 			$self->{current_context}{'variables'}{$tokens[0][1]} = $self->extract_context_result($self->get_context('!def_value'));
+		} elsif ($self->{tokens}[$self->{tokens_index} + 0][1] eq 'package' and $self->{tokens}[$self->{tokens_index} + 1][1] =~ /\A[a-zA-Z_][a-zA-Z0-9_]*+(\:\:[a-zA-Z_][a-zA-Z0-9_]*+)++\Z/) {
+			my @tokens = $self->step_tokens(2);
+			$self->{current_context}{'package_identifier'} = $tokens[1][1];
 		} elsif ($self->{tokens}[$self->{tokens_index} + 0][1] eq 'tokens' and $self->{tokens}[$self->{tokens_index} + 1][1] eq '{') {
 			my @tokens = $self->step_tokens(2);
 			$self->{current_context}{'tokens'} = $self->extract_context_result($self->get_context('!token_definition'), 'ARRAY');

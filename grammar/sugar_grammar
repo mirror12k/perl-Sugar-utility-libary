@@ -1,9 +1,10 @@
-
 # Sugar grammar language parser
+package Sugar::Lang::GrammarCompiler
 
 # regex definitions
 symbol_regex = /\{|\}|\[|\]|=>|=|,/
 
+package_identifier_regex = /[a-zA-Z_][a-zA-Z0-9_]*+(\:\:[a-zA-Z_][a-zA-Z0-9_]*+)++/
 identifier_regex = /[a-zA-Z_][a-zA-Z0-9_]*+/
 string_regex = /'([^\\']|\\[\\'])*+'/s
 regex_regex = /\/([^\\\/]|\\.)*+\/[msixpodualn]*/s
@@ -17,6 +18,7 @@ whitespace_regex = /\s++/s
 tokens {
 	symbol => $symbol_regex
 
+	package_identifier => $package_identifier_regex
 	identifier => $identifier_regex
 	string => $string_regex
 	regex => $regex_regex
@@ -38,6 +40,11 @@ context root {
 	$identifier_regex, '=' {
 		assign {
 			'variables'{$0} => !def_value
+		}
+	}
+	'package', $package_identifier_regex {
+		assign {
+			'package_identifier' => $1
 		}
 	}
 	'tokens', '{' {
@@ -157,7 +164,7 @@ context match_action {
 	}
 	'spawn' {
 		spawn 'spawn'
-		nest_context !spawn_expression
+		spawn !spawn_expression
 	}
 	'enter_context', $context_reference_regex {
 		spawn 'enter_context'
@@ -237,12 +244,12 @@ context spawn_expression_list {
 context assign_scope {
 	$string_regex, '=>' {
 		spawn $0
-		nest_context !spawn_expression
+		spawn !spawn_expression
 	}
 	$string_regex, '[', ']', '=>' {
 		spawn $0
 		spawn []
-		nest_context !spawn_expression
+		spawn !spawn_expression
 	}
 	$string_regex, '{' {
 		spawn $0

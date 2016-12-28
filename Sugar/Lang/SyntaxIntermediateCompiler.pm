@@ -19,6 +19,7 @@ sub new {
 	$self->{tokens} = [];
 	$self->{ignored_tokens} = $self->{syntax_definition_intermediate}{ignored_tokens};
 	$self->{code_definitions} = {};
+	$self->{package_identifier} = $self->{syntax_definition_intermediate}{package_identifier} // 'PACKAGE_NAME';
 	$self->compile_syntax_intermediate;
 
 	return $self
@@ -29,12 +30,12 @@ sub to_package {
 
 	my $code = '';
 
-	$code .= 'package PACKAGE_NAME;
-use parent "Sugar::Lang::BaseSyntaxParser";
+	$code .= "package $self->{package_identifier};
+use parent 'Sugar::Lang::BaseSyntaxParser';
 use strict;
 use warnings;
 
-use feature "say";
+use feature 'say';
 
 use Data::Dumper;
 
@@ -43,7 +44,7 @@ use Sugar::Lang::SyntaxIntermediateCompiler;
 
 
 
-';
+";
 
 	$code .= "our \$tokens = [\n";
 	foreach my $i (0 .. $#{$self->{tokens}} / 2) {
@@ -78,7 +79,7 @@ sub new {
 }
 
 sub main {
-	my $parser = PACKAGE_NAME->new;
+	my $parser = __PACKAGE__->new;
 	foreach my $file (@_) {
 		$parser->{filepath} = Sugar::IO::File->new($file);
 		my $tree = $parser->parse;
@@ -257,9 +258,7 @@ sub compile_syntax_action {
 					push @code, "\$self->{current_context}{$field} = " . $self->compile_syntax_spawn_expression($value) . ";";
 				}
 			}
-		}
-
-		if ($action eq 'exit_context') {
+		} elsif ($action eq 'exit_context') {
 			push @code, "return \$self->exit_context;";
 			$self->{context_default_case} = [ die => 'unexpected token' ] unless defined $self->{context_default_case};
 		} elsif ($action eq 'enter_context') {
@@ -271,17 +270,15 @@ sub compile_syntax_action {
 		} elsif ($action eq 'nest_context') {
 			my $context_type = shift (@actions) =~ s/(['\\])/\\$1/gr;
 			push @code, "return \$self->nest_context(\$self->get_context('$context_type'));";
-		}
-
-		if ($action eq 'die') {
+		} elsif ($action eq 'die') {
 			# my $msg = shift (@actions) =~ s/(['\\])/\\$1/gr;
 			push @code, "\$self->confess_at_current_offset(" . $self->compile_syntax_spawn_sub_expression(shift @actions) . ");";
 			# push @code, "\$self->confess_at_current_offset('$msg');";
-		}
-
-		if ($action eq 'warn') {
+		} elsif ($action eq 'warn') {
 			# my $msg = shift (@actions) =~ s/(['\\])/\\$1/gr;
 			push @code, "warn " . $self->compile_syntax_spawn_sub_expression(shift @actions) . ";";
+		} else {
+			die "undefined action '$action'";
 		}
 	}
 
