@@ -75,9 +75,7 @@ caller or main(@ARGV);
 	sub context_assign_hash {
 		my ($self) = @_;
 		if ($self->is_token_val('*' => '}', 0) and $self->is_token_val('*' => '=>', 1)) {
-			my @tokens;
-			push @tokens, $self->next_token->[1];
-			push @tokens, $self->next_token->[1];
+			my @tokens = $self->step_tokens(2);
 			$self->switch_context($self->get_context('!spawn_expression'));
 		} else {
 			my @tokens;
@@ -90,31 +88,22 @@ caller or main(@ARGV);
 	sub context_assign_scope {
 		my ($self) = @_;
 		if ($self->is_token_val('*' => qr/\A'([^\\']|\\[\\'])*+'\Z/s, 0) and $self->is_token_val('*' => '=>', 1)) {
-			my @tokens;
-			push @tokens, $self->next_token->[1];
-			push @tokens, $self->next_token->[1];
-			push @{$self->{current_context}{children}}, $tokens[0];
+			my @tokens = $self->step_tokens(2);
+			push @{$self->{current_context}{children}}, $tokens[0][1];
 			$self->nest_context($self->get_context('!spawn_expression'));
 		} elsif ($self->is_token_val('*' => qr/\A'([^\\']|\\[\\'])*+'\Z/s, 0) and $self->is_token_val('*' => '[', 1) and $self->is_token_val('*' => ']', 2) and $self->is_token_val('*' => '=>', 3)) {
-			my @tokens;
-			push @tokens, $self->next_token->[1];
-			push @tokens, $self->next_token->[1];
-			push @tokens, $self->next_token->[1];
-			push @tokens, $self->next_token->[1];
-			push @{$self->{current_context}{children}}, $tokens[0];
+			my @tokens = $self->step_tokens(4);
+			push @{$self->{current_context}{children}}, $tokens[0][1];
 			push @{$self->{current_context}{children}}, [];
 			$self->nest_context($self->get_context('!spawn_expression'));
 		} elsif ($self->is_token_val('*' => qr/\A'([^\\']|\\[\\'])*+'\Z/s, 0) and $self->is_token_val('*' => '{', 1)) {
-			my @tokens;
-			push @tokens, $self->next_token->[1];
-			push @tokens, $self->next_token->[1];
-			push @{$self->{current_context}{children}}, $tokens[0];
+			my @tokens = $self->step_tokens(2);
+			push @{$self->{current_context}{children}}, $tokens[0][1];
 			push @{$self->{current_context}{children}}, {};
 			push @{$self->{current_context}{children}}, $self->extract_context_result($self->get_context('!spawn_expression'));
 			$self->nest_context($self->get_context('!assign_hash'));
 		} elsif ($self->is_token_val('*' => '}', 0)) {
-			my @tokens;
-			push @tokens, $self->next_token->[1];
+			my @tokens = $self->step_tokens(1);
 			$self->exit_context;
 		} else {
 			my @tokens;
@@ -127,12 +116,10 @@ caller or main(@ARGV);
 	sub context_context_definition {
 		my ($self) = @_;
 		if ($self->is_token_val('*' => '}', 0)) {
-			my @tokens;
-			push @tokens, $self->next_token->[1];
+			my @tokens = $self->step_tokens(1);
 			$self->exit_context;
 		} elsif ($self->is_token_val('*' => 'default', 0)) {
-			my @tokens;
-			push @tokens, $self->next_token->[1];
+			my @tokens = $self->step_tokens(1);
 			push @{$self->{current_context}{children}}, undef;
 			push @{$self->{current_context}{children}}, $self->extract_context_result($self->get_context('!enter_match_action'), 'ARRAY');
 		} else {
@@ -147,19 +134,16 @@ caller or main(@ARGV);
 	sub context_def_value {
 		my ($self) = @_;
 		if ($self->is_token_val('*' => qr/\A'([^\\']|\\[\\'])*+'\Z/s, 0)) {
-			my @tokens;
-			push @tokens, $self->next_token->[1];
-			push @{$self->{current_context}{children}}, $tokens[0];
+			my @tokens = $self->step_tokens(1);
+			push @{$self->{current_context}{children}}, $tokens[0][1];
 			$self->exit_context;
 		} elsif ($self->is_token_val('*' => qr/\A\/([^\\\/]|\\.)*+\/[msixpodualn]*\Z/s, 0)) {
-			my @tokens;
-			push @tokens, $self->next_token->[1];
-			push @{$self->{current_context}{children}}, $tokens[0];
+			my @tokens = $self->step_tokens(1);
+			push @{$self->{current_context}{children}}, $tokens[0][1];
 			$self->exit_context;
 		} elsif ($self->is_token_val('*' => qr/\A\$\w++\Z/, 0)) {
-			my @tokens;
-			push @tokens, $self->next_token->[1];
-			push @{$self->{current_context}{children}}, $tokens[0];
+			my @tokens = $self->step_tokens(1);
+			push @{$self->{current_context}{children}}, $tokens[0][1];
 			$self->exit_context;
 		} else {
 			my @tokens;
@@ -172,8 +156,7 @@ caller or main(@ARGV);
 	sub context_enter_match_action {
 		my ($self) = @_;
 		if ($self->is_token_val('*' => '{', 0)) {
-			my @tokens;
-			push @tokens, $self->next_token->[1];
+			my @tokens = $self->step_tokens(1);
 			$self->switch_context($self->get_context('!match_action'));
 		} else {
 			my @tokens;
@@ -186,13 +169,11 @@ caller or main(@ARGV);
 	sub context_ignored_tokens_list {
 		my ($self) = @_;
 		if ($self->is_token_val('*' => '}', 0)) {
-			my @tokens;
-			push @tokens, $self->next_token->[1];
+			my @tokens = $self->step_tokens(1);
 			$self->exit_context;
 		} elsif ($self->is_token_val('*' => qr/\A[a-zA-Z_][a-zA-Z0-9_]*+\Z/, 0)) {
-			my @tokens;
-			push @tokens, $self->next_token->[1];
-			push @{$self->{current_context}{children}}, $tokens[0];
+			my @tokens = $self->step_tokens(1);
+			push @{$self->{current_context}{children}}, $tokens[0][1];
 		} else {
 			my @tokens;
 			$self->confess_at_current_offset('unexpected token in ignored_tokens_list');
@@ -204,53 +185,38 @@ caller or main(@ARGV);
 	sub context_match_action {
 		my ($self) = @_;
 		if ($self->is_token_val('*' => 'assign', 0) and $self->is_token_val('*' => '{', 1)) {
-			my @tokens;
-			push @tokens, $self->next_token->[1];
-			push @tokens, $self->next_token->[1];
+			my @tokens = $self->step_tokens(2);
 			push @{$self->{current_context}{children}}, 'assign';
 			push @{$self->{current_context}{children}}, $self->extract_context_result($self->get_context('!assign_scope'), 'ARRAY');
 		} elsif ($self->is_token_val('*' => 'spawn', 0)) {
-			my @tokens;
-			push @tokens, $self->next_token->[1];
+			my @tokens = $self->step_tokens(1);
 			push @{$self->{current_context}{children}}, 'spawn';
 			$self->nest_context($self->get_context('!spawn_expression'));
 		} elsif ($self->is_token_val('*' => 'enter_context', 0) and $self->is_token_val('*' => qr/\A!\w++\Z/, 1)) {
-			my @tokens;
-			push @tokens, $self->next_token->[1];
-			push @tokens, $self->next_token->[1];
+			my @tokens = $self->step_tokens(2);
 			push @{$self->{current_context}{children}}, 'enter_context';
-			push @{$self->{current_context}{children}}, $tokens[1];
+			push @{$self->{current_context}{children}}, $tokens[1][1];
 		} elsif ($self->is_token_val('*' => 'switch_context', 0) and $self->is_token_val('*' => qr/\A!\w++\Z/, 1)) {
-			my @tokens;
-			push @tokens, $self->next_token->[1];
-			push @tokens, $self->next_token->[1];
+			my @tokens = $self->step_tokens(2);
 			push @{$self->{current_context}{children}}, 'switch_context';
-			push @{$self->{current_context}{children}}, $tokens[1];
+			push @{$self->{current_context}{children}}, $tokens[1][1];
 		} elsif ($self->is_token_val('*' => 'nest_context', 0) and $self->is_token_val('*' => qr/\A!\w++\Z/, 1)) {
-			my @tokens;
-			push @tokens, $self->next_token->[1];
-			push @tokens, $self->next_token->[1];
+			my @tokens = $self->step_tokens(2);
 			push @{$self->{current_context}{children}}, 'nest_context';
-			push @{$self->{current_context}{children}}, $tokens[1];
+			push @{$self->{current_context}{children}}, $tokens[1][1];
 		} elsif ($self->is_token_val('*' => 'exit_context', 0)) {
-			my @tokens;
-			push @tokens, $self->next_token->[1];
+			my @tokens = $self->step_tokens(1);
 			push @{$self->{current_context}{children}}, 'exit_context';
 		} elsif ($self->is_token_val('*' => 'warn', 0) and $self->is_token_val('*' => qr/\A'([^\\']|\\[\\'])*+'\Z/s, 1)) {
-			my @tokens;
-			push @tokens, $self->next_token->[1];
-			push @tokens, $self->next_token->[1];
+			my @tokens = $self->step_tokens(2);
 			push @{$self->{current_context}{children}}, 'warn';
-			push @{$self->{current_context}{children}}, $tokens[1];
+			push @{$self->{current_context}{children}}, $tokens[1][1];
 		} elsif ($self->is_token_val('*' => 'die', 0) and $self->is_token_val('*' => qr/\A'([^\\']|\\[\\'])*+'\Z/s, 1)) {
-			my @tokens;
-			push @tokens, $self->next_token->[1];
-			push @tokens, $self->next_token->[1];
+			my @tokens = $self->step_tokens(2);
 			push @{$self->{current_context}{children}}, 'die';
-			push @{$self->{current_context}{children}}, $tokens[1];
+			push @{$self->{current_context}{children}}, $tokens[1][1];
 		} elsif ($self->is_token_val('*' => '}', 0)) {
-			my @tokens;
-			push @tokens, $self->next_token->[1];
+			my @tokens = $self->step_tokens(1);
 			$self->exit_context;
 		} else {
 			my @tokens;
@@ -263,34 +229,25 @@ caller or main(@ARGV);
 	sub context_match_list {
 		my ($self) = @_;
 		if ($self->is_token_val('*' => qr/\A\$\w++\Z/, 0) and $self->is_token_val('*' => ',', 1)) {
-			my @tokens;
-			push @tokens, $self->next_token->[1];
-			push @tokens, $self->next_token->[1];
-			push @{$self->{current_context}{children}}, $tokens[0];
+			my @tokens = $self->step_tokens(2);
+			push @{$self->{current_context}{children}}, $tokens[0][1];
 		} elsif ($self->is_token_val('*' => qr/\A\$\w++\Z/, 0)) {
-			my @tokens;
-			push @tokens, $self->next_token->[1];
-			push @{$self->{current_context}{children}}, $tokens[0];
+			my @tokens = $self->step_tokens(1);
+			push @{$self->{current_context}{children}}, $tokens[0][1];
 			$self->exit_context;
 		} elsif ($self->is_token_val('*' => qr/\A\/([^\\\/]|\\.)*+\/[msixpodualn]*\Z/s, 0) and $self->is_token_val('*' => ',', 1)) {
-			my @tokens;
-			push @tokens, $self->next_token->[1];
-			push @tokens, $self->next_token->[1];
-			push @{$self->{current_context}{children}}, $tokens[0];
+			my @tokens = $self->step_tokens(2);
+			push @{$self->{current_context}{children}}, $tokens[0][1];
 		} elsif ($self->is_token_val('*' => qr/\A\/([^\\\/]|\\.)*+\/[msixpodualn]*\Z/s, 0)) {
-			my @tokens;
-			push @tokens, $self->next_token->[1];
-			push @{$self->{current_context}{children}}, $tokens[0];
+			my @tokens = $self->step_tokens(1);
+			push @{$self->{current_context}{children}}, $tokens[0][1];
 			$self->exit_context;
 		} elsif ($self->is_token_val('*' => qr/\A'([^\\']|\\[\\'])*+'\Z/s, 0) and $self->is_token_val('*' => ',', 1)) {
-			my @tokens;
-			push @tokens, $self->next_token->[1];
-			push @tokens, $self->next_token->[1];
-			push @{$self->{current_context}{children}}, $tokens[0];
+			my @tokens = $self->step_tokens(2);
+			push @{$self->{current_context}{children}}, $tokens[0][1];
 		} elsif ($self->is_token_val('*' => qr/\A'([^\\']|\\[\\'])*+'\Z/s, 0)) {
-			my @tokens;
-			push @tokens, $self->next_token->[1];
-			push @{$self->{current_context}{children}}, $tokens[0];
+			my @tokens = $self->step_tokens(1);
+			push @{$self->{current_context}{children}}, $tokens[0][1];
 			$self->exit_context;
 		} else {
 			my @tokens;
@@ -303,26 +260,17 @@ caller or main(@ARGV);
 	sub context_root {
 		my ($self) = @_;
 		if ($self->is_token_val('*' => qr/\A[a-zA-Z_][a-zA-Z0-9_]*+\Z/, 0) and $self->is_token_val('*' => '=', 1)) {
-			my @tokens;
-			push @tokens, $self->next_token->[1];
-			push @tokens, $self->next_token->[1];
-			$self->{current_context}{'variables'}{$tokens[0]} = $self->extract_context_result($self->get_context('!def_value'));
+			my @tokens = $self->step_tokens(2);
+			$self->{current_context}{'variables'}{$tokens[0][1]} = $self->extract_context_result($self->get_context('!def_value'));
 		} elsif ($self->is_token_val('*' => 'tokens', 0) and $self->is_token_val('*' => '{', 1)) {
-			my @tokens;
-			push @tokens, $self->next_token->[1];
-			push @tokens, $self->next_token->[1];
+			my @tokens = $self->step_tokens(2);
 			$self->{current_context}{'tokens'} = $self->extract_context_result($self->get_context('!token_definition'), 'ARRAY');
 		} elsif ($self->is_token_val('*' => 'ignored_tokens', 0) and $self->is_token_val('*' => '{', 1)) {
-			my @tokens;
-			push @tokens, $self->next_token->[1];
-			push @tokens, $self->next_token->[1];
+			my @tokens = $self->step_tokens(2);
 			$self->{current_context}{'ignored_tokens'} = $self->extract_context_result($self->get_context('!ignored_tokens_list'), 'ARRAY');
 		} elsif ($self->is_token_val('*' => 'context', 0) and $self->is_token_val('*' => qr/\A[a-zA-Z_][a-zA-Z0-9_]*+\Z/, 1) and $self->is_token_val('*' => '{', 2)) {
-			my @tokens;
-			push @tokens, $self->next_token->[1];
-			push @tokens, $self->next_token->[1];
-			push @tokens, $self->next_token->[1];
-			$self->{current_context}{'contexts'}{$tokens[1]} = $self->extract_context_result($self->get_context('!context_definition'), 'ARRAY');
+			my @tokens = $self->step_tokens(3);
+			$self->{current_context}{'contexts'}{$tokens[1][1]} = $self->extract_context_result($self->get_context('!context_definition'), 'ARRAY');
 		} else {
 			my @tokens;
 			$self->exit_context;
@@ -334,40 +282,31 @@ caller or main(@ARGV);
 	sub context_spawn_expression {
 		my ($self) = @_;
 		if ($self->is_token_val('*' => qr/\A\$\d++\Z/, 0)) {
-			my @tokens;
-			push @tokens, $self->next_token->[1];
-			push @{$self->{current_context}{children}}, $tokens[0];
+			my @tokens = $self->step_tokens(1);
+			push @{$self->{current_context}{children}}, $tokens[0][1];
 			$self->exit_context;
 		} elsif ($self->is_token_val('*' => qr/\A!\w++\Z/, 0)) {
-			my @tokens;
-			push @tokens, $self->next_token->[1];
-			push @{$self->{current_context}{children}}, $tokens[0];
+			my @tokens = $self->step_tokens(1);
+			push @{$self->{current_context}{children}}, $tokens[0][1];
 			$self->exit_context;
 		} elsif ($self->is_token_val('*' => qr/\A'([^\\']|\\[\\'])*+'\Z/s, 0)) {
-			my @tokens;
-			push @tokens, $self->next_token->[1];
-			push @{$self->{current_context}{children}}, $tokens[0];
+			my @tokens = $self->step_tokens(1);
+			push @{$self->{current_context}{children}}, $tokens[0][1];
 			$self->exit_context;
 		} elsif ($self->is_token_val('*' => 'undef', 0)) {
-			my @tokens;
-			push @tokens, $self->next_token->[1];
+			my @tokens = $self->step_tokens(1);
 			push @{$self->{current_context}{children}}, undef;
 			$self->exit_context;
 		} elsif ($self->is_token_val('*' => '[', 0) and $self->is_token_val('*' => ']', 1)) {
-			my @tokens;
-			push @tokens, $self->next_token->[1];
-			push @tokens, $self->next_token->[1];
+			my @tokens = $self->step_tokens(2);
 			push @{$self->{current_context}{children}}, [];
 			$self->exit_context;
 		} elsif ($self->is_token_val('*' => '{', 0) and $self->is_token_val('*' => '}', 1)) {
-			my @tokens;
-			push @tokens, $self->next_token->[1];
-			push @tokens, $self->next_token->[1];
+			my @tokens = $self->step_tokens(2);
 			push @{$self->{current_context}{children}}, {};
 			$self->exit_context;
 		} elsif ($self->is_token_val('*' => '[', 0)) {
-			my @tokens;
-			push @tokens, $self->next_token->[1];
+			my @tokens = $self->step_tokens(1);
 			push @{$self->{current_context}{children}}, $self->extract_context_result($self->get_context('!spawn_expression_list'), 'ARRAY');
 			$self->exit_context;
 		} else {
@@ -381,10 +320,8 @@ caller or main(@ARGV);
 	sub context_spawn_expression_list {
 		my ($self) = @_;
 		if ($self->is_token_val('*' => qr/\A!\w++\Z/, 0) and $self->is_token_val('*' => ']', 1)) {
-			my @tokens;
-			push @tokens, $self->next_token->[1];
-			push @tokens, $self->next_token->[1];
-			push @{$self->{current_context}{children}}, $tokens[0];
+			my @tokens = $self->step_tokens(2);
+			push @{$self->{current_context}{children}}, $tokens[0][1];
 			$self->exit_context;
 		} else {
 			my @tokens;
@@ -397,14 +334,11 @@ caller or main(@ARGV);
 	sub context_token_definition {
 		my ($self) = @_;
 		if ($self->is_token_val('*' => '}', 0)) {
-			my @tokens;
-			push @tokens, $self->next_token->[1];
+			my @tokens = $self->step_tokens(1);
 			$self->exit_context;
 		} elsif ($self->is_token_val('*' => qr/\A[a-zA-Z_][a-zA-Z0-9_]*+\Z/, 0) and $self->is_token_val('*' => '=>', 1)) {
-			my @tokens;
-			push @tokens, $self->next_token->[1];
-			push @tokens, $self->next_token->[1];
-			push @{$self->{current_context}{children}}, $tokens[0];
+			my @tokens = $self->step_tokens(2);
+			push @{$self->{current_context}{children}}, $tokens[0][1];
 			push @{$self->{current_context}{children}}, $self->extract_context_result($self->get_context('!def_value'));
 		} else {
 			my @tokens;

@@ -106,6 +106,12 @@ sub next_token {
 	return $self->{tokens}[$self->{tokens_index}++]
 }
 
+sub step_tokens {
+	my ($self, $count) = @_;
+	my @tokens = @{$self->{tokens}}[$self->{tokens_index} .. ($self->{tokens_index} + $count - 1)];
+	$self->{tokens_index} += $count;
+	return @tokens
+}
 
 
 sub is_token_type {

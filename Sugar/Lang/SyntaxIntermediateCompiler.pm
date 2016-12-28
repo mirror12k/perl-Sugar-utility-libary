@@ -213,12 +213,16 @@ sub compile_syntax_action {
 	my ($self, $condition, $actions_list) = @_;
 
 	my @code;
-	push @code, "my \@tokens;";
 
 	if (defined $condition and ref $condition eq 'ARRAY') {
-		push @code, "push \@tokens, \$self->next_token->[1];" foreach 0 .. $#$condition;
+		my $count = @$condition;
+		push @code, "my \@tokens = \$self->step_tokens($count);";
+		# push @code, "push \@tokens, \$self->next_token->[1];" foreach 0 .. $#$condition;
 	} elsif (defined $condition) {
-		push @code, "push \@tokens, \$self->next_token->[1];";
+		push @code, "my \@tokens = (\$self->next_token->[1]);";
+		# push @code, "push \@tokens, \$self->next_token->[1];";
+	} else {
+		push @code, "my \@tokens;";
 	}
 	
 	my @actions = @$actions_list;
@@ -319,7 +323,7 @@ sub compile_syntax_spawn_sub_expression {
 	} elsif ($expression =~ /\A\$previous_spawn\Z/) {
 		return "pop \@{\$self->{current_context}{children}}";
 	} elsif ($expression =~ /\A\$(\d+)\Z/) {
-		return "\$tokens[$1]";
+		return "\$tokens[$1][1]";
 	} elsif ($expression =~ /\A'(.*)'\Z/s) {
 		my $value = $1;
 		return "'$value'";
