@@ -194,16 +194,17 @@ sub compile_syntax_condition {
 			$conditions[$i] = $self->compile_syntax_condition($conditions[$i], $i);
 		}
 		return join ' and ', @conditions
-	} elsif (ref $condition eq 'Regexp') {
-		$condition =~ s#/#\\/#g;
-		return "\$self->is_token_val('*' => qr/$condition/, $offset)"
+	# } elsif (ref $condition eq 'Regexp') {
+	# 	$condition =~ s#/#\\/#g;
+	# 	return "\$self->is_token_val('*' => qr/$condition/, $offset)"
 	} elsif ($condition =~ m#\A\$(\w++)\Z#s) {
-		my $value = $self->get_variable($1);
-		return $self->compile_syntax_condition($value, $offset)
+		return $self->compile_syntax_condition($self->get_variable($1), $offset)
 	} elsif ($condition =~ m#\A/(.*)/([msixpodualn]*)\Z#s) {
-		return "\$self->is_token_val('*' => qr/\\A$1\\Z/$2, $offset)"
+		return "\$self->{tokens}[\$self->{tokens_index} + $offset][1] =~ /\\A$1\\Z/$2"
+		# return "\$self->is_token_val('*' => qr/\\A$1\\Z/$2, $offset)"
 	} elsif ($condition =~ /\A'.*'\Z/s) {
-		return "\$self->is_token_val('*' => $condition, $offset)"
+		return "\$self->{tokens}[\$self->{tokens_index} + $offset][1] eq $condition"
+		# return "\$self->is_token_val('*' => $condition, $offset)"
 	} else {
 		confess "invalid syntax condition '$condition'";
 	}
