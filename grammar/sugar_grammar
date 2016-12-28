@@ -181,6 +181,10 @@ context match_action {
 	'exit_context' {
 		spawn 'exit_context'
 	}
+	'match' {
+		spawn 'match'
+		spawn [ !match_list ]
+	}
 	'warn', $string_regex {
 		spawn 'warn'
 		spawn $1
@@ -255,7 +259,9 @@ context assign_scope {
 		spawn $0
 		spawn {}
 		spawn !spawn_expression
-		nest_context !assign_hash
+		match '}', '=>'
+		spawn !spawn_expression
+		# nest_context !assign_hash
 	}
 	'}' {
 		exit_context
@@ -265,11 +271,11 @@ context assign_scope {
 	}
 }
 
-context assign_hash {
-	'}', '=>' {
-		switch_context !spawn_expression
-	}
-	default {
-		die '\'}\' expected to close hash assignment'
-	}
-}
+# context assign_hash {
+# 	'}', '=>' {
+# 		switch_context !spawn_expression
+# 	}
+# 	default {
+# 		die '\'}\' expected to close hash assignment'
+# 	}
+# }

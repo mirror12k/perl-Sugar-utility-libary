@@ -3,6 +3,8 @@
 asdf = 'qert'
 qwert = /testing/msix
 
+tokens {}
+
 context root {
 	'context', 'root' {
 		enter_context !asdf
@@ -28,5 +30,11 @@ context root {
 	default {
 		warn 'default path'
 		exit_context
+	}
+}
+
+context test_more {
+	'a' {
+		match 'b', 'c', $qwert
 	}
 }

@@ -30,7 +30,6 @@ our $ignored_tokens = [
 ];
 
 our $contexts = {
-	assign_hash => \&context_assign_hash,
 	assign_scope => \&context_assign_scope,
 	context_definition => \&context_context_definition,
 	def_value => \&context_def_value,
@@ -73,21 +72,6 @@ sub main {
 caller or main(@ARGV);
 
 
-sub context_assign_hash {
-	my ($self) = @_;
-
-	while ($self->more_tokens) {
-		if ($self->{tokens}[$self->{tokens_index} + 0][1] eq '}' and $self->{tokens}[$self->{tokens_index} + 1][1] eq '=>') {
-			my @tokens = $self->step_tokens(2);
-			return $self->switch_context($self->get_context('!spawn_expression'));
-		} else {
-			my @tokens;
-			$self->confess_at_current_offset('\'}\' expected to close hash assignment');
-		}
-
-	}
-}
-
 sub context_assign_scope {
 	my ($self) = @_;
 
@@ -106,7 +90,10 @@ sub context_assign_scope {
 			push @{$self->{current_context}{children}}, $tokens[0][1];
 			push @{$self->{current_context}{children}}, {};
 			push @{$self->{current_context}{children}}, $self->extract_context_result($self->get_context('!spawn_expression'));
-			return $self->nest_context($self->get_context('!assign_hash'));
+			$self->confess_at_current_offset('expected \'}\', \'=>\'')
+				unless $self->{tokens}[$self->{tokens_index} + 0][1] eq '}' and $self->{tokens}[$self->{tokens_index} + 1][1] eq '=>';
+			@tokens = (@tokens, $self->step_tokens(2));
+			push @{$self->{current_context}{children}}, $self->extract_context_result($self->get_context('!spawn_expression'));
 		} elsif ($self->{tokens}[$self->{tokens_index} + 0][1] eq '}') {
 			my @tokens = $self->step_tokens(1);
 			return $self->exit_context;
@@ -222,6 +209,10 @@ sub context_match_action {
 		} elsif ($self->{tokens}[$self->{tokens_index} + 0][1] eq 'exit_context') {
 			my @tokens = $self->step_tokens(1);
 			push @{$self->{current_context}{children}}, 'exit_context';
+		} elsif ($self->{tokens}[$self->{tokens_index} + 0][1] eq 'match') {
+			my @tokens = $self->step_tokens(1);
+			push @{$self->{current_context}{children}}, 'match';
+			push @{$self->{current_context}{children}}, $self->extract_context_result($self->get_context('!match_list'), 'ARRAY');
 		} elsif ($self->{tokens}[$self->{tokens_index} + 0][1] eq 'warn' and $self->{tokens}[$self->{tokens_index} + 1][1] =~ /\A'([^\\']|\\[\\'])*+'\Z/s) {
 			my @tokens = $self->step_tokens(2);
 			push @{$self->{current_context}{children}}, 'warn';

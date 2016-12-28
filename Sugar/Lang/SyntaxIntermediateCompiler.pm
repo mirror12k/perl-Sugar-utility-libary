@@ -258,6 +258,20 @@ sub compile_syntax_action {
 					push @code, "\$self->{current_context}{$field} = " . $self->compile_syntax_spawn_expression($value) . ";";
 				}
 			}
+		} elsif ($action eq 'match') {
+			my $match_condition = shift @actions;
+			push @code, "\$self->confess_at_current_offset('expected "
+				. (ref $match_condition eq 'ARRAY' ? join ', ', @$match_condition : $match_condition) =~ s/'/\\'/gr . "')";
+			push @code, "\tunless " . $self->compile_syntax_condition($match_condition) . ";";
+
+			if (defined $match_condition and ref $match_condition eq 'ARRAY') {
+				my $count = @$match_condition;
+				push @code, "\@tokens = (\@tokens, \$self->step_tokens($count));";
+			} elsif (defined $match_condition) {
+				push @code, "\@tokens = (\@tokens, \$self->next_token->[1]);";
+			} else {
+			}
+
 		} elsif ($action eq 'exit_context') {
 			push @code, "return \$self->exit_context;";
 			$self->{context_default_case} = [ die => 'unexpected token' ] unless defined $self->{context_default_case};
