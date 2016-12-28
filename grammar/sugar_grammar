@@ -67,15 +67,15 @@ context root {
 context def_value {
 	$string_regex {
 		spawn $0
-		exit_context
+		return
 	}
 	$regex_regex {
 		spawn $0
-		exit_context
+		return
 	}
 	$variable_regex {
 		spawn $0
-		exit_context
+		return
 	}
 	default {
 		die 'unexpected token in def_value'
@@ -84,7 +84,7 @@ context def_value {
 
 context token_definition {
 	'}' {
-		exit_context
+		return
 	}
 	$identifier_regex, '=>' {
 		spawn $0
@@ -97,7 +97,7 @@ context token_definition {
 
 context ignored_tokens_list {
 	'}' {
-		exit_context
+		return
 	}
 	$identifier_regex {
 		spawn $0
@@ -109,7 +109,7 @@ context ignored_tokens_list {
 
 context context_definition {
 	'}' {
-		exit_context
+		return
 	}
 	'default' {
 		spawn undef
@@ -127,21 +127,21 @@ context match_list {
 	}
 	$variable_regex {
 		spawn $0
-		exit_context
+		return
 	}
 	$regex_regex, ',' {
 		spawn $0
 	}
 	$regex_regex {
 		spawn $0
-		exit_context
+		return
 	}
 	$string_regex, ',' {
 		spawn $0
 	}
 	$string_regex {
 		spawn $0
-		exit_context
+		return
 	}
 	default {
 		die 'unexpected end of match list'
@@ -178,8 +178,8 @@ context match_action {
 		spawn 'nest_context'
 		spawn $1
 	}
-	'exit_context' {
-		spawn 'exit_context'
+	'return' {
+		spawn 'return'
 	}
 	'match' {
 		spawn 'match'
@@ -194,7 +194,7 @@ context match_action {
 		spawn $1
 	}
 	'}' {
-		exit_context
+		return
 	}
 	default {
 		die 'expected \'}\' to close match actions list'
@@ -204,31 +204,31 @@ context match_action {
 context spawn_expression {
 	/\$\d++/ {
 		spawn $0
-		exit_context
+		return
 	}
 	$context_reference_regex {
 		spawn $0
-		exit_context
+		return
 	}
 	$string_regex {
 		spawn $0
-		exit_context
+		return
 	}
 	'undef' {
 		spawn undef
-		exit_context
+		return
 	}
 	'[', ']' {
 		spawn []
-		exit_context
+		return
 	}
 	'{', '}' {
 		spawn {}
-		exit_context
+		return
 	}
 	'[' {
 		spawn [ !spawn_expression_list ]
-		exit_context
+		return
 	}
 	default {
 		die 'spawn expression expected'
@@ -238,7 +238,7 @@ context spawn_expression {
 context spawn_expression_list {
 	$context_reference_regex, ']' {
 		spawn $0
-		exit_context
+		return
 	}
 	default {
 		die 'spawn expression list expected'
@@ -264,7 +264,7 @@ context assign_scope {
 		# nest_context !assign_hash
 	}
 	'}' {
-		exit_context
+		return
 	}
 	default {
 		die 'assign expression expected'

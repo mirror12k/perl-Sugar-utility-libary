@@ -77,8 +77,10 @@ sub nest_context {
 sub exit_context {
 	my ($self) = @_;
 	confess 'attempt to exit root context' if $self->{current_context}{context_type} eq 'root';
-
+	my @ret = @{$self->{current_context}{children} // []};
 	$self->{current_context} = pop @{$self->{context_stack}};
+
+	return @ret
 }
 
 sub switch_context {
@@ -95,19 +97,20 @@ sub extract_context_result {
 	$self->enter_context($context_type);
 	my $saved_context = $self->{current_context};
 
+	my @ret;
 	while ($self->{current_context} != $previous_context) {
 		# confess "undefined context_type referenced '$self->{current_context}{context_type}'"
 		# 		unless defined $self->{contexts}{$self->{current_context}{context_type}};
-		$self->{contexts}{$self->{current_context}{context_type}}->($self);
+		@ret = $self->{contexts}{$self->{current_context}{context_type}}->($self);
 	}
-	my $result;
+	# say "debug ret: ", join ', ', @ret;
 	if (defined $modifier and $modifier eq 'ARRAY') {
-		$result = [ @{$saved_context->{children} // []} ];
+		return \@ret
 	} else {
-		($result) = @{$saved_context->{children}};
+		return @ret
 	}
 	# say 'got result: ', Dumper $result;
-	return $result
+	# return $result
 }
 
 sub into_context {

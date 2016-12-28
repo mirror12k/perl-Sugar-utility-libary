@@ -206,9 +206,9 @@ sub context_match_action {
 			my @tokens = $self->step_tokens(2);
 			push @{$self->{current_context}{children}}, 'nest_context';
 			push @{$self->{current_context}{children}}, $tokens[1][1];
-		} elsif ($self->{tokens}[$self->{tokens_index} + 0][1] eq 'exit_context') {
+		} elsif ($self->{tokens}[$self->{tokens_index} + 0][1] eq 'return') {
 			my @tokens = $self->step_tokens(1);
-			push @{$self->{current_context}{children}}, 'exit_context';
+			push @{$self->{current_context}{children}}, 'return';
 		} elsif ($self->{tokens}[$self->{tokens_index} + 0][1] eq 'match') {
 			my @tokens = $self->step_tokens(1);
 			push @{$self->{current_context}{children}}, 'match';
@@ -271,7 +271,7 @@ sub context_root {
 	while ($self->more_tokens) {
 		if ($self->{tokens}[$self->{tokens_index} + 0][1] =~ /\A[a-zA-Z_][a-zA-Z0-9_]*+\Z/ and $self->{tokens}[$self->{tokens_index} + 1][1] eq '=') {
 			my @tokens = $self->step_tokens(2);
-			$self->{current_context}{'variables'}{$tokens[0][1]} = $self->extract_context_result($self->get_context('!def_value'));
+			$self->{current_context}{'variables'}{$tokens[0][1]} = ($self->extract_context_result($self->get_context('!def_value')))[0];
 		} elsif ($self->{tokens}[$self->{tokens_index} + 0][1] eq 'package' and $self->{tokens}[$self->{tokens_index} + 1][1] =~ /\A[a-zA-Z_][a-zA-Z0-9_]*+(\:\:[a-zA-Z_][a-zA-Z0-9_]*+)++\Z/) {
 			my @tokens = $self->step_tokens(2);
 			$self->{current_context}{'package_identifier'} = $tokens[1][1];

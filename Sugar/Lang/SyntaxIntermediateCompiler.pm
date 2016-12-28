@@ -167,7 +167,7 @@ sub {
 		$first_item = 0;
 	}
 
-	$self->{context_default_case} //= [ 'exit_context' ];
+	$self->{context_default_case} //= [ 'return' ];
 	my $action_code = $self->compile_syntax_action(undef, $self->{context_default_case});
 	unless ($first_item) {
 		$code .= "e {$action_code\t\t}\n";
@@ -245,17 +245,17 @@ sub compile_syntax_action {
 				my $value = shift @assign_items;
 				if (ref $value eq 'HASH') {
 					my $key = shift @assign_items;
-					$key = $self->compile_syntax_spawn_sub_expression($key);
+					$key = $self->compile_syntax_spawn_sub_expression($key, 'SCALAR');
 					$value = shift @assign_items;
-					$field = $self->compile_syntax_spawn_sub_expression($field);
-					push @code, "\$self->{current_context}{$field}{$key} = " . $self->compile_syntax_spawn_expression($value) . ";";
+					$field = $self->compile_syntax_spawn_sub_expression($field, 'SCALAR');
+					push @code, "\$self->{current_context}{$field}{$key} = " . $self->compile_syntax_spawn_expression($value, 'SCALAR') . ";";
 				} elsif (ref $value eq 'ARRAY' and @$value == 0) {
 					$value = shift @assign_items;
-					$field = $self->compile_syntax_spawn_sub_expression($field);
+					$field = $self->compile_syntax_spawn_sub_expression($field, 'SCALAR');
 					push @code, "push \@{\$self->{current_context}{$field}}, " . $self->compile_syntax_spawn_expression($value) . ";";
 				} else {
-					$field = $self->compile_syntax_spawn_sub_expression($field);
-					push @code, "\$self->{current_context}{$field} = " . $self->compile_syntax_spawn_expression($value) . ";";
+					$field = $self->compile_syntax_spawn_sub_expression($field, 'SCALAR');
+					push @code, "\$self->{current_context}{$field} = " . $self->compile_syntax_spawn_expression($value, 'SCALAR') . ";";
 				}
 			}
 		} elsif ($action eq 'match') {
@@ -272,7 +272,7 @@ sub compile_syntax_action {
 			} else {
 			}
 
-		} elsif ($action eq 'exit_context') {
+		} elsif ($action eq 'return') {
 			push @code, "return \$self->exit_context;";
 			$self->{context_default_case} = [ die => 'unexpected token' ] unless defined $self->{context_default_case};
 		} elsif ($action eq 'enter_context') {
@@ -302,7 +302,7 @@ sub compile_syntax_action {
 }
 
 sub compile_syntax_spawn_expression {
-	my ($self, $expression) = @_;
+	my ($self, $expression, $modifier) = @_;
 	if (not defined $expression) {
 		return 'undef'
 	} elsif (ref $expression eq 'HASH') {
@@ -323,17 +323,20 @@ sub compile_syntax_spawn_expression {
 		$code .= "}";
 		return $code
 	} else {
-		return $self->compile_syntax_spawn_sub_expression($expression)
+		return $self->compile_syntax_spawn_sub_expression($expression, $modifier)
 	}
 }
 
 sub compile_syntax_spawn_sub_expression {
-	my ($self, $expression) = @_;
-
+	my ($self, $expression, $modifier) = @_;
 	if (not defined $expression) {
 		return "undef";
 	} elsif ($expression =~ /\A\![a-zA-Z_][a-zA-Z_0-9]*\Z/) {
-		return "\$self->extract_context_result(\$self->get_context('$expression'))";
+		if (defined $modifier and $modifier eq 'SCALAR') {
+			return "(\$self->extract_context_result(\$self->get_context('$expression')))[0]";
+		} else {
+			return "\$self->extract_context_result(\$self->get_context('$expression'))";
+		}
 	} elsif ($expression =~ /\A\$previous_spawn\Z/) {
 		return "pop \@{\$self->{current_context}{children}}";
 	} elsif ($expression =~ /\A\$(\d+)\Z/) {
