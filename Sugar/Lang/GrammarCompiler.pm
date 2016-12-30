@@ -79,21 +79,21 @@ sub context_assign_scope {
 		if ($self->{tokens}[$self->{tokens_index} + 0][1] =~ /\A'([^\\']|\\[\\'])*+'\Z/s and $self->{tokens}[$self->{tokens_index} + 1][1] eq '=>') {
 			my @tokens = $self->step_tokens(2);
 			push @spawned_value, $tokens[0][1];
-			push @spawned_value, $self->{contexts}{$self->get_context('!spawn_expression')}->($self);
+			push @spawned_value, $self->context_spawn_expression();
 		} elsif ($self->{tokens}[$self->{tokens_index} + 0][1] =~ /\A'([^\\']|\\[\\'])*+'\Z/s and $self->{tokens}[$self->{tokens_index} + 1][1] eq '[' and $self->{tokens}[$self->{tokens_index} + 2][1] eq ']' and $self->{tokens}[$self->{tokens_index} + 3][1] eq '=>') {
 			my @tokens = $self->step_tokens(4);
 			push @spawned_value, $tokens[0][1];
 			push @spawned_value, [];
-			push @spawned_value, $self->{contexts}{$self->get_context('!spawn_expression')}->($self);
+			push @spawned_value, $self->context_spawn_expression();
 		} elsif ($self->{tokens}[$self->{tokens_index} + 0][1] =~ /\A'([^\\']|\\[\\'])*+'\Z/s and $self->{tokens}[$self->{tokens_index} + 1][1] eq '{') {
 			my @tokens = $self->step_tokens(2);
 			push @spawned_value, $tokens[0][1];
 			push @spawned_value, {};
-			push @spawned_value, $self->{contexts}{$self->get_context('!spawn_expression')}->($self);
+			push @spawned_value, $self->context_spawn_expression();
 			$self->confess_at_current_offset('expected \'}\', \'=>\'')
 				unless $self->{tokens}[$self->{tokens_index} + 0][1] eq '}' and $self->{tokens}[$self->{tokens_index} + 1][1] eq '=>';
 			@tokens = (@tokens, $self->step_tokens(2));
-			push @spawned_value, $self->{contexts}{$self->get_context('!spawn_expression')}->($self);
+			push @spawned_value, $self->context_spawn_expression();
 		} elsif ($self->{tokens}[$self->{tokens_index} + 0][1] eq '}') {
 			my @tokens = $self->step_tokens(1);
 			return @spawned_value;
@@ -116,14 +116,14 @@ sub context_context_definition {
 		} elsif ($self->{tokens}[$self->{tokens_index} + 0][1] eq 'default' and $self->{tokens}[$self->{tokens_index} + 1][1] eq '{') {
 			my @tokens = $self->step_tokens(2);
 			push @spawned_value, undef;
-			push @spawned_value, [ $self->{contexts}{$self->get_context('!match_action')}->($self) ];
+			push @spawned_value, [ $self->context_match_action ];
 		} else {
 			my @tokens;
-			push @spawned_value, [ $self->{contexts}{$self->get_context('!match_list')}->($self) ];
+			push @spawned_value, [ $self->context_match_list ];
 			$self->confess_at_current_offset('expected \'{\'')
 				unless $self->{tokens}[$self->{tokens_index} + 0][1] eq '{';
 			@tokens = (@tokens, $self->step_tokens(1));
-			push @spawned_value, [ $self->{contexts}{$self->get_context('!match_action')}->($self) ];
+			push @spawned_value, [ $self->context_match_action ];
 		}
 
 	}
@@ -181,18 +181,18 @@ sub context_match_action {
 		if ($self->{tokens}[$self->{tokens_index} + 0][1] eq 'assign' and $self->{tokens}[$self->{tokens_index} + 1][1] eq '{') {
 			my @tokens = $self->step_tokens(2);
 			push @spawned_value, 'assign';
-			push @spawned_value, [ $self->{contexts}{$self->get_context('!assign_scope')}->($self) ];
+			push @spawned_value, [ $self->context_assign_scope ];
 		} elsif ($self->{tokens}[$self->{tokens_index} + 0][1] eq 'spawn') {
 			my @tokens = $self->step_tokens(1);
 			push @spawned_value, 'spawn';
-			push @spawned_value, $self->{contexts}{$self->get_context('!spawn_expression')}->($self);
+			push @spawned_value, $self->context_spawn_expression();
 		} elsif ($self->{tokens}[$self->{tokens_index} + 0][1] eq 'return') {
 			my @tokens = $self->step_tokens(1);
 			push @spawned_value, 'return';
 		} elsif ($self->{tokens}[$self->{tokens_index} + 0][1] eq 'match') {
 			my @tokens = $self->step_tokens(1);
 			push @spawned_value, 'match';
-			push @spawned_value, [ $self->{contexts}{$self->get_context('!match_list')}->($self) ];
+			push @spawned_value, [ $self->context_match_list ];
 		} elsif ($self->{tokens}[$self->{tokens_index} + 0][1] eq 'warn' and $self->{tokens}[$self->{tokens_index} + 1][1] =~ /\A'([^\\']|\\[\\'])*+'\Z/s) {
 			my @tokens = $self->step_tokens(2);
 			push @spawned_value, 'warn';
@@ -253,19 +253,19 @@ sub context_root {
 	while ($self->more_tokens) {
 		if ($self->{tokens}[$self->{tokens_index} + 0][1] =~ /\A[a-zA-Z_][a-zA-Z0-9_]*+\Z/ and $self->{tokens}[$self->{tokens_index} + 1][1] eq '=') {
 			my @tokens = $self->step_tokens(2);
-			$self->{current_context}{'variables'}{$tokens[0][1]} = ($self->{contexts}{$self->get_context('!def_value')}->($self))[0];
+			$self->{current_context}{'variables'}{$tokens[0][1]} = ($self->context_def_value)[0];
 		} elsif ($self->{tokens}[$self->{tokens_index} + 0][1] eq 'package' and $self->{tokens}[$self->{tokens_index} + 1][1] =~ /\A[a-zA-Z_][a-zA-Z0-9_]*+(\:\:[a-zA-Z_][a-zA-Z0-9_]*+)++\Z/) {
 			my @tokens = $self->step_tokens(2);
 			$self->{current_context}{'package_identifier'} = $tokens[1][1];
 		} elsif ($self->{tokens}[$self->{tokens_index} + 0][1] eq 'tokens' and $self->{tokens}[$self->{tokens_index} + 1][1] eq '{') {
 			my @tokens = $self->step_tokens(2);
-			$self->{current_context}{'tokens'} = [ $self->{contexts}{$self->get_context('!token_definition')}->($self) ];
+			$self->{current_context}{'tokens'} = [ $self->context_token_definition ];
 		} elsif ($self->{tokens}[$self->{tokens_index} + 0][1] eq 'ignored_tokens' and $self->{tokens}[$self->{tokens_index} + 1][1] eq '{') {
 			my @tokens = $self->step_tokens(2);
-			$self->{current_context}{'ignored_tokens'} = [ $self->{contexts}{$self->get_context('!ignored_tokens_list')}->($self) ];
+			$self->{current_context}{'ignored_tokens'} = [ $self->context_ignored_tokens_list ];
 		} elsif ($self->{tokens}[$self->{tokens_index} + 0][1] eq 'context' and $self->{tokens}[$self->{tokens_index} + 1][1] =~ /\A[a-zA-Z_][a-zA-Z0-9_]*+\Z/ and $self->{tokens}[$self->{tokens_index} + 2][1] eq '{') {
 			my @tokens = $self->step_tokens(3);
-			$self->{current_context}{'contexts'}{$tokens[1][1]} = [ $self->{contexts}{$self->get_context('!context_definition')}->($self) ];
+			$self->{current_context}{'contexts'}{$tokens[1][1]} = [ $self->context_context_definition ];
 		} else {
 			my @tokens;
 			return @spawned_value;
@@ -305,7 +305,7 @@ sub context_spawn_expression {
 			return @spawned_value;
 		} elsif ($self->{tokens}[$self->{tokens_index} + 0][1] eq '[') {
 			my @tokens = $self->step_tokens(1);
-			push @spawned_value, [ $self->{contexts}{$self->get_context('!spawn_expression_list')}->($self) ];
+			push @spawned_value, [ $self->context_spawn_expression_list ];
 			return @spawned_value;
 		} else {
 			my @tokens;
@@ -343,7 +343,7 @@ sub context_token_definition {
 		} elsif ($self->{tokens}[$self->{tokens_index} + 0][1] =~ /\A[a-zA-Z_][a-zA-Z0-9_]*+\Z/ and $self->{tokens}[$self->{tokens_index} + 1][1] eq '=>') {
 			my @tokens = $self->step_tokens(2);
 			push @spawned_value, $tokens[0][1];
-			push @spawned_value, $self->{contexts}{$self->get_context('!def_value')}->($self);
+			push @spawned_value, $self->context_def_value();
 		} else {
 			my @tokens;
 			$self->confess_at_current_offset('unexpected token in token_definition');

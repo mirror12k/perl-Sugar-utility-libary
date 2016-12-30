@@ -18,6 +18,7 @@ sub new {
 	$self->{variables} = $self->{syntax_definition_intermediate}{variables};
 	$self->{tokens} = [];
 	$self->{ignored_tokens} = $self->{syntax_definition_intermediate}{ignored_tokens};
+	$self->{contexts} = $self->{syntax_definition_intermediate}{contexts};
 	$self->{code_definitions} = {};
 	$self->{package_identifier} = $self->{syntax_definition_intermediate}{package_identifier} // 'PACKAGE_NAME';
 	$self->compile_syntax_intermediate;
@@ -105,6 +106,18 @@ sub get_variable {
 	my ($self, $identifier) = @_;
 	confess "undefined variable requested: '$identifier'" unless exists $self->{variables}{$identifier};
 	return $self->{variables}{$identifier}
+}
+
+sub get_context {
+	my ($self, $value) = @_;
+	if ($value =~ /\A\!(\w++)\Z/) {
+		my $context_type = $1;
+		confess "undefined context requested: '$context_type'" unless defined $self->{contexts}{$context_type};
+		return "context_$context_type"
+
+	} else {
+		confess "unknown context type requested: '$value'";
+	}
 }
 
 sub compile_syntax_intermediate {
@@ -313,7 +326,8 @@ sub compile_syntax_spawn_expression {
 		return '[]'
 	} elsif (ref $expression eq 'ARRAY' and @$expression == 1) {
 		my $context_type = $expression->[0] =~ s/'/\\'/gr;
-		return "[ \$self->{contexts}{\$self->get_context('$context_type')}->(\$self) ]"
+		my $context_function = $self->get_context($context_type);
+		return "[ \$self->$context_function ]"
 	} elsif (ref $expression eq 'ARRAY') {
 		my $code = "{ ";
 		my @items = @$expression;
@@ -334,10 +348,11 @@ sub compile_syntax_spawn_sub_expression {
 	if (not defined $expression) {
 		return "undef";
 	} elsif ($expression =~ /\A\![a-zA-Z_][a-zA-Z_0-9]*\Z/) {
+		my $context_function = $self->get_context($expression);
 		if (defined $modifier and $modifier eq 'SCALAR') {
-			return "(\$self->{contexts}{\$self->get_context('$expression')}->(\$self))[0]";
+			return "(\$self->$context_function)[0]";
 		} else {
-			return "\$self->{contexts}{\$self->get_context('$expression')}->(\$self)";
+			return "\$self->$context_function()";
 		}
 	} elsif ($expression =~ /\A\$previous_spawn\Z/) {
 		return "pop \@{\$self->{current_context}{children}}";
