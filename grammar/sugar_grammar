@@ -111,13 +111,14 @@ context context_definition {
 	'}' {
 		return
 	}
-	'default' {
+	'default', '{' {
 		spawn undef
-		spawn [ !enter_match_action ]
+		spawn [ !match_action ]
 	}
 	default {
 		spawn [ !match_list ]
-		spawn [ !enter_match_action ]
+		match '{'
+		spawn [ !match_action ]
 	}
 }
 
@@ -148,14 +149,14 @@ context match_list {
 	}
 }
 
-context enter_match_action {
-	'{' {
-		switch_context !match_action
-	}
-	default {
-		die 'expected \'{\' after match directive'
-	}
-}
+# context enter_match_action {
+# 	'{' {
+# 		switch_context !match_action
+# 	}
+# 	default {
+# 		die 'expected \'{\' after match directive'
+# 	}
+# }
 
 context match_action {
 	'assign', '{' {

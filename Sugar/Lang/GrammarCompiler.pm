@@ -33,7 +33,6 @@ our $contexts = {
 	assign_scope => \&context_assign_scope,
 	context_definition => \&context_context_definition,
 	def_value => \&context_def_value,
-	enter_match_action => \&context_enter_match_action,
 	ignored_tokens_list => \&context_ignored_tokens_list,
 	match_action => \&context_match_action,
 	match_list => \&context_match_list,
@@ -112,14 +111,17 @@ sub context_context_definition {
 		if ($self->{tokens}[$self->{tokens_index} + 0][1] eq '}') {
 			my @tokens = $self->step_tokens(1);
 			return $self->exit_context;
-		} elsif ($self->{tokens}[$self->{tokens_index} + 0][1] eq 'default') {
-			my @tokens = $self->step_tokens(1);
+		} elsif ($self->{tokens}[$self->{tokens_index} + 0][1] eq 'default' and $self->{tokens}[$self->{tokens_index} + 1][1] eq '{') {
+			my @tokens = $self->step_tokens(2);
 			push @{$self->{current_context}{children}}, undef;
-			push @{$self->{current_context}{children}}, $self->extract_context_result($self->get_context('!enter_match_action'), 'ARRAY');
+			push @{$self->{current_context}{children}}, $self->extract_context_result($self->get_context('!match_action'), 'ARRAY');
 		} else {
 			my @tokens;
 			push @{$self->{current_context}{children}}, $self->extract_context_result($self->get_context('!match_list'), 'ARRAY');
-			push @{$self->{current_context}{children}}, $self->extract_context_result($self->get_context('!enter_match_action'), 'ARRAY');
+			$self->confess_at_current_offset('expected \'{\'')
+				unless $self->{tokens}[$self->{tokens_index} + 0][1] eq '{';
+			@tokens = (@tokens, $self->step_tokens(1));
+			push @{$self->{current_context}{children}}, $self->extract_context_result($self->get_context('!match_action'), 'ARRAY');
 		}
 
 	}
@@ -144,21 +146,6 @@ sub context_def_value {
 		} else {
 			my @tokens;
 			$self->confess_at_current_offset('unexpected token in def_value');
-		}
-
-	}
-}
-
-sub context_enter_match_action {
-	my ($self) = @_;
-
-	while ($self->more_tokens) {
-		if ($self->{tokens}[$self->{tokens_index} + 0][1] eq '{') {
-			my @tokens = $self->step_tokens(1);
-			return $self->switch_context($self->get_context('!match_action'));
-		} else {
-			my @tokens;
-			$self->confess_at_current_offset('expected \'{\' after match directive');
 		}
 
 	}
