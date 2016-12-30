@@ -58,74 +58,74 @@ sub get_context {
 	}
 }
 
-sub enter_context {
-	my ($self, $context_type) = @_;
+# sub enter_context {
+# 	my ($self, $context_type) = @_;
 
-	my $new_context = { context_type => $context_type };
-	push @{$self->{context_stack}}, $self->{current_context};
-	$self->{current_context} = $new_context;
-}
+# 	my $new_context = { context_type => $context_type };
+# 	push @{$self->{context_stack}}, $self->{current_context};
+# 	$self->{current_context} = $new_context;
+# }
 
-sub nest_context {
-	my ($self, $context_type) = @_;
-	$self->{current_context}{children} //= [];
-	my $new_context = { context_type => $context_type, children => $self->{current_context}{children} };
-	push @{$self->{context_stack}}, $self->{current_context};
-	$self->{current_context} = $new_context;
-}
+# sub nest_context {
+# 	my ($self, $context_type) = @_;
+# 	$self->{current_context}{children} //= [];
+# 	my $new_context = { context_type => $context_type, children => $self->{current_context}{children} };
+# 	push @{$self->{context_stack}}, $self->{current_context};
+# 	$self->{current_context} = $new_context;
+# }
 
-sub exit_context {
-	my ($self) = @_;
-	confess 'attempt to exit root context' if $self->{current_context}{context_type} eq 'root';
-	my @ret = @{$self->{current_context}{children} // []};
-	$self->{current_context} = pop @{$self->{context_stack}};
+# sub exit_context {
+# 	my ($self) = @_;
+# 	confess 'attempt to exit root context' if $self->{current_context}{context_type} eq 'root';
+# 	my @ret = @{$self->{current_context}{children} // []};
+# 	$self->{current_context} = pop @{$self->{context_stack}};
 
-	return @ret
-}
+# 	return @ret
+# }
 
-sub switch_context {
-	my ($self, $context_type) = @_;
-	confess 'attempt to switch context on root context' if $self->{current_context}{context_type} eq 'root';
+# sub switch_context {
+# 	my ($self, $context_type) = @_;
+# 	confess 'attempt to switch context on root context' if $self->{current_context}{context_type} eq 'root';
 
-	$self->{current_context}{context_type} = $context_type;
-}
+# 	$self->{current_context}{context_type} = $context_type;
+# }
 
-sub extract_context_result {
-	my ($self, $context_type, $modifier) = @_;
+# sub extract_context_result {
+# 	my ($self, $context_type) = @_;
 
-	my $previous_context = $self->{current_context};
-	$self->enter_context($context_type);
-	my $saved_context = $self->{current_context};
+# 	# my $previous_context = $self->{current_context};
+# 	# $self->enter_context($context_type);
+# 	# my $saved_context = $self->{current_context};
 
-	my @ret;
-	while ($self->{current_context} != $previous_context) {
-		# confess "undefined context_type referenced '$self->{current_context}{context_type}'"
-		# 		unless defined $self->{contexts}{$self->{current_context}{context_type}};
-		@ret = $self->{contexts}{$self->{current_context}{context_type}}->($self);
-	}
-	# say "debug ret: ", join ', ', @ret;
-	if (defined $modifier and $modifier eq 'ARRAY') {
-		return \@ret
-	} else {
-		return @ret
-	}
-	# say 'got result: ', Dumper $result;
-	# return $result
-}
+# 	# my @ret;
+# 	# while ($self->{current_context} != $previous_context) {
+# 		# confess "undefined context_type referenced '$self->{current_context}{context_type}'"
+# 		# 		unless defined $self->{contexts}{$self->{current_context}{context_type}};
+# 		return $self->{contexts}{$context_type}->($self);
+# 	# }
+# 	# say "debug ret: ", join ', ', @ret;
+# 	# if (defined $modifier and $modifier eq 'ARRAY') {
+# 	# 	return \@ret
+# 	# } else {
+# 	# 	return @ret
+# 	# }
+# 	# say 'got result: ', Dumper $result;
+# 	# return $result
+# }
 
-sub into_context {
-	my ($self, $context_object) = @_;
-	my $previous_context = $self->{current_context};
-	push @{$self->{context_stack}}, $self->{current_context};
-	$self->{current_context} = $context_object;
+# sub into_context {
+# 	my ($self, $context_object) = @_;
+# 	my $previous_context = $self->{current_context};
+# 	push @{$self->{context_stack}}, $self->{current_context};
+# 	$self->{current_context} = $context_object;
 
-	while ($self->{current_context} != $previous_context) {
-		# confess "undefined context_type referenced '$self->{current_context}{context_type}'"
-		# 		unless defined $self->{contexts}{$self->{current_context}{context_type}};
-		$self->{contexts}{$self->{current_context}{context_type}}->($self);
-	}
+# 	while ($self->{current_context} != $previous_context) {
+# 		# confess "undefined context_type referenced '$self->{current_context}{context_type}'"
+# 		# 		unless defined $self->{contexts}{$self->{current_context}{context_type}};
+# 		$self->{contexts}{$self->{current_context}{context_type}}->($self);
+# 	}
 
-	return $context_object
-}
+# 	return $context_object
+# }
 
 1;

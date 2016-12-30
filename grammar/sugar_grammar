@@ -167,18 +167,18 @@ context match_action {
 		spawn 'spawn'
 		spawn !spawn_expression
 	}
-	'enter_context', $context_reference_regex {
-		spawn 'enter_context'
-		spawn $1
-	}
-	'switch_context', $context_reference_regex {
-		spawn 'switch_context'
-		spawn $1
-	}
-	'nest_context', $context_reference_regex {
-		spawn 'nest_context'
-		spawn $1
-	}
+	# 'enter_context', $context_reference_regex {
+	# 	spawn 'enter_context'
+	# 	spawn $1
+	# }
+	# 'switch_context', $context_reference_regex {
+	# 	spawn 'switch_context'
+	# 	spawn $1
+	# }
+	# 'nest_context', $context_reference_regex {
+	# 	spawn 'nest_context'
+	# 	spawn $1
+	# }
 	'return' {
 		spawn 'return'
 	}

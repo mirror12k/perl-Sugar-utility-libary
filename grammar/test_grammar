@@ -7,9 +7,7 @@ tokens {}
 
 context root {
 	'context', 'root' {
-		enter_context !asdf
-		switch_context !asdf
-		exit_context
+		return
 	}
 	'asdf' {
 		spawn undef
@@ -29,7 +27,7 @@ context root {
 	}
 	default {
 		warn 'default path'
-		exit_context
+		return
 	}
 }
 

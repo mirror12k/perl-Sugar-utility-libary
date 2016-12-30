@@ -139,6 +139,7 @@ sub compile_syntax_context {
 	my $code = '
 sub {
 	my ($self) = @_;
+	my @spawned_value;
 ';
 	# $code .= "\t\tsay 'in context $context_name';\n"; # DEBUG INLINE TREE BUILDER
 	$code .= '
@@ -234,7 +235,8 @@ sub compile_syntax_action {
 		my $action = shift @actions;
 
 		if ($action eq 'spawn') {
-			push @code, "push \@{\$self->{current_context}{children}}, " . $self->compile_syntax_spawn_expression(shift @actions) . ";";
+			push @code, "push \@spawned_value, " . $self->compile_syntax_spawn_expression(shift @actions) . ";";
+			# push @code, "push \@{\$self->{current_context}{children}}, " . $self->compile_syntax_spawn_expression(shift @actions) . ";";
 		# } elsif ($action eq 'spawn_into_context') {
 		# 	push @code, "push \@{\$self->{current_context}{children}}, \$self->into_context("
 		# 			. $self->compile_syntax_spawn_expression(shift @actions) . ");";
@@ -273,17 +275,17 @@ sub compile_syntax_action {
 			}
 
 		} elsif ($action eq 'return') {
-			push @code, "return \$self->exit_context;";
+			push @code, "return \@spawned_value;";
 			$self->{context_default_case} = [ die => 'unexpected token' ] unless defined $self->{context_default_case};
-		} elsif ($action eq 'enter_context') {
-			my $context_type = shift (@actions) =~ s/(['\\])/\\$1/gr;
-			push @code, "return \$self->enter_context(\$self->get_context('$context_type'));";
-		} elsif ($action eq 'switch_context') {
-			my $context_type = shift (@actions) =~ s/(['\\])/\\$1/gr;
-			push @code, "return \$self->switch_context(\$self->get_context('$context_type'));";
-		} elsif ($action eq 'nest_context') {
-			my $context_type = shift (@actions) =~ s/(['\\])/\\$1/gr;
-			push @code, "return \$self->nest_context(\$self->get_context('$context_type'));";
+		# } elsif ($action eq 'enter_context') {
+		# 	my $context_type = shift (@actions) =~ s/(['\\])/\\$1/gr;
+		# 	push @code, "return \$self->enter_context(\$self->get_context('$context_type'));";
+		# } elsif ($action eq 'switch_context') {
+		# 	my $context_type = shift (@actions) =~ s/(['\\])/\\$1/gr;
+		# 	push @code, "return \$self->switch_context(\$self->get_context('$context_type'));";
+		# } elsif ($action eq 'nest_context') {
+		# 	my $context_type = shift (@actions) =~ s/(['\\])/\\$1/gr;
+		# 	push @code, "return \$self->nest_context(\$self->get_context('$context_type'));";
 		} elsif ($action eq 'die') {
 			# my $msg = shift (@actions) =~ s/(['\\])/\\$1/gr;
 			push @code, "\$self->confess_at_current_offset(" . $self->compile_syntax_spawn_sub_expression(shift @actions) . ");";
@@ -311,7 +313,7 @@ sub compile_syntax_spawn_expression {
 		return '[]'
 	} elsif (ref $expression eq 'ARRAY' and @$expression == 1) {
 		my $context_type = $expression->[0] =~ s/'/\\'/gr;
-		return "\$self->extract_context_result(\$self->get_context('$context_type'), 'ARRAY')"
+		return "[ \$self->{contexts}{\$self->get_context('$context_type')}->(\$self) ]"
 	} elsif (ref $expression eq 'ARRAY') {
 		my $code = "{ ";
 		my @items = @$expression;
@@ -333,9 +335,9 @@ sub compile_syntax_spawn_sub_expression {
 		return "undef";
 	} elsif ($expression =~ /\A\![a-zA-Z_][a-zA-Z_0-9]*\Z/) {
 		if (defined $modifier and $modifier eq 'SCALAR') {
-			return "(\$self->extract_context_result(\$self->get_context('$expression')))[0]";
+			return "(\$self->{contexts}{\$self->get_context('$expression')}->(\$self))[0]";
 		} else {
-			return "\$self->extract_context_result(\$self->get_context('$expression'))";
+			return "\$self->{contexts}{\$self->get_context('$expression')}->(\$self)";
 		}
 	} elsif ($expression =~ /\A\$previous_spawn\Z/) {
 		return "pop \@{\$self->{current_context}{children}}";
