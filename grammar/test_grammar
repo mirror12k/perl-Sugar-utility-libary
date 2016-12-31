@@ -49,7 +49,7 @@ context test_more {
 		}
 		respawn {
 			'a' => $0
-			'b' => 'respawned'
+			'b' => !test_more->'respawned'
 		}
 	}
 }

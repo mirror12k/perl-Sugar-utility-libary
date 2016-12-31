@@ -313,9 +313,7 @@ sub context_spawn_expression {
 			return @spawned_value;
 		} elsif ($self->{tokens}[$self->{tokens_index} + 0][1] =~ /\A!\w++\Z/ and $self->{tokens}[$self->{tokens_index} + 1][1] eq '->') {
 			my @tokens = $self->step_tokens(2);
-			push @spawned_value, $tokens[0][1];
-			push @spawned_value, '->';
-			push @spawned_value, $self->context_spawn_expression();
+			push @spawned_value, { $tokens[0][1] => ($self->context_spawn_expression)[0], };
 			return @spawned_value;
 		} elsif ($self->{tokens}[$self->{tokens_index} + 0][1] =~ /\A!\w++\Z/) {
 			my @tokens = $self->step_tokens(1);

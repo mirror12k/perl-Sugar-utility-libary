@@ -260,22 +260,22 @@ sub compile_syntax_action {
 
 		if ($action eq 'spawn') {
 			my $expression = shift @actions;
-			if (defined $expression and $expression =~ /\A!\w++\Z/ and defined $actions[0] and $actions[0] eq '->') {
-				shift @actions;
-				my $object_expression = shift @actions;
-				push @code, "push \@spawned_value, " . $self->compile_syntax_spawn_expression($expression, 'OBJECT_CONTEXT', $object_expression) . ";";
-			} else {
-				push @code, "push \@spawned_value, " . $self->compile_syntax_spawn_expression($expression) . ";";
-			}
+			# if (defined $expression and $expression =~ /\A!\w++\Z/ and defined $actions[0] and $actions[0] eq '->') {
+			# 	shift @actions;
+			# 	my $object_expression = shift @actions;
+			# 	push @code, "push \@spawned_value, " . $self->compile_syntax_spawn_expression($expression, 'OBJECT_CONTEXT', $object_expression) . ";";
+			# } else {
+			push @code, "push \@spawned_value, " . $self->compile_syntax_spawn_expression($expression) . ";";
+			# }
 		} elsif ($action eq 'respawn') {
 			my $expression = shift @actions;
-			if (defined $expression and $expression =~ /\A!\w++\Z/ and defined $actions[0] and $actions[0] eq '->') {
-				shift @actions;
-				my $object_expression = shift @actions;
-				push @code, "\$context_object = " . $self->compile_syntax_spawn_expression($expression, 'OBJECT_CONTEXT', $object_expression) . ";";
-			} else {
-				push @code, "\$context_object = " . $self->compile_syntax_spawn_expression($expression) . ";";
-			}
+			# if (defined $expression and $expression =~ /\A!\w++\Z/ and defined $actions[0] and $actions[0] eq '->') {
+			# 	shift @actions;
+			# 	my $object_expression = shift @actions;
+			# 	push @code, "\$context_object = " . $self->compile_syntax_spawn_expression($expression, 'OBJECT_CONTEXT', $object_expression) . ";";
+			# } else {
+			push @code, "\$context_object = " . $self->compile_syntax_spawn_expression($expression) . ";";
+			# }
 		} elsif ($action eq 'assign') {
 			my @assign_items = @{shift @actions};
 			while (@assign_items) {
@@ -332,7 +332,14 @@ sub compile_syntax_spawn_expression {
 	if (not defined $expression) {
 		return 'undef'
 	} elsif (ref $expression eq 'HASH') {
-		return '{}'
+		my @keys = keys %$expression;
+		if (@keys) {
+			my ($call_expression) = @keys;
+			my $object_expression = $expression->{$call_expression};
+			return $self->compile_syntax_spawn_expression($call_expression, 'OBJECT_CONTEXT', $object_expression)
+		} else {
+			return '{}'
+		}
 	} elsif (ref $expression eq 'ARRAY' and @$expression == 0) {
 		return '[]'
 	} elsif (ref $expression eq 'ARRAY' and @$expression == 1) {

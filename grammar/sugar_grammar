@@ -200,9 +200,11 @@ context spawn_expression {
 		return
 	}
 	$context_reference_regex, '->' {
-		spawn $0
-		spawn '->'
-		spawn !spawn_expression
+		spawn {
+			$0 => !spawn_expression
+		}
+		# spawn '->'
+		# spawn !spawn_expression
 		return
 	}
 	$context_reference_regex {
