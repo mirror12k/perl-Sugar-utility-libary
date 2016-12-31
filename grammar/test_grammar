@@ -47,5 +47,9 @@ context test_more {
 		spawn !test_more->{
 			'type' => 'nested'
 		}
+		respawn {
+			'a' => $0
+			'b' => 'respawned'
+		}
 	}
 }

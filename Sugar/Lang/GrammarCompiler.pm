@@ -197,6 +197,10 @@ sub context_match_action {
 			my @tokens = $self->step_tokens(1);
 			push @spawned_value, 'spawn';
 			push @spawned_value, $self->context_spawn_expression();
+		} elsif ($self->{tokens}[$self->{tokens_index} + 0][1] eq 'respawn') {
+			my @tokens = $self->step_tokens(1);
+			push @spawned_value, 'respawn';
+			push @spawned_value, $self->context_spawn_expression();
 		} elsif ($self->{tokens}[$self->{tokens_index} + 0][1] eq 'return') {
 			my @tokens = $self->step_tokens(1);
 			push @spawned_value, 'return';
@@ -300,6 +304,10 @@ sub context_spawn_expression {
 
 	while ($self->more_tokens) {
 		if ($self->{tokens}[$self->{tokens_index} + 0][1] =~ /\A\$\d++\Z/) {
+			my @tokens = $self->step_tokens(1);
+			push @spawned_value, $tokens[0][1];
+			return @spawned_value;
+		} elsif ($self->{tokens}[$self->{tokens_index} + 0][1] eq '$_') {
 			my @tokens = $self->step_tokens(1);
 			push @spawned_value, $tokens[0][1];
 			return @spawned_value;

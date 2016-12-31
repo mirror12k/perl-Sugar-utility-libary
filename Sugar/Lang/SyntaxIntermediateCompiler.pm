@@ -267,10 +267,15 @@ sub compile_syntax_action {
 			} else {
 				push @code, "push \@spawned_value, " . $self->compile_syntax_spawn_expression($expression) . ";";
 			}
-			# push @code, "push \@{\$self->{current_context}{children}}, " . $self->compile_syntax_spawn_expression(shift @actions) . ";";
-		# } elsif ($action eq 'spawn_into_context') {
-		# 	push @code, "push \@{\$self->{current_context}{children}}, \$self->into_context("
-		# 			. $self->compile_syntax_spawn_expression(shift @actions) . ");";
+		} elsif ($action eq 'respawn') {
+			my $expression = shift @actions;
+			if (defined $expression and $expression =~ /\A!\w++\Z/ and defined $actions[0] and $actions[0] eq '->') {
+				shift @actions;
+				my $object_expression = shift @actions;
+				push @code, "\$context_object = " . $self->compile_syntax_spawn_expression($expression, 'OBJECT_CONTEXT', $object_expression) . ";";
+			} else {
+				push @code, "\$context_object = " . $self->compile_syntax_spawn_expression($expression) . ";";
+			}
 		} elsif ($action eq 'assign') {
 			my @assign_items = @{shift @actions};
 			while (@assign_items) {
@@ -308,21 +313,9 @@ sub compile_syntax_action {
 		} elsif ($action eq 'return') {
 			push @code, "return \@spawned_value;";
 			$self->{context_default_case} = [ die => 'unexpected token' ] unless defined $self->{context_default_case};
-		# } elsif ($action eq 'enter_context') {
-		# 	my $context_type = shift (@actions) =~ s/(['\\])/\\$1/gr;
-		# 	push @code, "return \$self->enter_context(\$self->get_context('$context_type'));";
-		# } elsif ($action eq 'switch_context') {
-		# 	my $context_type = shift (@actions) =~ s/(['\\])/\\$1/gr;
-		# 	push @code, "return \$self->switch_context(\$self->get_context('$context_type'));";
-		# } elsif ($action eq 'nest_context') {
-		# 	my $context_type = shift (@actions) =~ s/(['\\])/\\$1/gr;
-		# 	push @code, "return \$self->nest_context(\$self->get_context('$context_type'));";
 		} elsif ($action eq 'die') {
-			# my $msg = shift (@actions) =~ s/(['\\])/\\$1/gr;
 			push @code, "\$self->confess_at_current_offset(" . $self->compile_syntax_spawn_expression(shift @actions) . ");";
-			# push @code, "\$self->confess_at_current_offset('$msg');";
 		} elsif ($action eq 'warn') {
-			# my $msg = shift (@actions) =~ s/(['\\])/\\$1/gr;
 			push @code, "warn " . $self->compile_syntax_spawn_expression(shift @actions) . ";";
 		} else {
 			die "undefined action '$action'";
@@ -365,8 +358,8 @@ sub compile_syntax_spawn_expression {
 		} else {
 			return "\$self->$context_function()";
 		}
-	} elsif ($expression =~ /\A\$previous_spawn\Z/) {
-		return "pop \@{\$self->{current_context}{children}}";
+	} elsif ($expression eq '$_') {
+		return "\$context_object";
 	} elsif ($expression =~ /\A\$(\d+)\Z/) {
 		return "\$tokens[$1][1]";
 	} elsif ($expression =~ /\A'(.*)'\Z/s) {

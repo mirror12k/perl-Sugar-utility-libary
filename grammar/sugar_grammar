@@ -163,6 +163,10 @@ context match_action {
 		spawn 'spawn'
 		spawn !spawn_expression
 	}
+	'respawn' {
+		spawn 'respawn'
+		spawn !spawn_expression
+	}
 	'return' {
 		spawn 'return'
 	}
@@ -188,6 +192,10 @@ context match_action {
 
 context spawn_expression {
 	/\$\d++/ {
+		spawn $0
+		return
+	}
+	'$_' {
 		spawn $0
 		return
 	}
