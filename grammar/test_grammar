@@ -44,5 +44,8 @@ context test_more {
 				'c' => '35'
 			}
 		}
+		spawn !test_more->{
+			'type' => 'nested'
+		}
 	}
 }

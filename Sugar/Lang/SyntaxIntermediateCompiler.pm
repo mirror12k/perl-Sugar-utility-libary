@@ -278,16 +278,16 @@ sub compile_syntax_action {
 				my $value = shift @assign_items;
 				if (ref $value eq 'HASH') {
 					my $key = shift @assign_items;
-					$key = $self->compile_syntax_spawn_sub_expression($key, 'SCALAR');
+					$key = $self->compile_syntax_spawn_expression($key, 'SCALAR');
 					$value = shift @assign_items;
-					$field = $self->compile_syntax_spawn_sub_expression($field, 'SCALAR');
+					$field = $self->compile_syntax_spawn_expression($field, 'SCALAR');
 					push @code, "\$context_object->{$field}{$key} = " . $self->compile_syntax_spawn_expression($value, 'SCALAR') . ";";
 				} elsif (ref $value eq 'ARRAY' and @$value == 0) {
 					$value = shift @assign_items;
-					$field = $self->compile_syntax_spawn_sub_expression($field, 'SCALAR');
+					$field = $self->compile_syntax_spawn_expression($field, 'SCALAR');
 					push @code, "push \@{\$context_object->{$field}}, " . $self->compile_syntax_spawn_expression($value) . ";";
 				} else {
-					$field = $self->compile_syntax_spawn_sub_expression($field, 'SCALAR');
+					$field = $self->compile_syntax_spawn_expression($field, 'SCALAR');
 					push @code, "\$context_object->{$field} = " . $self->compile_syntax_spawn_expression($value, 'SCALAR') . ";";
 				}
 			}
@@ -319,11 +319,11 @@ sub compile_syntax_action {
 		# 	push @code, "return \$self->nest_context(\$self->get_context('$context_type'));";
 		} elsif ($action eq 'die') {
 			# my $msg = shift (@actions) =~ s/(['\\])/\\$1/gr;
-			push @code, "\$self->confess_at_current_offset(" . $self->compile_syntax_spawn_sub_expression(shift @actions) . ");";
+			push @code, "\$self->confess_at_current_offset(" . $self->compile_syntax_spawn_expression(shift @actions) . ");";
 			# push @code, "\$self->confess_at_current_offset('$msg');";
 		} elsif ($action eq 'warn') {
 			# my $msg = shift (@actions) =~ s/(['\\])/\\$1/gr;
-			push @code, "warn " . $self->compile_syntax_spawn_sub_expression(shift @actions) . ";";
+			push @code, "warn " . $self->compile_syntax_spawn_expression(shift @actions) . ";";
 		} else {
 			die "undefined action '$action'";
 		}
@@ -356,21 +356,12 @@ sub compile_syntax_spawn_expression {
 		}
 		$code .= "}";
 		return $code
-	} else {
-		return $self->compile_syntax_spawn_sub_expression($expression, $modifier, $arg)
-	}
-}
-
-sub compile_syntax_spawn_sub_expression {
-	my ($self, $expression, $modifier, $arg) = @_;
-	if (not defined $expression) {
-		return "undef";
 	} elsif ($expression =~ /\A\![a-zA-Z_][a-zA-Z_0-9]*\Z/) {
 		my $context_function = $self->get_context($expression);
 		if (defined $modifier and $modifier eq 'SCALAR') {
 			return "(\$self->$context_function)[0]";
 		} elsif (defined $modifier and $modifier eq 'OBJECT_CONTEXT') {
-			return "(\$self->$context_function(" . $self->compile_syntax_spawn_sub_expression($expression) . "))[0]";
+			return "(\$self->$context_function(" . $self->compile_syntax_spawn_expression($arg) . "))[0]";
 		} else {
 			return "\$self->$context_function()";
 		}
