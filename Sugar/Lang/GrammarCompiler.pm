@@ -13,7 +13,7 @@ use Sugar::Lang::SyntaxIntermediateCompiler;
 
 
 our $tokens = [
-	'symbol' => qr/\{|\}|\[|\]|=>|=|,/,
+	'symbol' => qr/\{|\}|\[|\]|->|=>|=|,/,
 	'package_identifier' => qr/[a-zA-Z_][a-zA-Z0-9_]*+(\:\:[a-zA-Z_][a-zA-Z0-9_]*+)++/,
 	'identifier' => qr/[a-zA-Z_][a-zA-Z0-9_]*+/,
 	'string' => qr/'([^\\']|\\[\\'])*+'/s,
@@ -72,7 +72,9 @@ caller or main(@ARGV);
 
 
 sub context_assign_scope {
+
 	my ($self) = @_;
+
 	my @spawned_value;
 
 	while ($self->more_tokens) {
@@ -106,7 +108,9 @@ sub context_assign_scope {
 }
 
 sub context_context_definition {
+
 	my ($self) = @_;
+
 	my @spawned_value;
 
 	while ($self->more_tokens) {
@@ -130,7 +134,9 @@ sub context_context_definition {
 }
 
 sub context_def_value {
+
 	my ($self) = @_;
+
 	my @spawned_value;
 
 	while ($self->more_tokens) {
@@ -155,7 +161,9 @@ sub context_def_value {
 }
 
 sub context_ignored_tokens_list {
+
 	my ($self) = @_;
+
 	my @spawned_value;
 
 	while ($self->more_tokens) {
@@ -174,7 +182,9 @@ sub context_ignored_tokens_list {
 }
 
 sub context_match_action {
+
 	my ($self) = @_;
+
 	my @spawned_value;
 
 	while ($self->more_tokens) {
@@ -213,7 +223,9 @@ sub context_match_action {
 }
 
 sub context_match_list {
+
 	my ($self) = @_;
+
 	my @spawned_value;
 
 	while ($self->more_tokens) {
@@ -247,25 +259,30 @@ sub context_match_list {
 }
 
 sub context_root {
-	my ($self) = @_;
+
+	my ($self, $context_object) = @_;
+
 	my @spawned_value;
 
 	while ($self->more_tokens) {
 		if ($self->{tokens}[$self->{tokens_index} + 0][1] =~ /\A[a-zA-Z_][a-zA-Z0-9_]*+\Z/ and $self->{tokens}[$self->{tokens_index} + 1][1] eq '=') {
 			my @tokens = $self->step_tokens(2);
-			$self->{current_context}{'variables'}{$tokens[0][1]} = ($self->context_def_value)[0];
+			$context_object->{'variables'}{$tokens[0][1]} = ($self->context_def_value)[0];
 		} elsif ($self->{tokens}[$self->{tokens_index} + 0][1] eq 'package' and $self->{tokens}[$self->{tokens_index} + 1][1] =~ /\A[a-zA-Z_][a-zA-Z0-9_]*+(\:\:[a-zA-Z_][a-zA-Z0-9_]*+)++\Z/) {
 			my @tokens = $self->step_tokens(2);
-			$self->{current_context}{'package_identifier'} = $tokens[1][1];
+			$context_object->{'package_identifier'} = $tokens[1][1];
 		} elsif ($self->{tokens}[$self->{tokens_index} + 0][1] eq 'tokens' and $self->{tokens}[$self->{tokens_index} + 1][1] eq '{') {
 			my @tokens = $self->step_tokens(2);
-			$self->{current_context}{'tokens'} = [ $self->context_token_definition ];
+			$context_object->{'tokens'} = [ $self->context_token_definition ];
 		} elsif ($self->{tokens}[$self->{tokens_index} + 0][1] eq 'ignored_tokens' and $self->{tokens}[$self->{tokens_index} + 1][1] eq '{') {
 			my @tokens = $self->step_tokens(2);
-			$self->{current_context}{'ignored_tokens'} = [ $self->context_ignored_tokens_list ];
+			$context_object->{'ignored_tokens'} = [ $self->context_ignored_tokens_list ];
 		} elsif ($self->{tokens}[$self->{tokens_index} + 0][1] eq 'context' and $self->{tokens}[$self->{tokens_index} + 1][1] =~ /\A[a-zA-Z_][a-zA-Z0-9_]*+\Z/ and $self->{tokens}[$self->{tokens_index} + 2][1] eq '{') {
 			my @tokens = $self->step_tokens(3);
-			$self->{current_context}{'contexts'}{$tokens[1][1]} = [ $self->context_context_definition ];
+			$context_object->{'contexts'}{$tokens[1][1]} = [ $self->context_context_definition ];
+		} elsif ($self->{tokens}[$self->{tokens_index} + 0][1] eq 'object' and $self->{tokens}[$self->{tokens_index} + 1][1] eq 'context' and $self->{tokens}[$self->{tokens_index} + 2][1] =~ /\A[a-zA-Z_][a-zA-Z0-9_]*+\Z/ and $self->{tokens}[$self->{tokens_index} + 3][1] eq '{') {
+			my @tokens = $self->step_tokens(4);
+			$context_object->{'object_contexts'}{$tokens[2][1]} = [ $self->context_context_definition ];
 		} else {
 			my @tokens;
 			return @spawned_value;
@@ -275,13 +292,21 @@ sub context_root {
 }
 
 sub context_spawn_expression {
+
 	my ($self) = @_;
+
 	my @spawned_value;
 
 	while ($self->more_tokens) {
 		if ($self->{tokens}[$self->{tokens_index} + 0][1] =~ /\A\$\d++\Z/) {
 			my @tokens = $self->step_tokens(1);
 			push @spawned_value, $tokens[0][1];
+			return @spawned_value;
+		} elsif ($self->{tokens}[$self->{tokens_index} + 0][1] =~ /\A!\w++\Z/ and $self->{tokens}[$self->{tokens_index} + 1][1] eq '->') {
+			my @tokens = $self->step_tokens(2);
+			push @spawned_value, $tokens[0][1];
+			push @spawned_value, '->';
+			push @spawned_value, $self->context_spawn_expression();
 			return @spawned_value;
 		} elsif ($self->{tokens}[$self->{tokens_index} + 0][1] =~ /\A!\w++\Z/) {
 			my @tokens = $self->step_tokens(1);
@@ -316,7 +341,9 @@ sub context_spawn_expression {
 }
 
 sub context_spawn_expression_list {
+
 	my ($self) = @_;
+
 	my @spawned_value;
 
 	while ($self->more_tokens) {
@@ -333,7 +360,9 @@ sub context_spawn_expression_list {
 }
 
 sub context_token_definition {
+
 	my ($self) = @_;
+
 	my @spawned_value;
 
 	while ($self->more_tokens) {

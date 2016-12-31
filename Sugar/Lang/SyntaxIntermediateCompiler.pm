@@ -133,10 +133,14 @@ sub compile_syntax_intermediate {
 		my $context_definition = $self->{syntax_definition_intermediate}{contexts}{$context_type};
 		$self->{code_definitions}{$context_type} = $self->compile_syntax_context($context_type, $context_definition);
 	}
+	foreach my $context_type (keys %{$self->{syntax_definition_intermediate}{object_contexts}}) {
+		my $context_definition = $self->{syntax_definition_intermediate}{object_contexts}{$context_type};
+		$self->{code_definitions}{$context_type} = $self->compile_syntax_context($context_type, $context_definition, 'object_context');
+	}
 }
 
 sub compile_syntax_token_value {
-	my ($self, $value) = @_;
+	my ($self, $value, $modifier) = @_;
 	if ($value =~ m#\A/([^\\/]|\\.)*+/[msixpodualn]*\Z#s) {
 		return "qr$value"
 	} elsif ($value =~ /\A\$(\w++)\Z/) {
@@ -147,11 +151,18 @@ sub compile_syntax_token_value {
 }
 
 sub compile_syntax_context {
-	my ($self, $context_name, $context) = @_;
+	my ($self, $context_name, $context, $modifier) = @_;
 
 	my $code = '
 sub {
-	my ($self) = @_;
+';
+	my @args_list = ('$self');
+	push @args_list, '$context_object' if defined $modifier and $modifier eq 'object_context';
+	my $args_list_string = join ', ', @args_list;
+	$code .= "
+	my ($args_list_string) = \@_;
+";
+	$code .= '
 	my @spawned_value;
 ';
 	# $code .= "\t\tsay 'in context $context_name';\n"; # DEBUG INLINE TREE BUILDER
@@ -248,7 +259,14 @@ sub compile_syntax_action {
 		my $action = shift @actions;
 
 		if ($action eq 'spawn') {
-			push @code, "push \@spawned_value, " . $self->compile_syntax_spawn_expression(shift @actions) . ";";
+			my $expression = shift @actions;
+			if (defined $expression and $expression =~ /\A!\w++\Z/ and defined $actions[0] and $actions[0] eq '->') {
+				shift @actions;
+				my $object_expression = shift @actions;
+				push @code, "push \@spawned_value, " . $self->compile_syntax_spawn_expression($expression, 'OBJECT_CONTEXT', $object_expression) . ";";
+			} else {
+				push @code, "push \@spawned_value, " . $self->compile_syntax_spawn_expression($expression) . ";";
+			}
 			# push @code, "push \@{\$self->{current_context}{children}}, " . $self->compile_syntax_spawn_expression(shift @actions) . ";";
 		# } elsif ($action eq 'spawn_into_context') {
 		# 	push @code, "push \@{\$self->{current_context}{children}}, \$self->into_context("
@@ -263,14 +281,14 @@ sub compile_syntax_action {
 					$key = $self->compile_syntax_spawn_sub_expression($key, 'SCALAR');
 					$value = shift @assign_items;
 					$field = $self->compile_syntax_spawn_sub_expression($field, 'SCALAR');
-					push @code, "\$self->{current_context}{$field}{$key} = " . $self->compile_syntax_spawn_expression($value, 'SCALAR') . ";";
+					push @code, "\$context_object->{$field}{$key} = " . $self->compile_syntax_spawn_expression($value, 'SCALAR') . ";";
 				} elsif (ref $value eq 'ARRAY' and @$value == 0) {
 					$value = shift @assign_items;
 					$field = $self->compile_syntax_spawn_sub_expression($field, 'SCALAR');
-					push @code, "push \@{\$self->{current_context}{$field}}, " . $self->compile_syntax_spawn_expression($value) . ";";
+					push @code, "push \@{\$context_object->{$field}}, " . $self->compile_syntax_spawn_expression($value) . ";";
 				} else {
 					$field = $self->compile_syntax_spawn_sub_expression($field, 'SCALAR');
-					push @code, "\$self->{current_context}{$field} = " . $self->compile_syntax_spawn_expression($value, 'SCALAR') . ";";
+					push @code, "\$context_object->{$field} = " . $self->compile_syntax_spawn_expression($value, 'SCALAR') . ";";
 				}
 			}
 		} elsif ($action eq 'match') {
@@ -317,7 +335,7 @@ sub compile_syntax_action {
 }
 
 sub compile_syntax_spawn_expression {
-	my ($self, $expression, $modifier) = @_;
+	my ($self, $expression, $modifier, $arg) = @_;
 	if (not defined $expression) {
 		return 'undef'
 	} elsif (ref $expression eq 'HASH') {
@@ -339,18 +357,20 @@ sub compile_syntax_spawn_expression {
 		$code .= "}";
 		return $code
 	} else {
-		return $self->compile_syntax_spawn_sub_expression($expression, $modifier)
+		return $self->compile_syntax_spawn_sub_expression($expression, $modifier, $arg)
 	}
 }
 
 sub compile_syntax_spawn_sub_expression {
-	my ($self, $expression, $modifier) = @_;
+	my ($self, $expression, $modifier, $arg) = @_;
 	if (not defined $expression) {
 		return "undef";
 	} elsif ($expression =~ /\A\![a-zA-Z_][a-zA-Z_0-9]*\Z/) {
 		my $context_function = $self->get_context($expression);
 		if (defined $modifier and $modifier eq 'SCALAR') {
 			return "(\$self->$context_function)[0]";
+		} elsif (defined $modifier and $modifier eq 'OBJECT_CONTEXT') {
+			return "(\$self->$context_function(" . $self->compile_syntax_spawn_sub_expression($expression) . "))[0]";
 		} else {
 			return "\$self->$context_function()";
 		}

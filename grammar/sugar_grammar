@@ -2,7 +2,7 @@
 package Sugar::Lang::GrammarCompiler
 
 # regex definitions
-symbol_regex = /\{|\}|\[|\]|=>|=|,/
+symbol_regex = /\{|\}|\[|\]|->|=>|=|,/
 
 package_identifier_regex = /[a-zA-Z_][a-zA-Z0-9_]*+(\:\:[a-zA-Z_][a-zA-Z0-9_]*+)++/
 identifier_regex = /[a-zA-Z_][a-zA-Z0-9_]*+/
@@ -36,7 +36,7 @@ ignored_tokens {
 }
 
 # context definitions
-context root {
+object context root {
 	$identifier_regex, '=' {
 		assign {
 			'variables'{$0} => !def_value
@@ -60,6 +60,11 @@ context root {
 	'context', $identifier_regex, '{' {
 		assign {
 			'contexts'{$1} => [ !context_definition ]
+		}
+	}
+	'object', 'context', $identifier_regex, '{' {
+		assign {
+			'object_contexts'{$2} => [ !context_definition ]
 		}
 	}
 }
@@ -149,15 +154,6 @@ context match_list {
 	}
 }
 
-# context enter_match_action {
-# 	'{' {
-# 		switch_context !match_action
-# 	}
-# 	default {
-# 		die 'expected \'{\' after match directive'
-# 	}
-# }
-
 context match_action {
 	'assign', '{' {
 		spawn 'assign'
@@ -167,18 +163,6 @@ context match_action {
 		spawn 'spawn'
 		spawn !spawn_expression
 	}
-	# 'enter_context', $context_reference_regex {
-	# 	spawn 'enter_context'
-	# 	spawn $1
-	# }
-	# 'switch_context', $context_reference_regex {
-	# 	spawn 'switch_context'
-	# 	spawn $1
-	# }
-	# 'nest_context', $context_reference_regex {
-	# 	spawn 'nest_context'
-	# 	spawn $1
-	# }
 	'return' {
 		spawn 'return'
 	}
@@ -205,6 +189,12 @@ context match_action {
 context spawn_expression {
 	/\$\d++/ {
 		spawn $0
+		return
+	}
+	$context_reference_regex, '->' {
+		spawn $0
+		spawn '->'
+		spawn !spawn_expression
 		return
 	}
 	$context_reference_regex {
@@ -262,7 +252,6 @@ context assign_scope {
 		spawn !spawn_expression
 		match '}', '=>'
 		spawn !spawn_expression
-		# nest_context !assign_hash
 	}
 	'}' {
 		return
@@ -271,12 +260,3 @@ context assign_scope {
 		die 'assign expression expected'
 	}
 }
-
-# context assign_hash {
-# 	'}', '=>' {
-# 		switch_context !spawn_expression
-# 	}
-# 	default {
-# 		die '\'}\' expected to close hash assignment'
-# 	}
-# }
