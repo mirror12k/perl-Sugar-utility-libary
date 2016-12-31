@@ -19,6 +19,7 @@ sub new {
 	$self->{tokens} = [];
 	$self->{ignored_tokens} = $self->{syntax_definition_intermediate}{ignored_tokens};
 	$self->{contexts} = $self->{syntax_definition_intermediate}{contexts};
+	$self->{object_contexts} = $self->{syntax_definition_intermediate}{object_contexts};
 	$self->{code_definitions} = {};
 	$self->{package_identifier} = $self->{syntax_definition_intermediate}{package_identifier} // 'PACKAGE_NAME';
 	$self->compile_syntax_intermediate;
@@ -108,12 +109,20 @@ sub get_variable {
 	return $self->{variables}{$identifier}
 }
 
-sub get_context {
-	my ($self, $value) = @_;
+sub get_function_by_name {
+	my ($self, $value, $modifier) = @_;
 	if ($value =~ /\A\!(\w++)\Z/) {
 		my $context_type = $1;
-		confess "undefined context requested: '$context_type'" unless defined $self->{contexts}{$context_type};
-		return "context_$context_type"
+		if (defined $modifier and $modifier eq 'OBJECT_CONTEXT') {
+			confess "undefined object context requested: '$context_type'" unless defined $self->{object_contexts}{$context_type};
+			return "context_$context_type"
+		} else {
+			confess "undefined context requested: '$context_type'" unless defined $self->{contexts}{$context_type};
+			return "context_$context_type"
+		}
+
+	} elsif ($value =~ /\A\&(\w++)\Z/) {
+		return "$1"
 
 	} else {
 		confess "unknown context type requested: '$value'";
@@ -343,9 +352,7 @@ sub compile_syntax_spawn_expression {
 	} elsif (ref $expression eq 'ARRAY' and @$expression == 0) {
 		return '[]'
 	} elsif (ref $expression eq 'ARRAY' and @$expression == 1) {
-		my $context_type = $expression->[0] =~ s/'/\\'/gr;
-		my $context_function = $self->get_context($context_type);
-		return "[ \$self->$context_function ]"
+		return "[ " . $self->compile_syntax_spawn_expression($expression->[0]) . " ]"
 	} elsif (ref $expression eq 'ARRAY') {
 		my $code = "{ ";
 		my @items = @$expression;
@@ -356,8 +363,8 @@ sub compile_syntax_spawn_expression {
 		}
 		$code .= "}";
 		return $code
-	} elsif ($expression =~ /\A\![a-zA-Z_][a-zA-Z_0-9]*\Z/) {
-		my $context_function = $self->get_context($expression);
+	} elsif ($expression =~ /\A[!\&][a-zA-Z_][a-zA-Z_0-9]*\Z/) {
+		my $context_function = $self->get_function_by_name($expression, $modifier);
 		if (defined $modifier and $modifier eq 'SCALAR') {
 			return "(\$self->$context_function)[0]";
 		} elsif (defined $modifier and $modifier eq 'OBJECT_CONTEXT') {

@@ -10,6 +10,7 @@ string_regex = /'([^\\']|\\[\\'])*+'/s
 regex_regex = /\/([^\\\/]|\\.)*+\/[msixpodualn]*/s
 variable_regex = /\$\w++/
 context_reference_regex = /!\w++/
+function_reference_regex = /\&\w++/
 
 comment_regex = /\#[^\n]*+\n/s
 whitespace_regex = /\s++/s
@@ -24,6 +25,7 @@ tokens {
 	regex => $regex_regex
 	variable => $variable_regex
 	context_reference => $context_reference_regex
+	function_reference => $function_reference_regex
 
 	comment => $comment_regex
 	whitespace => $whitespace_regex
@@ -203,11 +205,19 @@ context spawn_expression {
 		spawn {
 			$0 => !spawn_expression
 		}
-		# spawn '->'
-		# spawn !spawn_expression
 		return
 	}
 	$context_reference_regex {
+		spawn $0
+		return
+	}
+	$function_reference_regex, '->' {
+		spawn {
+			$0 => !spawn_expression
+		}
+		return
+	}
+	$function_reference_regex {
 		spawn $0
 		return
 	}

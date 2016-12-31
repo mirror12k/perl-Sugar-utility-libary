@@ -44,12 +44,13 @@ context test_more {
 				'c' => '35'
 			}
 		}
-		spawn !test_more->{
+		spawn !root->{
 			'type' => 'nested'
 		}
 		respawn {
 			'a' => $0
-			'b' => !test_more->'respawned'
+			'b' => !root->'respawned'
 		}
+		spawn &direct_function_call
 	}
 }
