@@ -221,6 +221,10 @@ context spawn_expression {
 		spawn [ !spawn_expression_list ]
 		return
 	}
+	'{' {
+		spawn [ !spawn_expression_hash ]
+		return
+	}
 	default {
 		die 'spawn expression expected'
 	}
@@ -233,6 +237,23 @@ context spawn_expression_list {
 	}
 	default {
 		die 'spawn expression list expected'
+	}
+}
+
+context spawn_expression_hash {
+	'}' {
+		return
+	}
+	$variable_regex, '=>' {
+		spawn $0
+		spawn !spawn_expression
+	}
+	$string_regex, '=>' {
+		spawn $0
+		spawn !spawn_expression
+	}
+	default {
+		die 'spawn expression hash pair expected'
 	}
 }
 

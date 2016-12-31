@@ -350,9 +350,9 @@ sub compile_syntax_spawn_expression {
 		my $code = "{ ";
 		my @items = @$expression;
 		while (@items) {
-			my $field = quotemeta shift @items;
+			my $field = shift @items;
 			my $value = shift @items;
-			$code .= "'$field' => " . $self->compile_syntax_spawn_sub_expression($value) . ", ";
+			$code .= $self->compile_syntax_spawn_expression($field, 'SCALAR') . " => " . $self->compile_syntax_spawn_expression($value, 'SCALAR') . ", ";
 		}
 		$code .= "}";
 		return $code

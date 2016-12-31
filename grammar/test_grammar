@@ -5,7 +5,7 @@ qwert = /testing/msix
 
 tokens {}
 
-context root {
+object context root {
 	'context', 'root' {
 		return
 	}
@@ -13,8 +13,8 @@ context root {
 		spawn undef
 		spawn $0
 		spawn 'asdf'
-		spawn !asdf
-		spawn [ !asdf ]
+		spawn !test_more
+		spawn [ !test_more ]
 	}
 	'qwerty', /\d+/i {
 		assign {
@@ -34,5 +34,15 @@ context root {
 context test_more {
 	'a' {
 		match 'b', 'c', $qwert
+	}
+	'b' {
+		spawn {
+			'a' => '15'
+			'b' => $0
+			'nested_hash' => {
+				'nested' => 'true'
+				'c' => '35'
+			}
+		}
 	}
 }

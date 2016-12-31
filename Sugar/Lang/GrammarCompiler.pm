@@ -38,6 +38,7 @@ our $contexts = {
 	match_list => \&context_match_list,
 	root => \&context_root,
 	spawn_expression => \&context_spawn_expression,
+	spawn_expression_hash => \&context_spawn_expression_hash,
 	spawn_expression_list => \&context_spawn_expression_list,
 	token_definition => \&context_token_definition,
 };
@@ -332,9 +333,39 @@ sub context_spawn_expression {
 			my @tokens = $self->step_tokens(1);
 			push @spawned_value, [ $self->context_spawn_expression_list ];
 			return @spawned_value;
+		} elsif ($self->{tokens}[$self->{tokens_index} + 0][1] eq '{') {
+			my @tokens = $self->step_tokens(1);
+			push @spawned_value, [ $self->context_spawn_expression_hash ];
+			return @spawned_value;
 		} else {
 			my @tokens;
 			$self->confess_at_current_offset('spawn expression expected');
+		}
+
+	}
+}
+
+sub context_spawn_expression_hash {
+
+	my ($self) = @_;
+
+	my @spawned_value;
+
+	while ($self->more_tokens) {
+		if ($self->{tokens}[$self->{tokens_index} + 0][1] eq '}') {
+			my @tokens = $self->step_tokens(1);
+			return @spawned_value;
+		} elsif ($self->{tokens}[$self->{tokens_index} + 0][1] =~ /\A\$\w++\Z/ and $self->{tokens}[$self->{tokens_index} + 1][1] eq '=>') {
+			my @tokens = $self->step_tokens(2);
+			push @spawned_value, $tokens[0][1];
+			push @spawned_value, $self->context_spawn_expression();
+		} elsif ($self->{tokens}[$self->{tokens_index} + 0][1] =~ /\A'([^\\']|\\[\\'])*+'\Z/s and $self->{tokens}[$self->{tokens_index} + 1][1] eq '=>') {
+			my @tokens = $self->step_tokens(2);
+			push @spawned_value, $tokens[0][1];
+			push @spawned_value, $self->context_spawn_expression();
+		} else {
+			my @tokens;
+			$self->confess_at_current_offset('spawn expression hash pair expected');
 		}
 
 	}
