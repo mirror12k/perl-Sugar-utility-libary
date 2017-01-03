@@ -291,7 +291,7 @@ sub context_root {
 			$context_object->{'object_contexts'}{$tokens[2][1]} = [ $self->context_context_definition() ];
 		} else {
 			my @tokens;
-			return @spawned_value;
+			return $context_object;
 		}
 
 	}

@@ -189,7 +189,7 @@ sub {
 		}
 		my $condition_code = $self->compile_syntax_condition($condition);
 		my $action = shift @items;
-		my $action_code = $self->compile_syntax_action($condition, $action);
+		my $action_code = $self->compile_syntax_action($condition, $action, $modifier);
 
 		my $debug_code = '';
 		# $debug_code = "\n\t\t\tsay 'in case " . (ref $condition eq 'ARRAY' ? join ', ', @$condition : $condition) =~ s/'/\\'/gr . "';"; # DEBUG INLINE TREE BUILDER
@@ -202,7 +202,7 @@ sub {
 	}
 
 	$self->{context_default_case} //= [ 'return' ];
-	my $action_code = $self->compile_syntax_action(undef, $self->{context_default_case});
+	my $action_code = $self->compile_syntax_action(undef, $self->{context_default_case}, $modifier);
 	unless ($first_item) {
 		$code .= "e {$action_code\t\t}\n";
 	} else {
@@ -248,7 +248,7 @@ sub compile_syntax_condition {
 }
 
 sub compile_syntax_action {
-	my ($self, $condition, $actions_list) = @_;
+	my ($self, $condition, $actions_list, $modifier) = @_;
 
 	my @code;
 
@@ -320,8 +320,12 @@ sub compile_syntax_action {
 			}
 
 		} elsif ($action eq 'return') {
-			push @code, "return \@spawned_value;";
-			$self->{context_default_case} = [ die => 'unexpected token' ] unless defined $self->{context_default_case};
+			if (defined $modifier and $modifier eq 'object_context') {
+				push @code, "return \$context_object;";
+			} else {
+				push @code, "return \@spawned_value;";
+			}
+			$self->{context_default_case} = [ die => "'unexpected token'" ] unless defined $self->{context_default_case};
 		} elsif ($action eq 'die') {
 			push @code, "\$self->confess_at_current_offset(" . $self->compile_syntax_spawn_expression(shift @actions) . ");";
 		} elsif ($action eq 'warn') {
