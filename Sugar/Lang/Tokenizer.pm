@@ -158,15 +158,18 @@ sub confess_at_current_offset {
 	my ($self, $msg) = @_;
 
 	my $position;
+	my $next_token = '';
 	if ($self->more_tokens) {
 		$position = 'line ' . $self->{tokens}[$self->{tokens_index}][2];
+		my ($type, $val) = @{$self->peek_token};
+		$next_token = " (next token is $type => <$val>)";
 	} else {
 		$position = 'end of file';
 	}
 
 	# say $self->dump_at_current_offset;
 
-	confess "error on $position: $msg";
+	confess "error on $position: $msg$next_token";
 }
 
 sub current_line_number {

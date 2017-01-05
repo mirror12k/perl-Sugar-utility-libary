@@ -63,7 +63,7 @@ sub main {
 	foreach my $file (@_) {
 		$parser->{filepath} = Sugar::IO::File->new($file);
 		my $tree = $parser->parse;
-		# say Dumper $tree;
+		# warn Dumper $tree;
 
 		my $compiler = Sugar::Lang::SyntaxIntermediateCompiler->new(syntax_definition_intermediate => $tree);
 		say $compiler->to_package;
