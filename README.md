@@ -2,7 +2,7 @@
 A utilities library written because I'm tired of reinventing the same old generic code.
 
 ## Sugar::IO
-A few IO tools for files, directories, and archives. mostly WIP.
+A few IO tools for files, directories, and archives.
 
 requires IO::Dir, IO::File, Carp, and overload perl packages.
 
@@ -59,7 +59,7 @@ $dir->rm;
 A WIP, currently only supports zip archives.
 
 ## Sugar::Test::Barrage
-A utility to quickly writing a testing suite for other projects. Uses a pair of 'processor's which are command line commands which will be executed onto each file in a given directory. Common use cases are when a program's output needs to be compared against a static file, or when a program's output needs to match that of another program. See the [pod documentation](Sugar/Test/Barrage.pm) for more details.
+A utility to quickly write a testing suite for other projects. Uses a pair of 'processor's which are command line commands which will be executed onto each file in a given directory. Common use cases are when a program's output needs to be compared against a static file, or when a program's output needs to match that of another program. See the [pod documentation](Sugar/Test/Barrage.pm) for more details.
 
 ## Sugar::Lang
 A full grammar language parser and compiler which produces packages capable of tokenizing and building syntax trees from a given file or text according to the compiled grammar. Sugar lang is itself compiled from a Sugar grammar file. See the [Sugar language documentation](Sugar/Lang) for more information.
