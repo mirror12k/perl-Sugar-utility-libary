@@ -33,6 +33,7 @@ tokens {
 	comment => $cstyle_comment_token
 
 	keyword => $keyword_token
+	symbol => $symbol_token
 	identifier => $identifier_token
 }
 ```
