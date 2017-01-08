@@ -93,4 +93,4 @@ object context class_def {
 }
 ```
 
-There is way more stuff to learn, check out the Sugar's own parser written in Sugar for more information.
+There is way more stuff to learn, check out the [Sugar's own parser written in Sugar](../../grammar/sugar_grammar) for more information.
