@@ -5,6 +5,7 @@ use warnings;
 use feature 'say';
 
 use Carp;
+use Data::Dumper;
 
 
 
@@ -18,7 +19,8 @@ sub new {
 	$self->{variables} = $self->{syntax_definition_intermediate}{variables};
 	$self->{tokens} = [];
 	$self->{ignored_tokens} = $self->{syntax_definition_intermediate}{ignored_tokens};
-	$self->{contexts} = $self->{syntax_definition_intermediate}{contexts};
+	$self->{item_contexts} = $self->{syntax_definition_intermediate}{item_contexts};
+	$self->{list_contexts} = $self->{syntax_definition_intermediate}{list_contexts};
 	$self->{object_contexts} = $self->{syntax_definition_intermediate}{object_contexts};
 	$self->{code_definitions} = {};
 	$self->{package_identifier} = $self->{syntax_definition_intermediate}{package_identifier} // 'PACKAGE_NAME';
@@ -114,10 +116,15 @@ sub get_function_by_name {
 	if ($value =~ /\A\!(\w++)\Z/) {
 		my $context_type = $1;
 		if (defined $modifier and $modifier eq 'OBJECT_CONTEXT') {
-			confess "undefined object context requested: '$context_type'" unless defined $self->{object_contexts}{$context_type};
-			return "context_$context_type"
+			if (defined $self->{object_contexts}{$context_type}) {
+				return "context_$context_type"
+			} elsif (defined $self->{list_contexts}{$context_type}) {
+				return "context_$context_type"
+			} else {
+				confess "undefined object context requested: '$context_type'";
+			}
 		} else {
-			confess "undefined context requested: '$context_type'" unless defined $self->{contexts}{$context_type};
+			confess "undefined context requested: '$context_type'" unless defined $self->{item_contexts}{$context_type};
 			return "context_$context_type"
 		}
 
@@ -138,9 +145,13 @@ sub compile_syntax_intermediate {
 		my $value = $self->compile_syntax_token_value(shift @token_definitions);
 		push @{$self->{tokens}}, $key, $value;
 	}
-	foreach my $context_type (keys %{$self->{syntax_definition_intermediate}{contexts}}) {
-		my $context_definition = $self->{syntax_definition_intermediate}{contexts}{$context_type};
+	foreach my $context_type (keys %{$self->{syntax_definition_intermediate}{item_contexts}}) {
+		my $context_definition = $self->{syntax_definition_intermediate}{item_contexts}{$context_type};
 		$self->{code_definitions}{$context_type} = $self->compile_syntax_context($context_type, $context_definition);
+	}
+	foreach my $context_type (keys %{$self->{syntax_definition_intermediate}{list_contexts}}) {
+		my $context_definition = $self->{syntax_definition_intermediate}{list_contexts}{$context_type};
+		$self->{code_definitions}{$context_type} = $self->compile_syntax_context($context_type, $context_definition, 'list_context');
 	}
 	foreach my $context_type (keys %{$self->{syntax_definition_intermediate}{object_contexts}}) {
 		my $context_definition = $self->{syntax_definition_intermediate}{object_contexts}{$context_type};
@@ -166,6 +177,7 @@ sub compile_syntax_context {
 sub {
 ';
 	my @args_list = ('$self');
+	push @args_list, '$context_list' if defined $modifier and $modifier eq 'list_context';
 	push @args_list, '$context_object' if defined $modifier and $modifier eq 'object_context';
 	my $args_list_string = join ', ', @args_list;
 	$code .= "
@@ -274,7 +286,11 @@ sub compile_syntax_action {
 			# 	my $object_expression = shift @actions;
 			# 	push @code, "push \@spawned_value, " . $self->compile_syntax_spawn_expression($expression, 'OBJECT_CONTEXT', $object_expression) . ";";
 			# } else {
-			push @code, "push \@spawned_value, " . $self->compile_syntax_spawn_expression($expression) . ";";
+			if (defined $modifier and $modifier eq 'list_context') {
+				push @code, "push \@\$context_list, " . $self->compile_syntax_spawn_expression($expression) . ";";
+			} else {
+				push @code, "push \@spawned_value, " . $self->compile_syntax_spawn_expression($expression) . ";";
+			}
 			# }
 		} elsif ($action eq 'respawn') {
 			my $expression = shift @actions;
@@ -290,7 +306,8 @@ sub compile_syntax_action {
 			while (@assign_items) {
 				my $field = shift @assign_items;
 				my $value = shift @assign_items;
-				if (ref $value eq 'HASH') {
+				if (ref $value eq 'HASH' and 0 == keys %$value) {
+					warn "debug value: ", Dumper $value;
 					my $key = shift @assign_items;
 					$key = $self->compile_syntax_spawn_expression($key, 'SCALAR');
 					$value = shift @assign_items;
@@ -322,6 +339,8 @@ sub compile_syntax_action {
 		} elsif ($action eq 'return') {
 			if (defined $modifier and $modifier eq 'object_context') {
 				push @code, "return \$context_object;";
+			} elsif (defined $modifier and $modifier eq 'list_context') {
+				push @code, "return \$context_list;";
 			} else {
 				push @code, "return \@spawned_value;";
 			}

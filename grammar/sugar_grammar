@@ -51,27 +51,32 @@ object context root {
 	}
 	'tokens', '{' {
 		assign {
-			'tokens' => [ !token_definition ]
+			'tokens' => !token_definition->[]
 		}
 	}
 	'ignored_tokens', '{' {
 		assign {
-			'ignored_tokens' => [ !ignored_tokens_list ]
+			'ignored_tokens' => !ignored_tokens_list->[]
 		}
 	}
-	'context', $identifier_regex, '{' {
+	'item', 'context', $identifier_regex, '{' {
 		assign {
-			'contexts'{$1} => [ !context_definition ]
+			'item_contexts'{$2} => !context_definition->[]
+		}
+	}
+	'list', 'context', $identifier_regex, '{' {
+		assign {
+			'list_contexts'{$2} => !context_definition->[]
 		}
 	}
 	'object', 'context', $identifier_regex, '{' {
 		assign {
-			'object_contexts'{$2} => [ !context_definition ]
+			'object_contexts'{$2} => !context_definition->[]
 		}
 	}
 }
 
-context def_value {
+item context def_value {
 	$string_regex {
 		spawn $0
 		return
@@ -89,7 +94,7 @@ context def_value {
 	}
 }
 
-context token_definition {
+list context token_definition {
 	'}' {
 		return
 	}
@@ -102,7 +107,7 @@ context token_definition {
 	}
 }
 
-context ignored_tokens_list {
+list context ignored_tokens_list {
 	'}' {
 		return
 	}
@@ -114,22 +119,22 @@ context ignored_tokens_list {
 	}
 }
 
-context context_definition {
+list context context_definition {
 	'}' {
 		return
 	}
 	'default', '{' {
 		spawn undef
-		spawn [ !match_action ]
+		spawn !match_action->[]
 	}
 	default {
-		spawn [ !match_list ]
+		spawn !match_list->[]
 		match '{'
-		spawn [ !match_action ]
+		spawn !match_action->[]
 	}
 }
 
-context match_list {
+list context match_list {
 	$variable_regex, ',' {
 		spawn $0
 	}
@@ -156,10 +161,10 @@ context match_list {
 	}
 }
 
-context match_action {
+list context match_action {
 	'assign', '{' {
 		spawn 'assign'
-		spawn [ !assign_scope ]
+		spawn !assign_scope->[]
 	}
 	'spawn' {
 		spawn 'spawn'
@@ -174,7 +179,7 @@ context match_action {
 	}
 	'match' {
 		spawn 'match'
-		spawn [ !match_list ]
+		spawn !match_list->[]
 	}
 	'warn', $string_regex {
 		spawn 'warn'
@@ -192,7 +197,7 @@ context match_action {
 	}
 }
 
-context spawn_expression {
+item context spawn_expression {
 	/\$\d++/ {
 		spawn $0
 		return
@@ -237,12 +242,12 @@ context spawn_expression {
 		spawn {}
 		return
 	}
-	'[' {
-		spawn [ !spawn_expression_list ]
-		return
-	}
+	# '[' {
+	# 	spawn !spawn_expression_list->[]
+	# 	return
+	# }
 	'{' {
-		spawn [ !spawn_expression_hash ]
+		spawn !spawn_expression_hash->[]
 		return
 	}
 	default {
@@ -250,7 +255,7 @@ context spawn_expression {
 	}
 }
 
-context spawn_expression_list {
+list context spawn_expression_list {
 	$context_reference_regex, ']' {
 		spawn $0
 		return
@@ -260,7 +265,7 @@ context spawn_expression_list {
 	}
 }
 
-context spawn_expression_hash {
+list context spawn_expression_hash {
 	'}' {
 		return
 	}
@@ -277,7 +282,7 @@ context spawn_expression_hash {
 	}
 }
 
-context assign_scope {
+list context assign_scope {
 	$string_regex, '=>' {
 		spawn $0
 		spawn !spawn_expression
