@@ -112,21 +112,23 @@ sub get_variable {
 }
 
 sub get_function_by_name {
-	my ($self, $value, $modifier) = @_;
+	my ($self, $value) = @_;
 	if ($value =~ /\A\!(\w++)\Z/) {
 		my $context_type = $1;
-		if (defined $modifier and $modifier eq 'OBJECT_CONTEXT') {
+		# if (defined $modifier and $modifier eq 'OBJECT_CONTEXT') {
 			if (defined $self->{object_contexts}{$context_type}) {
 				return "context_$context_type"
 			} elsif (defined $self->{list_contexts}{$context_type}) {
 				return "context_$context_type"
+			} elsif (defined $self->{item_contexts}{$context_type}) {
+				return "context_$context_type"
 			} else {
-				confess "undefined object context requested: '$context_type'";
+				confess "undefined context requested: '$context_type'";
 			}
-		} else {
-			confess "undefined context requested: '$context_type'" unless defined $self->{item_contexts}{$context_type};
-			return "context_$context_type"
-		}
+		# } else {
+		# 	confess "undefined context requested: '$context_type'" unless defined $self->{item_contexts}{$context_type};
+		# 	return "context_$context_type"
+		# }
 
 	} elsif ($value =~ /\A\&(\w++)\Z/) {
 		return "$1"
@@ -145,17 +147,17 @@ sub compile_syntax_intermediate {
 		my $value = $self->compile_syntax_token_value(shift @token_definitions);
 		push @{$self->{tokens}}, $key, $value;
 	}
-	foreach my $context_type (keys %{$self->{syntax_definition_intermediate}{item_contexts}}) {
-		my $context_definition = $self->{syntax_definition_intermediate}{item_contexts}{$context_type};
-		$self->{code_definitions}{$context_type} = $self->compile_syntax_context($context_type, $context_definition);
+	foreach my $context_name (keys %{$self->{syntax_definition_intermediate}{item_contexts}}) {
+		my $context_definition = $self->{syntax_definition_intermediate}{item_contexts}{$context_name};
+		$self->{code_definitions}{$context_name} = $self->compile_syntax_context($context_name, $context_definition);
 	}
-	foreach my $context_type (keys %{$self->{syntax_definition_intermediate}{list_contexts}}) {
-		my $context_definition = $self->{syntax_definition_intermediate}{list_contexts}{$context_type};
-		$self->{code_definitions}{$context_type} = $self->compile_syntax_context($context_type, $context_definition, 'list_context');
+	foreach my $context_name (keys %{$self->{syntax_definition_intermediate}{list_contexts}}) {
+		my $context_definition = $self->{syntax_definition_intermediate}{list_contexts}{$context_name};
+		$self->{code_definitions}{$context_name} = $self->compile_syntax_context($context_name, $context_definition, 'list_context');
 	}
-	foreach my $context_type (keys %{$self->{syntax_definition_intermediate}{object_contexts}}) {
-		my $context_definition = $self->{syntax_definition_intermediate}{object_contexts}{$context_type};
-		$self->{code_definitions}{$context_type} = $self->compile_syntax_context($context_type, $context_definition, 'object_context');
+	foreach my $context_name (keys %{$self->{syntax_definition_intermediate}{object_contexts}}) {
+		my $context_definition = $self->{syntax_definition_intermediate}{object_contexts}{$context_name};
+		$self->{code_definitions}{$context_name} = $self->compile_syntax_context($context_name, $context_definition, 'object_context');
 	}
 }
 
@@ -307,7 +309,6 @@ sub compile_syntax_action {
 				my $field = shift @assign_items;
 				my $value = shift @assign_items;
 				if (ref $value eq 'HASH' and 0 == keys %$value) {
-					warn "debug value: ", Dumper $value;
 					my $key = shift @assign_items;
 					$key = $self->compile_syntax_spawn_expression($key, 'SCALAR');
 					$value = shift @assign_items;
@@ -368,14 +369,17 @@ sub compile_syntax_spawn_expression {
 		if (@keys) {
 			my ($call_expression) = @keys;
 			my $object_expression = $expression->{$call_expression};
-			return $self->compile_syntax_spawn_expression($call_expression, 'OBJECT_CONTEXT', $object_expression)
+			# warn "got call_expression: $call_expression";
+			my $context_function = $self->get_function_by_name($call_expression);
+			return "(\$self->$context_function(" . $self->compile_syntax_spawn_expression($object_expression) . "))[0]";
+			# return $self->compile_syntax_spawn_expression($call_expression, 'OBJECT_CONTEXT', $object_expression)
 		} else {
 			return '{}'
 		}
 	} elsif (ref $expression eq 'ARRAY' and @$expression == 0) {
 		return '[]'
-	} elsif (ref $expression eq 'ARRAY' and @$expression == 1) {
-		return "[ " . $self->compile_syntax_spawn_expression($expression->[0]) . " ]"
+	# } elsif (ref $expression eq 'ARRAY' and @$expression == 1) {
+	# 	return "[ " . $self->compile_syntax_spawn_expression($expression->[0]) . " ]"
 	} elsif (ref $expression eq 'ARRAY') {
 		my $code = "{ ";
 		my @items = @$expression;
@@ -387,11 +391,11 @@ sub compile_syntax_spawn_expression {
 		$code .= "}";
 		return $code
 	} elsif ($expression =~ /\A[!\&][a-zA-Z_][a-zA-Z_0-9]*\Z/) {
-		my $context_function = $self->get_function_by_name($expression, $modifier);
+		my $context_function = $self->get_function_by_name($expression);
 		if (defined $modifier and $modifier eq 'SCALAR') {
 			return "(\$self->$context_function)[0]";
-		} elsif (defined $modifier and $modifier eq 'OBJECT_CONTEXT') {
-			return "(\$self->$context_function(" . $self->compile_syntax_spawn_expression($arg) . "))[0]";
+		# } elsif (defined $modifier and $modifier eq 'OBJECT_CONTEXT') {
+		# 	return "(\$self->$context_function(" . $self->compile_syntax_spawn_expression($arg) . "))[0]";
 		} else {
 			return "\$self->$context_function()";
 		}
