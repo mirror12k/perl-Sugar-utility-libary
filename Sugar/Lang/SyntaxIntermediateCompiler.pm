@@ -290,7 +290,7 @@ sub compile_syntax_action {
 			while (@assign_items) {
 				my $field = shift @assign_items;
 				my $value = shift @assign_items;
-				if (ref $value eq 'HASH' and 0 == length keys %$value) {
+				if (ref $value eq 'HASH') {
 					my $key = shift @assign_items;
 					$key = $self->compile_syntax_spawn_expression($key, 'SCALAR');
 					$value = shift @assign_items;
