@@ -97,7 +97,7 @@ caller or main(@ARGV);
 ';
 
 	foreach my $context_type (sort keys %{$self->{code_definitions}}) {
-		$code .= $self->{code_definitions}{$context_type} =~ s/\A(\s*)sub {/$1sub context_$context_type {/r;
+		$code .= $self->{code_definitions}{$context_type} =~ s/\A(\s*)sub \{/$1sub context_$context_type {/r;
 	}
 
 	return $code
