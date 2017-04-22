@@ -1,3 +1,4 @@
+#!/usr/bin/env perl
 package Sugar::Lang::GrammarCompiler;
 use parent 'Sugar::Lang::BaseSyntaxParser';
 use strict;

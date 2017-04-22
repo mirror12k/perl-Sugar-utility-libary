@@ -34,7 +34,8 @@ sub to_package {
 
 	my $code = '';
 
-	$code .= "package $self->{package_identifier};
+	$code .= "#!/usr/bin/env perl
+package $self->{package_identifier};
 use parent 'Sugar::Lang::BaseSyntaxParser';
 use strict;
 use warnings;
