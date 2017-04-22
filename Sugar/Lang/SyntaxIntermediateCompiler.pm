@@ -115,20 +115,15 @@ sub get_function_by_name {
 	my ($self, $value) = @_;
 	if ($value =~ /\A\!(\w++)\Z/) {
 		my $context_type = $1;
-		# if (defined $modifier and $modifier eq 'OBJECT_CONTEXT') {
-			if (defined $self->{object_contexts}{$context_type}) {
-				return "context_$context_type"
-			} elsif (defined $self->{list_contexts}{$context_type}) {
-				return "context_$context_type"
-			} elsif (defined $self->{item_contexts}{$context_type}) {
-				return "context_$context_type"
-			} else {
-				confess "undefined context requested: '$context_type'";
-			}
-		# } else {
-		# 	confess "undefined context requested: '$context_type'" unless defined $self->{item_contexts}{$context_type};
-		# 	return "context_$context_type"
-		# }
+		if (defined $self->{object_contexts}{$context_type}) {
+			return "context_$context_type"
+		} elsif (defined $self->{list_contexts}{$context_type}) {
+			return "context_$context_type"
+		} elsif (defined $self->{item_contexts}{$context_type}) {
+			return "context_$context_type"
+		} else {
+			confess "undefined context requested: '$context_type'";
+		}
 
 	} elsif ($value =~ /\A\&(\w++)\Z/) {
 		return "$1"
@@ -246,17 +241,12 @@ sub compile_syntax_condition {
 			$conditions[$i] = $self->compile_syntax_condition($conditions[$i], $i);
 		}
 		return join ' and ', @conditions
-	# } elsif (ref $condition eq 'Regexp') {
-	# 	$condition =~ s#/#\\/#g;
-	# 	return "\$self->is_token_val('*' => qr/$condition/, $offset)"
 	} elsif ($condition =~ m#\A\$(\w++)\Z#s) {
 		return $self->compile_syntax_condition($self->get_variable($1), $offset)
 	} elsif ($condition =~ m#\A/(.*)/([msixpodualn]*)\Z#s) {
 		return "\$self->{tokens}[\$self->{tokens_index} + $offset][1] =~ /\\A$1\\Z/$2"
-		# return "\$self->is_token_val('*' => qr/\\A$1\\Z/$2, $offset)"
 	} elsif ($condition =~ /\A'.*'\Z/s) {
 		return "\$self->{tokens}[\$self->{tokens_index} + $offset][1] eq $condition"
-		# return "\$self->is_token_val('*' => $condition, $offset)"
 	} else {
 		confess "invalid syntax condition '$condition'";
 	}
@@ -270,10 +260,8 @@ sub compile_syntax_action {
 	if (defined $condition and ref $condition eq 'ARRAY') {
 		my $count = @$condition;
 		push @code, "my \@tokens = \$self->step_tokens($count);";
-		# push @code, "push \@tokens, \$self->next_token->[1];" foreach 0 .. $#$condition;
 	} elsif (defined $condition) {
 		push @code, "my \@tokens = (\$self->next_token->[1]);";
-		# push @code, "push \@tokens, \$self->next_token->[1];";
 	} else {
 		push @code, "my \@tokens;";
 	}
@@ -288,31 +276,7 @@ sub compile_syntax_action {
 				push @code, "push \@\$context_list, " . $self->compile_syntax_spawn_expression($context_type, $expression) . ";";
 			} else {
 				confess "use of push in $context_type: '$expression'";
-				# push @code, "\$context_value = " . $self->compile_syntax_spawn_expression($context_type, $expression) . ";";
 			}
-		# } elsif ($action eq 'respawn') {
-		# 	my $expression = shift @actions;
-		# 	push @code, "\$context_object = " . $self->compile_syntax_spawn_expression($context_type, $expression) . ";";
-		# } elsif ($action eq 'assign') {
-		# 	my @assign_items = @{shift @actions};
-		# 	while (@assign_items) {
-		# 		my $field = shift @assign_items;
-		# 		my $value = shift @assign_items;
-		# 		if (ref $value eq 'HASH' and 0 == keys %$value) {
-		# 			my $key = shift @assign_items;
-		# 			$key = $self->compile_syntax_spawn_expression($context_type, $key);
-		# 			$value = shift @assign_items;
-		# 			$field = $self->compile_syntax_spawn_expression($context_type, $field);
-		# 			push @code, "\$context_object->{$field}{$key} = " . $self->compile_syntax_spawn_expression($context_type, $value) . ";";
-		# 		} elsif (ref $value eq 'ARRAY' and @$value == 0) {
-		# 			$value = shift @assign_items;
-		# 			$field = $self->compile_syntax_spawn_expression($context_type, $field);
-		# 			push @code, "push \@{\$context_object->{$field}}, " . $self->compile_syntax_spawn_expression($context_type, $value) . ";";
-		# 		} else {
-		# 			$field = $self->compile_syntax_spawn_expression($context_type, $field);
-		# 			push @code, "\$context_object->{$field} = " . $self->compile_syntax_spawn_expression($context_type, $value) . ";";
-		# 		}
-		# 	}
 		} elsif ($action eq 'assign_item') {
 			my $value = shift @actions;
 			if ($context_type eq 'object_context') {
@@ -384,6 +348,7 @@ sub compile_syntax_spawn_expression {
 	my ($self, $context_type, $expression) = @_;
 	if (not defined $expression) {
 		return 'undef'
+		
 	} elsif (ref $expression eq 'HASH') {
 		my @keys = keys %$expression;
 		if (@keys) {
@@ -395,8 +360,10 @@ sub compile_syntax_spawn_expression {
 		} else {
 			return '{}'
 		}
+
 	} elsif (ref $expression eq 'ARRAY' and @$expression == 0) {
 		return '[]'
+
 	} elsif (ref $expression eq 'ARRAY') {
 		my $code = "{ ";
 		my @items = @$expression;
@@ -407,15 +374,11 @@ sub compile_syntax_spawn_expression {
 		}
 		$code .= "}";
 		return $code
+
 	} elsif ($expression =~ /\A[!\&][a-zA-Z_][a-zA-Z_0-9]*\Z/) {
 		my $context_function = $self->get_function_by_name($expression);
-		# if (defined $modifier and $modifier eq 'SCALAR') {
-		# 	return "(\$self->$context_function)[0]";
-		# # } elsif (defined $modifier and $modifier eq 'OBJECT_CONTEXT') {
-		# # 	return "(\$self->$context_function(" . $self->compile_syntax_spawn_expression($arg) . "))[0]";
-		# } else {
-			return "\$self->$context_function()";
-		# }
+		return "\$self->$context_function()";
+
 	} elsif ($expression eq '$_') {
 		if ($context_type eq 'object_context') {
 			return "\$context_object"
@@ -424,17 +387,21 @@ sub compile_syntax_spawn_expression {
 		} else {
 			return "\$context_value"
 		}
+
 	} elsif ($expression =~ /\A\$(\d+)\Z/) {
 		return "\$tokens[$1][1]";
+
 	} elsif ($expression =~ /\Apop\Z/) {
 		if ($context_type eq 'list_context') {
 			return "pop \@\$context_list";
 		} else {
 			confess "use of pop in $context_type";
 		}
+
 	} elsif ($expression =~ /\A'(.*)'\Z/s) {
 		my $value = $1;
 		return "'$value'";
+
 	} else {
 		confess "invalid spawn expression: '$expression'";
 	}

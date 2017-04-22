@@ -41,38 +41,24 @@ ignored_tokens {
 object context root {
 	$identifier_regex, '=' {
 		$_{'variables'}{$0} = !def_value
-		# assign {
-		# }
 	}
 	'package', $package_identifier_regex {
 		$_{'package_identifier'} = $1
-		# assign {
-		# }
 	}
 	'tokens', '{' {
 		$_{'tokens'} = !token_definition->[]
-		# assign {
-		# }
 	}
 	'ignored_tokens', '{' {
 		$_{'ignored_tokens'} = !ignored_tokens_list->[]
-		# assign {
-		# }
 	}
 	'item', 'context', $identifier_regex, '{' {
 		$_{'item_contexts'}{$2} = !context_definition->[]
-		# assign {
-		# }
 	}
 	'list', 'context', $identifier_regex, '{' {
 		$_{'list_contexts'}{$2} = !context_definition->[]
-		# assign {
-		# }
 	}
 	'object', 'context', $identifier_regex, '{' {
 		$_{'object_contexts'}{$2} = !context_definition->[]
-		# assign {
-		# }
 	}
 }
 
@@ -162,10 +148,6 @@ list context match_list {
 }
 
 list context match_action {
-	# 'assign', '{' {
-	# 	push 'assign'
-	# 	push !assign_scope->[]
-	# }
 	'$_', '=' {
 		push 'assign_item'
 		push !spawn_expression
@@ -191,10 +173,6 @@ list context match_action {
 		push 'push'
 		push !spawn_expression
 	}
-	# 'respawn' {
-	# 	push 'respawn'
-	# 	push !spawn_expression
-	# }
 	'return' {
 		push 'return'
 	}
@@ -267,10 +245,6 @@ item context spawn_expression {
 		$_ = {}
 		return
 	}
-	# '[' {
-	# 	$_ = !spawn_expression_list->[]
-	# 	return
-	# }
 	'{' {
 		$_ = !spawn_expression_hash->[]
 		return
@@ -306,28 +280,3 @@ list context spawn_expression_hash {
 		die 'push expression hash pair expected'
 	}
 }
-
-# list context assign_scope {
-# 	$string_regex, '=>' {
-# 		push $0
-# 		push !spawn_expression
-# 	}
-# 	$string_regex, '[', ']', '=>' {
-# 		push $0
-# 		push []
-# 		push !spawn_expression
-# 	}
-# 	$string_regex, '{' {
-# 		push $0
-# 		push {}
-# 		push !spawn_expression
-# 		match '}', '=>'
-# 		push !spawn_expression
-# 	}
-# 	'}' {
-# 		return
-# 	}
-# 	default {
-# 		die 'assign expression expected'
-# 	}
-# }
