@@ -40,53 +40,53 @@ ignored_tokens {
 # context definitions
 object context root {
 	$identifier_regex, '=' {
-		assign {
-			'variables'{$0} => !def_value
-		}
+		$_{'variables'}{$0} = !def_value
+		# assign {
+		# }
 	}
 	'package', $package_identifier_regex {
-		assign {
-			'package_identifier' => $1
-		}
+		$_{'package_identifier'} = $1
+		# assign {
+		# }
 	}
 	'tokens', '{' {
-		assign {
-			'tokens' => !token_definition->[]
-		}
+		$_{'tokens'} = !token_definition->[]
+		# assign {
+		# }
 	}
 	'ignored_tokens', '{' {
-		assign {
-			'ignored_tokens' => !ignored_tokens_list->[]
-		}
+		$_{'ignored_tokens'} = !ignored_tokens_list->[]
+		# assign {
+		# }
 	}
 	'item', 'context', $identifier_regex, '{' {
-		assign {
-			'item_contexts'{$2} => !context_definition->[]
-		}
+		$_{'item_contexts'}{$2} = !context_definition->[]
+		# assign {
+		# }
 	}
 	'list', 'context', $identifier_regex, '{' {
-		assign {
-			'list_contexts'{$2} => !context_definition->[]
-		}
+		$_{'list_contexts'}{$2} = !context_definition->[]
+		# assign {
+		# }
 	}
 	'object', 'context', $identifier_regex, '{' {
-		assign {
-			'object_contexts'{$2} => !context_definition->[]
-		}
+		$_{'object_contexts'}{$2} = !context_definition->[]
+		# assign {
+		# }
 	}
 }
 
 item context def_value {
 	$string_regex {
-		spawn $0
+		$_ = $0
 		return
 	}
 	$regex_regex {
-		spawn $0
+		$_ = $0
 		return
 	}
 	$variable_regex {
-		spawn $0
+		$_ = $0
 		return
 	}
 	default {
@@ -99,8 +99,8 @@ list context token_definition {
 		return
 	}
 	$identifier_regex, '=>' {
-		spawn $0
-		spawn !def_value
+		push $0
+		push !def_value
 	}
 	default {
 		die 'unexpected token in token_definition'
@@ -112,7 +112,7 @@ list context ignored_tokens_list {
 		return
 	}
 	$identifier_regex {
-		spawn $0
+		push $0
 	}
 	default {
 		die 'unexpected token in ignored_tokens_list'
@@ -124,36 +124,36 @@ list context context_definition {
 		return
 	}
 	'default', '{' {
-		spawn undef
-		spawn !match_action->[]
+		push undef
+		push !match_action->[]
 	}
 	default {
-		spawn !match_list->[]
+		push !match_list->[]
 		match '{'
-		spawn !match_action->[]
+		push !match_action->[]
 	}
 }
 
 list context match_list {
 	$variable_regex, ',' {
-		spawn $0
+		push $0
 	}
 	$variable_regex {
-		spawn $0
+		push $0
 		return
 	}
 	$regex_regex, ',' {
-		spawn $0
+		push $0
 	}
 	$regex_regex {
-		spawn $0
+		push $0
 		return
 	}
 	$string_regex, ',' {
-		spawn $0
+		push $0
 	}
 	$string_regex {
-		spawn $0
+		push $0
 		return
 	}
 	default {
@@ -162,32 +162,53 @@ list context match_list {
 }
 
 list context match_action {
-	'assign', '{' {
-		spawn 'assign'
-		spawn !assign_scope->[]
+	# 'assign', '{' {
+	# 	push 'assign'
+	# 	push !assign_scope->[]
+	# }
+	'$_', '=' {
+		push 'assign_item'
+		push !spawn_expression
 	}
-	'spawn' {
-		spawn 'spawn'
-		spawn !spawn_expression
+	'$_', '{', $string_regex, '}', '{' {
+		push 'assign_object_field'
+		push $2
+		push !spawn_expression
+		match '}', '='
+		push !spawn_expression
 	}
-	'respawn' {
-		spawn 'respawn'
-		spawn !spawn_expression
+	'$_', '{', $string_regex, '}', '[', ']', '=' {
+		push 'assign_array_field'
+		push $2
+		push !spawn_expression
 	}
+	'$_', '{', $string_regex, '}', '=' {
+		push 'assign_field'
+		push $2
+		push !spawn_expression
+	}
+	'push' {
+		push 'push'
+		push !spawn_expression
+	}
+	# 'respawn' {
+	# 	push 'respawn'
+	# 	push !spawn_expression
+	# }
 	'return' {
-		spawn 'return'
+		push 'return'
 	}
 	'match' {
-		spawn 'match'
-		spawn !match_list->[]
+		push 'match'
+		push !match_list->[]
 	}
 	'warn', $string_regex {
-		spawn 'warn'
-		spawn $1
+		push 'warn'
+		push $1
 	}
 	'die', $string_regex {
-		spawn 'die'
-		spawn $1
+		push 'die'
+		push $1
 	}
 	'}' {
 		return
@@ -199,69 +220,73 @@ list context match_action {
 
 item context spawn_expression {
 	/\$\d++/ {
-		spawn $0
+		$_ = $0
 		return
 	}
 	'$_' {
-		spawn $0
+		$_ = $0
+		return
+	}
+	'pop' {
+		$_ = 'pop'
 		return
 	}
 	$context_reference_regex, '->' {
-		spawn {
+		$_ = {
 			$0 => !spawn_expression
 		}
 		return
 	}
 	$context_reference_regex {
-		spawn $0
+		$_ = $0
 		return
 	}
 	$function_reference_regex, '->' {
-		spawn {
+		$_ = {
 			$0 => !spawn_expression
 		}
 		return
 	}
 	$function_reference_regex {
-		spawn $0
+		$_ = $0
 		return
 	}
 	$string_regex {
-		spawn $0
+		$_ = $0
 		return
 	}
 	'undef' {
-		spawn undef
+		$_ = undef
 		return
 	}
 	'[', ']' {
-		spawn []
+		$_ = []
 		return
 	}
 	'{', '}' {
-		spawn {}
+		$_ = {}
 		return
 	}
 	# '[' {
-	# 	spawn !spawn_expression_list->[]
+	# 	$_ = !spawn_expression_list->[]
 	# 	return
 	# }
 	'{' {
-		spawn !spawn_expression_hash->[]
+		$_ = !spawn_expression_hash->[]
 		return
 	}
 	default {
-		die 'spawn expression expected'
+		die 'push expression expected'
 	}
 }
 
 list context spawn_expression_list {
 	$context_reference_regex, ']' {
-		spawn $0
+		push $0
 		return
 	}
 	default {
-		die 'spawn expression list expected'
+		die 'push expression list expected'
 	}
 }
 
@@ -270,39 +295,39 @@ list context spawn_expression_hash {
 		return
 	}
 	$variable_regex, '=>' {
-		spawn $0
-		spawn !spawn_expression
+		push $0
+		push !spawn_expression
 	}
 	$string_regex, '=>' {
-		spawn $0
-		spawn !spawn_expression
+		push $0
+		push !spawn_expression
 	}
 	default {
-		die 'spawn expression hash pair expected'
+		die 'push expression hash pair expected'
 	}
 }
 
-list context assign_scope {
-	$string_regex, '=>' {
-		spawn $0
-		spawn !spawn_expression
-	}
-	$string_regex, '[', ']', '=>' {
-		spawn $0
-		spawn []
-		spawn !spawn_expression
-	}
-	$string_regex, '{' {
-		spawn $0
-		spawn {}
-		spawn !spawn_expression
-		match '}', '=>'
-		spawn !spawn_expression
-	}
-	'}' {
-		return
-	}
-	default {
-		die 'assign expression expected'
-	}
-}
+# list context assign_scope {
+# 	$string_regex, '=>' {
+# 		push $0
+# 		push !spawn_expression
+# 	}
+# 	$string_regex, '[', ']', '=>' {
+# 		push $0
+# 		push []
+# 		push !spawn_expression
+# 	}
+# 	$string_regex, '{' {
+# 		push $0
+# 		push {}
+# 		push !spawn_expression
+# 		match '}', '=>'
+# 		push !spawn_expression
+# 	}
+# 	'}' {
+# 		return
+# 	}
+# 	default {
+# 		die 'assign expression expected'
+# 	}
+# }

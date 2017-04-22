@@ -282,36 +282,67 @@ sub compile_syntax_action {
 	while (@actions) {
 		my $action = shift @actions;
 
-		if ($action eq 'spawn') {
+		if ($action eq 'push') {
 			my $expression = shift @actions;
 			if ($context_type eq 'list_context') {
 				push @code, "push \@\$context_list, " . $self->compile_syntax_spawn_expression($context_type, $expression) . ";";
 			} else {
-				push @code, "\$context_value = " . $self->compile_syntax_spawn_expression($context_type, $expression) . ";";
+				confess "use of push in $context_type: '$expression'";
+				# push @code, "\$context_value = " . $self->compile_syntax_spawn_expression($context_type, $expression) . ";";
 			}
-		} elsif ($action eq 'respawn') {
-			my $expression = shift @actions;
-			push @code, "\$context_object = " . $self->compile_syntax_spawn_expression($context_type, $expression) . ";";
-		} elsif ($action eq 'assign') {
-			my @assign_items = @{shift @actions};
-			while (@assign_items) {
-				my $field = shift @assign_items;
-				my $value = shift @assign_items;
-				if (ref $value eq 'HASH' and 0 == keys %$value) {
-					my $key = shift @assign_items;
-					$key = $self->compile_syntax_spawn_expression($context_type, $key);
-					$value = shift @assign_items;
-					$field = $self->compile_syntax_spawn_expression($context_type, $field);
-					push @code, "\$context_object->{$field}{$key} = " . $self->compile_syntax_spawn_expression($context_type, $value) . ";";
-				} elsif (ref $value eq 'ARRAY' and @$value == 0) {
-					$value = shift @assign_items;
-					$field = $self->compile_syntax_spawn_expression($context_type, $field);
-					push @code, "push \@{\$context_object->{$field}}, " . $self->compile_syntax_spawn_expression($context_type, $value) . ";";
-				} else {
-					$field = $self->compile_syntax_spawn_expression($context_type, $field);
-					push @code, "\$context_object->{$field} = " . $self->compile_syntax_spawn_expression($context_type, $value) . ";";
-				}
+		# } elsif ($action eq 'respawn') {
+		# 	my $expression = shift @actions;
+		# 	push @code, "\$context_object = " . $self->compile_syntax_spawn_expression($context_type, $expression) . ";";
+		# } elsif ($action eq 'assign') {
+		# 	my @assign_items = @{shift @actions};
+		# 	while (@assign_items) {
+		# 		my $field = shift @assign_items;
+		# 		my $value = shift @assign_items;
+		# 		if (ref $value eq 'HASH' and 0 == keys %$value) {
+		# 			my $key = shift @assign_items;
+		# 			$key = $self->compile_syntax_spawn_expression($context_type, $key);
+		# 			$value = shift @assign_items;
+		# 			$field = $self->compile_syntax_spawn_expression($context_type, $field);
+		# 			push @code, "\$context_object->{$field}{$key} = " . $self->compile_syntax_spawn_expression($context_type, $value) . ";";
+		# 		} elsif (ref $value eq 'ARRAY' and @$value == 0) {
+		# 			$value = shift @assign_items;
+		# 			$field = $self->compile_syntax_spawn_expression($context_type, $field);
+		# 			push @code, "push \@{\$context_object->{$field}}, " . $self->compile_syntax_spawn_expression($context_type, $value) . ";";
+		# 		} else {
+		# 			$field = $self->compile_syntax_spawn_expression($context_type, $field);
+		# 			push @code, "\$context_object->{$field} = " . $self->compile_syntax_spawn_expression($context_type, $value) . ";";
+		# 		}
+		# 	}
+		} elsif ($action eq 'assign_item') {
+			my $value = shift @actions;
+			if ($context_type eq 'object_context') {
+				push @code, "\$context_object = " . $self->compile_syntax_spawn_expression($context_type, $value) . ";";
+			} elsif ($context_type eq 'list_context') {
+				push @code, "\$context_list = " . $self->compile_syntax_spawn_expression($context_type, $value) . ";";
+			} else {
+				push @code, "\$context_value = " . $self->compile_syntax_spawn_expression($context_type, $value) . ";";
 			}
+			
+		} elsif ($action eq 'assign_field') {
+			my $field = shift @actions;
+			my $value = shift @actions;
+			$field = $self->compile_syntax_spawn_expression($context_type, $field);
+			push @code, "\$context_object->{$field} = " . $self->compile_syntax_spawn_expression($context_type, $value) . ";";
+			
+		} elsif ($action eq 'assign_array_field') {
+			my $field = shift @actions;
+			my $value = shift @actions;
+			$field = $self->compile_syntax_spawn_expression($context_type, $field);
+			push @code, "push \@{\$context_object->{$field}}, " . $self->compile_syntax_spawn_expression($context_type, $value) . ";";
+			
+		} elsif ($action eq 'assign_object_field') {
+			my $field = shift @actions;
+			my $key = shift @actions;
+			my $value = shift @actions;
+			$field = $self->compile_syntax_spawn_expression($context_type, $field);
+			$key = $self->compile_syntax_spawn_expression($context_type, $key);
+			push @code, "\$context_object->{$field}{$key} = " . $self->compile_syntax_spawn_expression($context_type, $value) . ";";
+
 		} elsif ($action eq 'match') {
 			my $match_condition = shift @actions;
 			push @code, "\$self->confess_at_current_offset('expected "
@@ -395,6 +426,12 @@ sub compile_syntax_spawn_expression {
 		}
 	} elsif ($expression =~ /\A\$(\d+)\Z/) {
 		return "\$tokens[$1][1]";
+	} elsif ($expression =~ /\Apop\Z/) {
+		if ($context_type eq 'list_context') {
+			return "pop \@\$context_list";
+		} else {
+			confess "use of pop in $context_type";
+		}
 	} elsif ($expression =~ /\A'(.*)'\Z/s) {
 		my $value = $1;
 		return "'$value'";
