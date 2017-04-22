@@ -73,7 +73,6 @@ caller or main(@ARGV);
 
 
 sub context_context_definition {
-
 	my ($self, $context_list) = @_;
 
 	while ($self->more_tokens) {
@@ -92,15 +91,12 @@ sub context_context_definition {
 			@tokens = (@tokens, $self->step_tokens(1));
 			push @$context_list, ($self->context_match_action([]))[0];
 		}
-
 	}
+	return $context_list;
 }
 
 sub context_def_value {
-
-	my ($self) = @_;
-
-	my $context_value;
+	my ($self, $context_value) = @_;
 
 	while ($self->more_tokens) {
 		if ($self->{tokens}[$self->{tokens_index} + 0][1] =~ /\A'([^\\']|\\[\\'])*+'\Z/s) {
@@ -119,12 +115,11 @@ sub context_def_value {
 			my @tokens;
 			$self->confess_at_current_offset('unexpected token in def_value');
 		}
-
 	}
+	return $context_value;
 }
 
 sub context_ignored_tokens_list {
-
 	my ($self, $context_list) = @_;
 
 	while ($self->more_tokens) {
@@ -138,12 +133,11 @@ sub context_ignored_tokens_list {
 			my @tokens;
 			$self->confess_at_current_offset('unexpected token in ignored_tokens_list');
 		}
-
 	}
+	return $context_list;
 }
 
 sub context_match_action {
-
 	my ($self, $context_list) = @_;
 
 	while ($self->more_tokens) {
@@ -196,12 +190,11 @@ sub context_match_action {
 			my @tokens;
 			$self->confess_at_current_offset('expected \'}\' to close match actions list');
 		}
-
 	}
+	return $context_list;
 }
 
 sub context_match_list {
-
 	my ($self, $context_list) = @_;
 
 	while ($self->more_tokens) {
@@ -230,13 +223,13 @@ sub context_match_list {
 			my @tokens;
 			$self->confess_at_current_offset('unexpected end of match list');
 		}
-
 	}
+	return $context_list;
 }
 
 sub context_root {
-
-	my ($self, $context_object) = @_;
+	my ($self) = @_;
+	my $context_object = {};
 
 	while ($self->more_tokens) {
 		if ($self->{tokens}[$self->{tokens_index} + 0][1] =~ /\A[a-zA-Z_][a-zA-Z0-9_]*+\Z/ and $self->{tokens}[$self->{tokens_index} + 1][1] eq '=') {
@@ -264,15 +257,12 @@ sub context_root {
 			my @tokens;
 			return $context_object;
 		}
-
 	}
+	return $context_object;
 }
 
 sub context_spawn_expression {
-
-	my ($self) = @_;
-
-	my $context_value;
+	my ($self, $context_value) = @_;
 
 	while ($self->more_tokens) {
 		if ($self->{tokens}[$self->{tokens_index} + 0][1] =~ /\A\$\d++\Z/) {
@@ -327,12 +317,11 @@ sub context_spawn_expression {
 			my @tokens;
 			$self->confess_at_current_offset('push expression expected');
 		}
-
 	}
+	return $context_value;
 }
 
 sub context_spawn_expression_hash {
-
 	my ($self, $context_list) = @_;
 
 	while ($self->more_tokens) {
@@ -351,12 +340,11 @@ sub context_spawn_expression_hash {
 			my @tokens;
 			$self->confess_at_current_offset('push expression hash pair expected');
 		}
-
 	}
+	return $context_list;
 }
 
 sub context_spawn_expression_list {
-
 	my ($self, $context_list) = @_;
 
 	while ($self->more_tokens) {
@@ -368,12 +356,11 @@ sub context_spawn_expression_list {
 			my @tokens;
 			$self->confess_at_current_offset('push expression list expected');
 		}
-
 	}
+	return $context_list;
 }
 
 sub context_token_definition {
-
 	my ($self, $context_list) = @_;
 
 	while ($self->more_tokens) {
@@ -388,7 +375,7 @@ sub context_token_definition {
 			my @tokens;
 			$self->confess_at_current_offset('unexpected token in token_definition');
 		}
-
 	}
+	return $context_list;
 }
 

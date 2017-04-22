@@ -24,7 +24,7 @@ sub parse {
 	my ($self) = @_;
 	$self->SUPER::parse;
 
-	$self->{syntax_tree} = {};
+	# $self->{syntax_tree} = {};
 
 	# $self->{current_context} = { context_type => 'root' };
 	# $self->{syntax_tree} = $self->{current_context};
@@ -34,8 +34,8 @@ sub parse {
 	# while ($self->more_tokens) {
 		# confess "undefined context_type referenced '$self->{current_context}{context_type}'"
 		# 		unless defined $self->{contexts}{$self->{current_context}{context_type}};
-		$self->context_root($self->{syntax_tree});
 	# }
+	$self->{syntax_tree} = $self->context_root($self->{syntax_tree});
 
 	$self->confess_at_current_offset("more tokens after parsing complete") if $self->more_tokens;
 

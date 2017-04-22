@@ -171,18 +171,31 @@ sub compile_syntax_context {
 	my ($self, $context_type, $context_name, $context) = @_;
 
 	my $code = '
-sub {
-';
+sub {';
 	my @args_list = ('$self');
-	push @args_list, '$context_list' if $context_type eq 'list_context';
-	push @args_list, '$context_object' if $context_type eq 'object_context';
+	if ($context_name ne 'root') {
+		if ($context_type eq 'object_context') {
+			push @args_list, '$context_object';
+		} elsif ($context_type eq 'list_context') {
+			push @args_list, '$context_list';
+		} else {
+			push @args_list, '$context_value';
+		}
+	}
 	my $args_list_string = join ', ', @args_list;
 	$code .= "
 	my ($args_list_string) = \@_;
 ";
-	$code .= '
-	my $context_value;
-' if $context_type eq 'item_context';
+
+	if ($context_name eq 'root') {
+		if ($context_type eq 'object_context') {
+			$code .= "\tmy \$context_object = {};\n";
+		} elsif ($context_type eq 'list_context') {
+			$code .= "\tmy \$context_list = [];\n";
+		} else {
+			$code .= "\tmy \$context_value;\n";
+		}
+	}
 
 	# $code .= "\t\tsay 'in context $context_name';\n"; # DEBUG INLINE TREE BUILDER
 	$code .= '
@@ -219,10 +232,17 @@ sub {
 		$code .= "$action_code\n";
 	}
 
-	$code .= "
+	$code .= "\t}\n";
+
+	if ($context_type eq 'object_context') {
+		$code .= "\treturn \$context_object;\n";
+	} elsif ($context_type eq 'list_context') {
+		$code .= "\treturn \$context_list;\n";
+	} else {
+		$code .= "\treturn \$context_value;\n";
 	}
-}
-";
+
+	$code .= "}\n";
 	# say "compiled code: ", $code; # DEBUG INLINE TREE BUILDER
 	# my $compiled = eval $code;
 	# if ($@) {
@@ -348,7 +368,7 @@ sub compile_syntax_spawn_expression {
 	my ($self, $context_type, $expression) = @_;
 	if (not defined $expression) {
 		return 'undef'
-		
+
 	} elsif (ref $expression eq 'HASH') {
 		my @keys = keys %$expression;
 		if (@keys) {
