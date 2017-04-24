@@ -45,7 +45,7 @@ use feature 'say';
 use Data::Dumper;
 
 use Sugar::IO::File;
-use Sugar::Lang::SyntaxIntermediateCompiler;
+# use Sugar::Lang::SyntaxIntermediateCompiler;
 
 
 
@@ -88,10 +88,10 @@ sub main {
 	foreach my $file (@_) {
 		$parser->{filepath} = Sugar::IO::File->new($file);
 		my $tree = $parser->parse;
-		# say Dumper $tree;
+		say Dumper $tree;
 
-		my $compiler = Sugar::Lang::SyntaxIntermediateCompiler->new(syntax_definition_intermediate => $tree);
-		say $compiler->to_package;
+		# my $compiler = Sugar::Lang::SyntaxIntermediateCompiler->new(syntax_definition_intermediate => $tree);
+		# say $compiler->to_package;
 	}
 }
 
@@ -377,7 +377,7 @@ sub compile_syntax_spawn_expression {
 			my $object_expression = $expression->{$call_expression};
 			# warn "got call_expression: $call_expression";
 			my $context_function = $self->get_function_by_name($call_expression);
-			return "(\$self->$context_function(" . $self->compile_syntax_spawn_expression($context_type, $object_expression) . "))[0]";
+			return "\$self->$context_function(" . $self->compile_syntax_spawn_expression($context_type, $object_expression) . ")";
 		} else {
 			return '{}'
 		}
@@ -398,7 +398,7 @@ sub compile_syntax_spawn_expression {
 
 	} elsif ($expression =~ /\A[!\&][a-zA-Z_][a-zA-Z_0-9]*\Z/) {
 		my $context_function = $self->get_function_by_name($expression);
-		return "\$self->$context_function()";
+		return "\$self->$context_function";
 
 	} elsif ($expression eq '$_') {
 		if ($context_type eq 'object_context') {
