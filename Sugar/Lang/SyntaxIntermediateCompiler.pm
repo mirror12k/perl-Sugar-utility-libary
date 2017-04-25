@@ -201,6 +201,7 @@ sub {';
 	# $code .= "\t\tsay 'in context $context_name';\n"; # DEBUG INLINE TREE BUILDER
 	$code .= '
 	while ($self->more_tokens) {
+		my @tokens;
 ';
 	my @items = @$context;
 	my $first_item = 1;
@@ -280,11 +281,11 @@ sub compile_syntax_action {
 
 	if (defined $condition and ref $condition eq 'ARRAY') {
 		my $count = @$condition;
-		push @code, "my \@tokens = \$self->step_tokens($count);";
+		push @code, "\@tokens = (\@tokens, \$self->step_tokens($count));";
 	} elsif (defined $condition) {
-		push @code, "my \@tokens = (\$self->next_token->[1]);";
+		push @code, "\@tokens = (\@tokens, \$self->next_token->[1]);";
 	} else {
-		push @code, "my \@tokens;";
+		# push @code, "my \@tokens;";
 	}
 	
 	my @actions = @$actions_list;
@@ -340,6 +341,35 @@ sub compile_syntax_action {
 			} elsif (defined $match_condition) {
 				push @code, "\@tokens = (\@tokens, \$self->next_token->[1]);";
 			} else {
+			}
+
+		} elsif ($action eq 'if') {
+			my $condition = shift @actions;
+			my $conditional_actions = shift @actions;
+
+			my $condition_code = $self->compile_syntax_condition($condition);
+			my $action_code = $self->compile_syntax_action($context_type, $condition, $conditional_actions);
+
+			push @code, "\tif ($condition_code) {$action_code\t}";
+
+			while (@actions and $actions[0] eq 'elsif') {
+				shift @actions;
+				my $condition = shift @actions;
+				my $conditional_actions = shift @actions;
+
+				my $condition_code = $self->compile_syntax_condition($condition);
+				my $action_code = $self->compile_syntax_action($context_type, $condition, $conditional_actions);
+
+				push @code, "\telsif ($condition_code) {$action_code\t}";
+			}
+
+			if (@actions and $actions[0] eq 'else') {
+				shift @actions;
+				my $conditional_actions = shift @actions;
+
+				my $action_code = $self->compile_syntax_action($context_type, [], $conditional_actions);
+
+				push @code, "\telse {$action_code\t}";
 			}
 
 		} elsif ($action eq 'return') {

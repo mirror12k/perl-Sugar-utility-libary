@@ -112,11 +112,13 @@ list context context_definition {
 	'default', '{' {
 		push undef
 		push !match_action->[]
+		match '}'
 	}
 	default {
 		push !match_list->[]
 		match '{'
 		push !match_action->[]
+		match '}'
 	}
 }
 
@@ -180,6 +182,14 @@ list context match_action {
 		push 'match'
 		push !match_list->[]
 	}
+	'if' {
+		push 'if'
+		push !match_list->[]
+		match '{'
+		push !match_action->[]
+		match '}'
+		$_ = !if_chain->$_
+	}
 	'warn', $string_regex {
 		push 'warn'
 		push $1
@@ -188,11 +198,32 @@ list context match_action {
 		push 'die'
 		push $1
 	}
-	'}' {
+	# '}' {
+	# 	return
+	# }
+	default {
+		return
+		# die 'expected \'}\' to close match actions list'
+	}
+}
+
+list context if_chain {
+	'elsif' {
+		push 'elsif'
+		push !match_list->[]
+		match '{'
+		push !match_action->[]
+		match '}'
+	}
+	'else' {
+		push 'else'
+		match '{'
+		push !match_action->[]
+		match '}'
 		return
 	}
 	default {
-		die 'expected \'}\' to close match actions list'
+		return
 	}
 }
 

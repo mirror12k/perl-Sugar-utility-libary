@@ -5,25 +5,23 @@ qwert = /testing/msix
 
 tokens {}
 
-object context root {
+list context root {
 	'context', 'root' {
 		return
 	}
 	'asdf' {
-		spawn undef
-		spawn $0
-		spawn 'asdf'
-		spawn !test_more
-		spawn [ !test_more ]
+		push undef
+		push $0
+		push 'asdf'
+		push !test_more
+		push !test_more->[]
 	}
 	'qwerty', /\d+/i {
-		assign {
-			'asdf' => 'qwerty'
-			'qwerty'[] => 'zxcv'
-			'zxvc'{'key'} => 'uiop'
-		}
-		spawn []
-		spawn {}
+		$_{'asdf'} = 'qwerty'
+		$_{'qwerty'}[] = 'zxcv'
+		$_{'zxvc'}{'key'} = 'uiop'
+		push []
+		push {}
 	}
 	default {
 		warn 'default path'
@@ -31,12 +29,12 @@ object context root {
 	}
 }
 
-context test_more {
+list context test_more {
 	'a' {
 		match 'b', 'c', $qwert
 	}
 	'b' {
-		spawn {
+		push {
 			'a' => '15'
 			'b' => $0
 			'nested_hash' => {
@@ -44,13 +42,25 @@ context test_more {
 				'c' => '35'
 			}
 		}
-		spawn !root->{
+		push !root->{
 			'type' => 'nested'
 		}
-		respawn {
+		$_ = {
 			'a' => $0
 			'b' => !root->'respawned'
 		}
-		spawn &direct_function_call
+		push &direct_function_call
+	}
+}
+
+list context test_if {
+	'asdf' {
+		if 'a' {
+			push 'a'
+		} elsif 'b' {
+			push 'b'
+		} else {
+			push '-'
+		}
 	}
 }
