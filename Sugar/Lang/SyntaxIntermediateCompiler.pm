@@ -350,7 +350,7 @@ sub compile_syntax_action {
 			my $condition_code = $self->compile_syntax_condition($condition);
 			my $action_code = $self->compile_syntax_action($context_type, $condition, $conditional_actions);
 
-			push @code, "\tif ($condition_code) {$action_code\t}";
+			push @code, "if ($condition_code) {\n\t\t\tmy \@tokens_freeze = \@tokens;\n\t\t\tmy \@tokens = \@tokens_freeze;$action_code\t\t\t}";
 
 			while (@actions and $actions[0] eq 'elsif') {
 				shift @actions;
@@ -360,17 +360,26 @@ sub compile_syntax_action {
 				my $condition_code = $self->compile_syntax_condition($condition);
 				my $action_code = $self->compile_syntax_action($context_type, $condition, $conditional_actions);
 
-				push @code, "\telsif ($condition_code) {$action_code\t}";
+				push @code, "elsif ($condition_code) {\n\t\t\tmy \@tokens_freeze = \@tokens;\n\t\t\tmy \@tokens = \@tokens_freeze;$action_code\t\t\t}";
 			}
 
 			if (@actions and $actions[0] eq 'else') {
 				shift @actions;
 				my $conditional_actions = shift @actions;
 
-				my $action_code = $self->compile_syntax_action($context_type, [], $conditional_actions);
+				my $action_code = $self->compile_syntax_action($context_type, undef, $conditional_actions);
 
-				push @code, "\telse {$action_code\t}";
+				push @code, "else {$action_code\t\t\t}";
 			}
+
+		} elsif ($action eq 'while') {
+			my $condition = shift @actions;
+			my $conditional_actions = shift @actions;
+
+			my $condition_code = $self->compile_syntax_condition($condition);
+			my $action_code = $self->compile_syntax_action($context_type, $condition, $conditional_actions);
+
+			push @code, "while ($condition_code) {\n\t\t\tmy \@tokens_freeze = \@tokens;\n\t\t\tmy \@tokens = \@tokens_freeze;$action_code\t\t\t}";
 
 		} elsif ($action eq 'return') {
 			if ($context_type eq 'object_context') {

@@ -63,4 +63,9 @@ list context test_if {
 			push '-'
 		}
 	}
+	'qwerty' {
+		while ',' {
+			push 'stuff'
+		}
+	}
 }

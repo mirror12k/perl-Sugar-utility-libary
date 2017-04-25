@@ -190,6 +190,13 @@ list context match_action {
 		match '}'
 		$_ = !if_chain->$_
 	}
+	'while' {
+		push 'while'
+		push !match_list->[]
+		match '{'
+		push !match_action->[]
+		match '}'
+	}
 	'warn', $string_regex {
 		push 'warn'
 		push $1
