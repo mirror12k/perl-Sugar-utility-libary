@@ -69,3 +69,9 @@ list context test_if {
 		}
 	}
 }
+
+
+sub native_perl_function {{
+	my ($self) = @_;
+	print 'hello world!'
+}}

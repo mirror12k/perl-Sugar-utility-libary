@@ -22,6 +22,7 @@ sub new {
 	$self->{item_contexts} = $self->{syntax_definition_intermediate}{item_contexts};
 	$self->{list_contexts} = $self->{syntax_definition_intermediate}{list_contexts};
 	$self->{object_contexts} = $self->{syntax_definition_intermediate}{object_contexts};
+	$self->{subroutines} = $self->{syntax_definition_intermediate}{subroutines};
 	$self->{code_definitions} = {};
 	$self->{package_identifier} = $self->{syntax_definition_intermediate}{package_identifier} // 'PACKAGE_NAME';
 	$self->compile_syntax_intermediate;
@@ -65,7 +66,7 @@ use Sugar::IO::File;
 
 	$code .= "our \$contexts = {\n";
 	foreach my $context_type (sort keys %{$self->{code_definitions}}) {
-		$code .= "\t$context_type => \\&context_$context_type,\n";
+		$code .= "\t$context_type => 'context_$context_type',\n";
 	}
 	$code .= "};\n\n";
 
@@ -101,6 +102,12 @@ caller or main(@ARGV);
 
 	foreach my $context_type (sort keys %{$self->{code_definitions}}) {
 		$code .= $self->{code_definitions}{$context_type} =~ s/\A(\s*)sub \{/$1sub context_$context_type {/r;
+	}
+
+	foreach my $subroutine (sort keys %{$self->{subroutines}}) {
+		my $subroutine_code = $self->{subroutines}{$subroutine};
+		$subroutine_code =~ s/\A\{\{(.*)\}\}\Z/{$1}/s;
+		$code .= "sub $subroutine $subroutine_code\n\n";
 	}
 
 	return $code
@@ -262,7 +269,7 @@ sub compile_syntax_condition {
 		foreach my $i (0 .. $#conditions) {
 			$conditions[$i] = $self->compile_syntax_condition($conditions[$i], $i);
 		}
-		return join ' and ', @conditions
+		return join ' and ', '$self->more_tokens', @conditions
 	} elsif ($condition =~ m#\A\$(\w++)\Z#s) {
 		return $self->compile_syntax_condition($self->get_variable($1), $offset)
 	} elsif ($condition =~ m#\A/(.*)/([msixpodualn]*)\Z#s) {
