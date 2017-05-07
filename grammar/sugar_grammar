@@ -230,6 +230,14 @@ list context match_action {
 			'block' => !action_block
 		}
 	}
+	'switch' {
+		match '{'
+		push !if_chain->{
+			'type' => 'switch_statement'
+			'line_number' => $0{line_number}
+			'switch_cases' => !switch_blocks->[]
+		}
+	}
 	'while' {
 		push {
 			'type' => 'while_statement'
@@ -323,6 +331,32 @@ list context match_action {
 		return
 	}
 }
+
+
+list context switch_blocks {
+	'}' {
+		return
+	}
+	'default' {
+		push {
+			'type' => 'default_case'
+			'line_number' => $0{line_number}
+			'block' => !action_block
+		}
+		match '}'
+		return
+	}
+	default {
+		push {
+			'type' => 'match_case'
+			'line_number' => $0{line_number}
+			'match_list' => !match_list->[]
+			'block' => !action_block
+		}
+	}
+}
+
+
 
 object context if_chain {
 	'elsif' {

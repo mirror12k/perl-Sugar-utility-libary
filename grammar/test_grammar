@@ -73,6 +73,20 @@ list context test_if {
 }
 
 
+list context test_switch {
+	default {
+		switch {
+			'asdf' {
+				push '5'
+			}
+			default {
+				push '0'
+			}
+		}
+	}
+}
+
+
 sub native_perl_function {{
 	my ($self) = @_;
 	print 'hello world!'

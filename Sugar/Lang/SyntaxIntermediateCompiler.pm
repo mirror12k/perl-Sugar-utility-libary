@@ -385,6 +385,28 @@ sub compile_syntax_action {
 				}
 			}
 
+		} elsif ($action->{type} eq 'switch_statement') {
+			my $first = 1;
+			foreach my $case (@{$action->{switch_cases}}) {
+				$self->{current_line} = $case->{line_number};
+				if ($case->{type} eq 'match_case') {
+					my $condition_code = $self->compile_syntax_condition($case->{match_list});
+					my $action_code = $self->compile_syntax_action($context_type, $case->{match_list}, $case->{block});
+
+					if ($first) {
+						push @code, "if ($condition_code) {\n\t\t\tmy \@tokens_freeze = \@tokens;\n\t\t\tmy \@tokens = \@tokens_freeze;$action_code\t\t\t}";
+						$first = 0;
+					} else {
+						push @code, "elsif ($condition_code) {\n\t\t\tmy \@tokens_freeze = \@tokens;\n\t\t\tmy \@tokens = \@tokens_freeze;$action_code\t\t\t}";
+					}
+				} elsif ($case->{type} eq 'default_case') {
+					my $action_code = $self->compile_syntax_action($context_type, undef, $case->{block});
+					push @code, "else {$action_code\t\t\t}";
+				} else {
+					$self->confess_at_current_line("invalid switch case type: $case->{type}");
+				}
+			}
+
 		} elsif ($action->{type} eq 'while_statement') {
 			my $condition = $action->{match_list};
 			my $conditional_actions = $action->{block};

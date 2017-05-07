@@ -44,6 +44,7 @@ our $contexts = {
 	spawn_expression => 'context_spawn_expression',
 	spawn_expression_hash => 'context_spawn_expression_hash',
 	spawn_expression_list => 'context_spawn_expression_list',
+	switch_blocks => 'context_switch_blocks',
 	token_definition => 'context_token_definition',
 };
 
@@ -237,6 +238,12 @@ sub context_match_action {
 		} elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] eq 'if') {
 			@tokens = (@tokens, $self->step_tokens(1));
 			push @$context_list, $self->context_if_chain({ 'type' => 'if_statement', 'line_number' => $tokens[0][2], 'match_list' => $self->context_match_list([]), 'block' => $self->context_action_block, });
+		} elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] eq 'switch') {
+			@tokens = (@tokens, $self->step_tokens(1));
+			$self->confess_at_current_offset('expected \'{\'')
+				unless $self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] eq '{';
+			@tokens = (@tokens, $self->step_tokens(1));
+			push @$context_list, $self->context_if_chain({ 'type' => 'switch_statement', 'line_number' => $tokens[0][2], 'switch_cases' => $self->context_switch_blocks([]), });
 		} elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] eq 'while') {
 			@tokens = (@tokens, $self->step_tokens(1));
 			push @$context_list, { 'type' => 'while_statement', 'line_number' => $tokens[0][2], 'match_list' => $self->context_match_list([]), 'block' => $self->context_action_block, };
@@ -421,6 +428,28 @@ sub context_spawn_expression_list {
 			return $context_list;
 		} else {
 			$self->confess_at_current_offset('push expression list expected');
+		}
+	}
+	return $context_list;
+}
+
+sub context_switch_blocks {
+	my ($self, $context_list) = @_;
+
+	while ($self->more_tokens) {
+		my @tokens;
+		if ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] eq '}') {
+			@tokens = (@tokens, $self->step_tokens(1));
+			return $context_list;
+		} elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] eq 'default') {
+			@tokens = (@tokens, $self->step_tokens(1));
+			push @$context_list, { 'type' => 'default_case', 'line_number' => $tokens[0][2], 'block' => $self->context_action_block, };
+			$self->confess_at_current_offset('expected \'}\'')
+				unless $self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] eq '}';
+			@tokens = (@tokens, $self->step_tokens(1));
+			return $context_list;
+		} else {
+			push @$context_list, { 'type' => 'match_case', 'line_number' => $tokens[0][2], 'match_list' => $self->context_match_list([]), 'block' => $self->context_action_block, };
 		}
 	}
 	return $context_list;
