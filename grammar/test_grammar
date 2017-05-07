@@ -6,82 +6,77 @@ qwert = /testing/msix
 tokens {}
 
 list context root {
-	'context', 'root' {
-		return
-	}
-	'asdf' {
-		push undef
-		push $0
-		push 'asdf'
-		push !test_more
-		push !test_more->[]
-	}
-	'qwerty', /\d+/i {
-		$_{'asdf'} = 'qwerty'
-		$_{'qwerty'}[] = 'zxcv'
-		$_{'zxvc'}{'key'} = 'uiop'
-		push []
-		push {}
-	}
-	default {
-		warn 'default path'
-		return
+	switch {
+		'context', 'root' {
+			return
+		}
+		'asdf' {
+			push undef
+			push $0
+			push 'asdf'
+			push !test_more
+			push !test_more->[]
+		}
+		'qwerty', /\d+/i {
+			$_{'asdf'} = 'qwerty'
+			$_{'qwerty'}[] = 'zxcv'
+			$_{'zxvc'}{'key'} = 'uiop'
+			push []
+			push {}
+		}
+		default {
+			warn 'default path'
+			return
+		}
 	}
 }
 
 list context test_more {
-	'a' {
-		match 'b', 'c', $qwert
-	}
-	'b' {
-		push {
-			'a' => '15'
-			'b' => $0
-			'line_number' => $0{line_number}
-			'line_offset' => $0{line_offset}
-			'nested_hash' => {
-				'nested' => 'true'
-				'c' => '35'
+	switch {
+		'a' {
+			match 'b', 'c', $qwert
+		}
+		'b' {
+			push {
+				'a' => '15'
+				'b' => $0
+				'line_number' => $0{line_number}
+				'line_offset' => $0{line_offset}
+				'nested_hash' => {
+					'nested' => 'true'
+					'c' => '35'
+				}
 			}
+			push !root->{
+				'type' => 'nested'
+			}
+			$_ = {
+				'a' => $0
+				'b' => !root->'respawned'
+			}
+			push &direct_function_call
 		}
-		push !root->{
-			'type' => 'nested'
-		}
-		$_ = {
-			'a' => $0
-			'b' => !root->'respawned'
-		}
-		push &direct_function_call
 	}
 }
 
 list context test_if {
-	'asdf' {
-		if 'a' {
-			push 'a'
-		} elsif 'b' {
-			push 'b'
-		} else {
-			push '-'
-		}
-	}
-	'qwerty' {
-		while ',' {
-			push 'stuff'
-		}
+	if 'a' {
+		push 'a'
+	} elsif 'b' {
+		push 'b'
+	} else {
+		push '-'
 	}
 }
 
 
 list context test_switch {
-	default {
-		switch {
-			'asdf' {
-				push '5'
-			}
-			default {
-				push '0'
-			}
+	switch {
+		'asdf' {
+			push '5'
+		}
+		default {
+			push '0'
 		}
 	}
 }

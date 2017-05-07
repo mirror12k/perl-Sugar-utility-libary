@@ -41,223 +41,236 @@ ignored_tokens {
 
 # context definitions
 object context root {
-	$identifier_regex, '=' {
-		$_{'variables'}{$0} = !def_value
-	}
-	'package', $package_identifier_regex {
-		$_{'package_identifier'} = $1
-	}
-	'tokens', '{' {
-		$_{'tokens'} = !token_definition->[]
-	}
-	'ignored_tokens', '{' {
-		$_{'ignored_tokens'} = !ignored_tokens_list->[]
-	}
-	'item', 'context', $identifier_regex, '{' {
-		$_{'item_contexts'}{$2} = !context_definition->[]
-	}
-	'list', 'context', $identifier_regex, '{' {
-		$_{'list_contexts'}{$2} = !context_definition->[]
-	}
-	'object', 'context', $identifier_regex, '{' {
-		$_{'object_contexts'}{$2} = !context_definition->[]
-	}
-	'sub', $identifier_regex, $code_block_regex {
-		$_{'subroutines'}{$1} = $2
+	switch {
+		$identifier_regex, '=' {
+			$_{'variables'}{$0} = !def_value
+		}
+		'package', $package_identifier_regex {
+			$_{'package_identifier'} = $1
+		}
+		'tokens', '{' {
+			$_{'tokens'} = !token_definition->[]
+		}
+		'ignored_tokens', '{' {
+			$_{'ignored_tokens'} = !ignored_tokens_list->[]
+		}
+		'item', 'context', $identifier_regex {
+			$_{'item_contexts'}{$2} = !action_block
+		}
+		'list', 'context', $identifier_regex {
+			$_{'list_contexts'}{$2} = !action_block
+		}
+		'object', 'context', $identifier_regex {
+			$_{'object_contexts'}{$2} = !action_block
+		}
+		'sub', $identifier_regex, $code_block_regex {
+			$_{'subroutines'}{$1} = $2
+		}
 	}
 }
 
 item context def_value {
-	$string_regex {
-		$_ = $0
-		return
-	}
-	$regex_regex {
-		$_ = $0
-		return
-	}
-	$variable_regex {
-		$_ = $0
-		return
-	}
-	default {
-		die 'unexpected token in def_value'
+	switch {
+		$string_regex {
+			$_ = $0
+			return
+		}
+		$regex_regex {
+			$_ = $0
+			return
+		}
+		$variable_regex {
+			$_ = $0
+			return
+		}
+		default {
+			die 'unexpected token in def_value'
+		}
 	}
 }
 
 list context token_definition {
-	'}' {
-		return
-	}
-	$identifier_regex, '=>' {
-		push $0
-		push !def_value
-	}
-	default {
-		die 'unexpected token in token_definition'
+	switch {
+		'}' {
+			return
+		}
+		$identifier_regex, '=>' {
+			push $0
+			push !def_value
+		}
+		default {
+			die 'unexpected token in token_definition'
+		}
 	}
 }
 
 list context ignored_tokens_list {
-	'}' {
-		return
-	}
-	$identifier_regex {
-		push $0
-	}
-	default {
-		die 'unexpected token in ignored_tokens_list'
+	switch {
+		'}' {
+			return
+		}
+		$identifier_regex {
+			push $0
+		}
+		default {
+			die 'unexpected token in ignored_tokens_list'
+		}
 	}
 }
 
-list context context_definition {
-	'}' {
-		return
-	}
-	'default', '{' {
-		push undef
-		push !match_action->[]
-		match '}'
-	}
-	default {
-		push !match_list->[]
-		match '{'
-		push !match_action->[]
-		match '}'
-	}
-}
+# list context context_definition {
+# 	'}' {
+# 		return
+# 	}
+# 	'default', '{' {
+# 		push undef
+# 		push !match_action->[]
+# 		match '}'
+# 	}
+# 	default {
+# 		push !match_list->[]
+# 		match '{'
+# 		push !match_action->[]
+# 		match '}'
+# 	}
+# }
 
 list context match_list {
-	$variable_regex, ',' {
-		push $0
-	}
-	$variable_regex {
-		push $0
-		return
-	}
-	$regex_regex, ',' {
-		push $0
-	}
-	$regex_regex {
-		push $0
-		return
-	}
-	$string_regex, ',' {
-		push $0
-	}
-	$string_regex {
-		push $0
-		return
-	}
-	default {
-		die 'unexpected end of match list'
+	switch {
+		$variable_regex, ',' {
+			push $0
+		}
+		$variable_regex {
+			push $0
+			return
+		}
+		$regex_regex, ',' {
+			push $0
+		}
+		$regex_regex {
+			push $0
+			return
+		}
+		$string_regex, ',' {
+			push $0
+		}
+		$string_regex {
+			push $0
+			return
+		}
+		default {
+			die 'unexpected end of match list'
+		}
 	}
 }
 
 item context action_block {
-	default {
-		match '{'
-		$_ = !match_action->[]
-		match '}'
-		return
-	}
+	match '{'
+	$_ = !match_action->[]
+	match '}'
+	return
 }
 
 list context match_action {
-	'$_', '=' {
-		push {
-			'type' => 'assign_item_statement'
-			'expression' => !spawn_expression
+	switch {
+		'$_', '=' {
+			push {
+				'type' => 'assign_item_statement'
+				'expression' => !spawn_expression
+			}
 		}
-	}
-	'$_', '{' {
-		push !spawn_expression
-		match '}'
-		if '{' {
+		'$_', '{' {
 			push !spawn_expression
-			match '}', '='
-			push {
-				'type' => 'assign_object_field_statement'
-				'line_number' => $0{line_number}
-				'expression' => !spawn_expression
-				'subkey' => pop
-				'key' => pop
+			match '}'
+			if '{' {
+				push !spawn_expression
+				match '}', '='
+				push {
+					'type' => 'assign_object_field_statement'
+					'line_number' => $0{line_number}
+					'expression' => !spawn_expression
+					'subkey' => pop
+					'key' => pop
+				}
+			} elsif '[' {
+				match ']', '='
+				push {
+					'type' => 'assign_array_field_statement'
+					'line_number' => $0{line_number}
+					'expression' => !spawn_expression
+					'key' => pop
+				}
+			} else {
+				match '='
+				push {
+					'type' => 'assign_field_statement'
+					'line_number' => $0{line_number}
+					'expression' => !spawn_expression
+					'key' => pop
+				}
 			}
-		} elsif '[' {
-			match ']', '='
-			push {
-				'type' => 'assign_array_field_statement'
-				'line_number' => $0{line_number}
-				'expression' => !spawn_expression
-				'key' => pop
-			}
-		} else {
-			match '='
-			push {
-				'type' => 'assign_field_statement'
-				'line_number' => $0{line_number}
-				'expression' => !spawn_expression
-				'key' => pop
-			}
-		}
 
-	}
-	'push' {
-		push {
-			'type' => 'push_statement'
-			'line_number' => $0{line_number}
-			'expression' => !spawn_expression
 		}
-	}
-	'return' {
-		push {
-			'type' => 'return_statement'
-			'line_number' => $0{line_number}
+		'push' {
+			push {
+				'type' => 'push_statement'
+				'line_number' => $0{line_number}
+				'expression' => !spawn_expression
+			}
 		}
-	}
-	'match' {
-		push {
-			'type' => 'match_statement'
-			'line_number' => $0{line_number}
-			'match_list' => !match_list->[]
+		'return' {
+			push {
+				'type' => 'return_statement'
+				'line_number' => $0{line_number}
+			}
 		}
-	}
-	'if' {
-		push !if_chain->{
-			'type' => 'if_statement'
-			'line_number' => $0{line_number}
-			'match_list' => !match_list->[]
-			'block' => !action_block
+		'match' {
+			push {
+				'type' => 'match_statement'
+				'line_number' => $0{line_number}
+				'match_list' => !match_list->[]
+			}
 		}
-	}
-	'switch' {
-		match '{'
-		push !if_chain->{
-			'type' => 'switch_statement'
-			'line_number' => $0{line_number}
-			'switch_cases' => !switch_blocks->[]
+		'if' {
+			push !if_chain->{
+				'type' => 'if_statement'
+				'line_number' => $0{line_number}
+				'match_list' => !match_list->[]
+				'block' => !action_block
+			}
 		}
-	}
-	'while' {
-		push {
-			'type' => 'while_statement'
-			'line_number' => $0{line_number}
-			'match_list' => !match_list->[]
-			'block' => !action_block
+		'switch' {
+			match '{'
+			push !if_chain->{
+				'type' => 'switch_statement'
+				'line_number' => $0{line_number}
+				'switch_cases' => !switch_blocks->[]
+			}
 		}
-	}
-	'warn' {
-		push {
-			'type' => 'warn_statement'
-			'line_number' => $0{line_number}
-			'expression' => !spawn_expression
+		'while' {
+			push {
+				'type' => 'while_statement'
+				'line_number' => $0{line_number}
+				'match_list' => !match_list->[]
+				'block' => !action_block
+			}
 		}
-	}
-	'die' {
-		push {
-			'type' => 'die_statement'
-			'line_number' => $0{line_number}
-			'expression' => !spawn_expression
+		'warn' {
+			push {
+				'type' => 'warn_statement'
+				'line_number' => $0{line_number}
+				'expression' => !spawn_expression
+			}
+		}
+		'die' {
+			push {
+				'type' => 'die_statement'
+				'line_number' => $0{line_number}
+				'expression' => !spawn_expression
+			}
+		}
+		default {
+			return
 		}
 	}
 
@@ -327,31 +340,33 @@ list context match_action {
 	# 	push 'die'
 	# 	push !spawn_expression
 	# }
-	default {
-		return
-	}
+	# default {
+	# 	return
+	# }
 }
 
 
 list context switch_blocks {
-	'}' {
-		return
-	}
-	'default' {
-		push {
-			'type' => 'default_case'
-			'line_number' => $0{line_number}
-			'block' => !action_block
+	switch {
+		'}' {
+			return
 		}
-		match '}'
-		return
-	}
-	default {
-		push {
-			'type' => 'match_case'
-			'line_number' => $0{line_number}
-			'match_list' => !match_list->[]
-			'block' => !action_block
+		'default' {
+			push {
+				'type' => 'default_case'
+				'line_number' => $0{line_number}
+				'block' => !action_block
+			}
+			match '}'
+			return
+		}
+		default {
+			push {
+				'type' => 'match_case'
+				'line_number' => $0{line_number}
+				'match_list' => !match_list->[]
+				'block' => !action_block
+			}
 		}
 	}
 }
@@ -359,126 +374,133 @@ list context switch_blocks {
 
 
 object context if_chain {
-	'elsif' {
-		$_{'branch'} = !if_chain->{
-			'type' => 'elsif_statement'
-			'line_number' => $0{line_number}
-			'match_list' => !match_list->[]
-			'block' => !action_block
+	switch {
+		'elsif' {
+			$_{'branch'} = !if_chain->{
+				'type' => 'elsif_statement'
+				'line_number' => $0{line_number}
+				'match_list' => !match_list->[]
+				'block' => !action_block
+			}
+			return
 		}
-		return
-	}
-	'else' {
-		$_{'branch'} = {
-			'type' => 'else_statement'
-			'line_number' => $0{line_number}
-			'block' => !action_block
+		'else' {
+			$_{'branch'} = {
+				'type' => 'else_statement'
+				'line_number' => $0{line_number}
+				'block' => !action_block
+			}
+			return
 		}
-		return
-	}
-	default {
-		return
+		default {
+			return
+		}
 	}
 }
 
 item context spawn_expression {
-	/\$\d++/, '{', 'line_number', '}' {
-		$_ = {
-			'type' => 'get_token_line_number'
-			'token' => $0
+	switch {
+		/\$\d++/, '{', 'line_number', '}' {
+			$_ = {
+				'type' => 'get_token_line_number'
+				'token' => $0
+			}
+			return
 		}
-		return
-	}
-	/\$\d++/, '{', 'line_offset', '}' {
-		$_ = {
-			'type' => 'get_token_line_offset'
-			'token' => $0
+		/\$\d++/, '{', 'line_offset', '}' {
+			$_ = {
+				'type' => 'get_token_line_offset'
+				'token' => $0
+			}
+			return
 		}
-		return
-	}
-	/\$\d++/ {
-		$_ = {
-			'type' => 'get_token_text'
-			'token' => $0
+		/\$\d++/ {
+			$_ = {
+				'type' => 'get_token_text'
+				'token' => $0
+			}
+			return
 		}
-		return
-	}
-	'$_' {
-		$_ = {
-			'type' => 'get_context'
+		'$_' {
+			$_ = {
+				'type' => 'get_context'
+			}
+			return
 		}
-		return
-	}
-	'pop' {
-		$_ = {
-			'type' => 'pop_list'
+		'pop' {
+			$_ = {
+				'type' => 'pop_list'
+			}
+			return
 		}
-		return
-	}
 
-	$context_reference_regex, '->' {
-		$_ = {
-			'type' => 'call_context'
-			'context' => $0
-			'argument' => !spawn_expression
+		$context_reference_regex, '->' {
+			$_ = {
+				'type' => 'call_context'
+				'context' => $0
+				'argument' => !spawn_expression
+			}
+			return
 		}
-		return
-	}
-	$context_reference_regex {
-		$_ = {
-			'type' => 'call_context'
-			'context' => $0
+		$context_reference_regex {
+			$_ = {
+				'type' => 'call_context'
+				'context' => $0
+			}
+			return
 		}
-		return
-	}
-	$function_reference_regex, '->' {
-		$_ = {
-			'type' => 'call_function'
-			'function' => $0
-			'argument' => !spawn_expression
+		$function_reference_regex, '->' {
+			$_ = {
+				'type' => 'call_function'
+				'function' => $0
+				'argument' => !spawn_expression
+			}
+			return
 		}
-		return
-	}
-	$function_reference_regex {
-		$_ = {
-			'type' => 'call_function'
-			'function' => $0
+		$function_reference_regex {
+			$_ = {
+				'type' => 'call_function'
+				'function' => $0
+			}
+			return
 		}
-		return
-	}
-	$string_regex {
-		$_ = {
-			'type' => 'string'
-			'string' => $0
+		$string_regex {
+			$_ = {
+				'type' => 'string'
+				'string' => $0
+			}
+			return
 		}
-		return
-	}
 
 
-	'undef' {
-		$_ = {
-			'type' => 'undef'
+		'undef' {
+			$_ = {
+				'type' => 'undef'
+			}
+			return
 		}
-		return
-	}
-	'[', ']' {
-		$_ = {
-			'type' => 'empty_list'
+		'[', ']' {
+			$_ = {
+				'type' => 'empty_list'
+			}
+			return
 		}
-		return
-	}
-	'{', '}' {
-		$_ = {
-			'type' => 'empty_hash'
+		'{', '}' {
+			$_ = {
+				'type' => 'empty_hash'
+			}
+			return
 		}
-		return
-	}
-	'{' {
-		$_ = {
-			'type' => 'hash_constructor'
-			'arguments' => !spawn_expression_hash->[]
+		'{' {
+			$_ = {
+				'type' => 'hash_constructor'
+				'arguments' => !spawn_expression_hash->[]
+			}
+			return
 		}
-		return
+		default {
+			die 'push expression expected'
+		}
 	}
 
 	# '$_' {
@@ -529,36 +551,40 @@ item context spawn_expression {
 	# 	$_ = !spawn_expression_hash->[]
 	# 	return
 	# }
-	default {
-		die 'push expression expected'
-	}
+	# default {
+	# 	die 'push expression expected'
+	# }
 }
 
 list context spawn_expression_list {
-	$context_reference_regex, ']' {
-		push $0
-		return
-	}
-	default {
-		die 'push expression list expected'
+	switch {
+		$context_reference_regex, ']' {
+			push $0
+			return
+		}
+		default {
+			die 'push expression list expected'
+		}
 	}
 }
 
 list context spawn_expression_hash {
-	'}' {
-		return
-	}
-	# $variable_regex, '=>' {
-	# 	push $0
-	# 	push !spawn_expression
-	# }
-	# $string_regex, '=>' {
-	# 	push $0
-	# 	push !spawn_expression
-	# }
-	default {
-		push !spawn_expression
-		match '=>'
-		push !spawn_expression
+	switch {
+		'}' {
+			return
+		}
+		# $variable_regex, '=>' {
+		# 	push $0
+		# 	push !spawn_expression
+		# }
+		# $string_regex, '=>' {
+		# 	push $0
+		# 	push !spawn_expression
+		# }
+		default {
+			push !spawn_expression
+			match '=>'
+			push !spawn_expression
+		}
 	}
 }

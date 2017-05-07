@@ -215,36 +215,42 @@ sub {';
 	while ($self->more_tokens) {
 		my @tokens;
 ';
-	my @items = @$context;
-	my $first_item = 1;
-	$self->{context_default_case} = undef;
-	while (@items) {
-		my $condition = shift @items;
-		unless (defined $condition) {
-			$self->{context_default_case} = shift @items;
-			next
-		}
-		my $condition_code = $self->compile_syntax_condition($condition);
-		my $action = shift @items;
-		my $action_code = $self->compile_syntax_action($context_type, $condition, $action);
-
-		my $debug_code = '';
-		# $debug_code = "\n\t\t\tsay 'in case " . (ref $condition eq 'ARRAY' ? join ', ', @$condition : $condition) =~ s/'/\\'/gr . "';"; # DEBUG INLINE TREE BUILDER
 
 
-		$code .= "\t\t" if $first_item;
-		$code .= "if ($condition_code) {$debug_code$action_code\t\t} els";
 
-		$first_item = 0;
-	}
+	$code .= $self->compile_syntax_action($context_type, undef, $context);
 
-	$self->{context_default_case} //= [ { type => 'return_statement' } ];
-	my $action_code = $self->compile_syntax_action($context_type, undef, $self->{context_default_case});
-	unless ($first_item) {
-		$code .= "e {$action_code\t\t}\n";
-	} else {
-		$code .= "$action_code\n";
-	}
+
+	# my @items = @$context;
+	# my $first_item = 1;
+	# $self->{context_default_case} = undef;
+	# while (@items) {
+	# 	my $condition = shift @items;
+	# 	unless (defined $condition) {
+	# 		$self->{context_default_case} = shift @items;
+	# 		next
+	# 	}
+	# 	my $condition_code = $self->compile_syntax_condition($condition);
+	# 	my $action = shift @items;
+	# 	my $action_code = $self->compile_syntax_action($context_type, $condition, $action);
+
+	# 	my $debug_code = '';
+	# 	# $debug_code = "\n\t\t\tsay 'in case " . (ref $condition eq 'ARRAY' ? join ', ', @$condition : $condition) =~ s/'/\\'/gr . "';"; # DEBUG INLINE TREE BUILDER
+
+
+	# 	$code .= "\t\t" if $first_item;
+	# 	$code .= "if ($condition_code) {$debug_code$action_code\t\t} els";
+
+	# 	$first_item = 0;
+	# }
+
+	# $self->{context_default_case} //= [ { type => 'return_statement' } ];
+	# my $action_code = $self->compile_syntax_action($context_type, undef, $self->{context_default_case});
+	# unless ($first_item) {
+	# 	$code .= "e {$action_code\t\t}\n";
+	# } else {
+	# 	$code .= "$action_code\n";
+	# }
 
 	$code .= "\t}\n";
 
