@@ -240,58 +240,153 @@ list context if_chain {
 }
 
 item context spawn_expression {
+	/\$\d++/, '{', 'line_number', '}' {
+		$_ = {
+			'type' => 'get_token_line_number'
+			'token' => $0
+		}
+		return
+	}
+	/\$\d++/, '{', 'offset', '}' {
+		$_ = {
+			'type' => 'get_token_offset'
+			'token' => $0
+		}
+		return
+	}
 	/\$\d++/ {
-		$_ = $0
+		$_ = {
+			'type' => 'get_token_text'
+			'token' => $0
+		}
 		return
 	}
 	'$_' {
-		$_ = $0
+		$_ = {
+			'type' => 'get_context'
+		}
 		return
 	}
 	'pop' {
-		$_ = 'pop'
+		$_ = {
+			'type' => 'pop_list'
+		}
 		return
 	}
+
 	$context_reference_regex, '->' {
 		$_ = {
-			$0 => !spawn_expression
+			'type' => 'call_context'
+			'context' => $0
+			'argument' => !spawn_expression
 		}
 		return
 	}
 	$context_reference_regex {
-		$_ = $0
+		$_ = {
+			'type' => 'call_context'
+			'context' => $0
+		}
 		return
 	}
 	$function_reference_regex, '->' {
 		$_ = {
-			$0 => !spawn_expression
+			'type' => 'call_function'
+			'function' => $0
+			'argument' => !spawn_expression
 		}
 		return
 	}
 	$function_reference_regex {
-		$_ = $0
+		$_ = {
+			'type' => 'call_function'
+			'function' => $0
+		}
 		return
 	}
 	$string_regex {
-		$_ = $0
+		$_ = {
+			'type' => 'string'
+			'string' => $0
+		}
 		return
 	}
+
+
 	'undef' {
-		$_ = undef
+		$_ = {
+			'type' => 'undef'
+		}
 		return
 	}
 	'[', ']' {
-		$_ = []
+		$_ = {
+			'type' => 'empty_list'
+		}
 		return
 	}
 	'{', '}' {
-		$_ = {}
+		$_ = {
+			'type' => 'empty_hash'
+		}
 		return
 	}
 	'{' {
-		$_ = !spawn_expression_hash->[]
+		$_ = {
+			'type' => 'hash_constructor'
+			'arguments' => !spawn_expression_hash->[]
+		}
 		return
 	}
+
+	# '$_' {
+	# 	$_ = $0
+	# 	return
+	# }
+	# 'pop' {
+	# 	$_ = 'pop'
+	# 	return
+	# }
+	# $context_reference_regex, '->' {
+	# 	$_ = {
+	# 		$0 => !spawn_expression
+	# 	}
+	# 	return
+	# }
+	# $context_reference_regex {
+	# 	$_ = $0
+	# 	return
+	# }
+	# $function_reference_regex, '->' {
+	# 	$_ = {
+	# 		$0 => !spawn_expression
+	# 	}
+	# 	return
+	# }
+	# $function_reference_regex {
+	# 	$_ = $0
+	# 	return
+	# }
+	# $string_regex {
+	# 	$_ = $0
+	# 	return
+	# }
+	# 'undef' {
+	# 	$_ = undef
+	# 	return
+	# }
+	# '[', ']' {
+	# 	$_ = []
+	# 	return
+	# }
+	# '{', '}' {
+	# 	$_ = {}
+	# 	return
+	# }
+	# '{' {
+	# 	$_ = !spawn_expression_hash->[]
+	# 	return
+	# }
 	default {
 		die 'push expression expected'
 	}
