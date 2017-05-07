@@ -37,6 +37,8 @@ list context test_more {
 		push {
 			'a' => '15'
 			'b' => $0
+			'line_number' => $0{line_number}
+			'offset' => $0{offset}
 			'nested_hash' => {
 				'nested' => 'true'
 				'c' => '35'

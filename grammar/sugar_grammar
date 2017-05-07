@@ -161,19 +161,28 @@ list context match_action {
 	}
 	'$_', '{', $string_regex, '}', '{' {
 		push 'assign_object_field'
-		push $2
+		push {
+			'type' => 'string'
+			'string' => $2
+		}
 		push !spawn_expression
 		match '}', '='
 		push !spawn_expression
 	}
 	'$_', '{', $string_regex, '}', '[', ']', '=' {
 		push 'assign_array_field'
-		push $2
+		push {
+			'type' => 'string'
+			'string' => $2
+		}
 		push !spawn_expression
 	}
 	'$_', '{', $string_regex, '}', '=' {
 		push 'assign_field'
-		push $2
+		push {
+			'type' => 'string'
+			'string' => $2
+		}
 		push !spawn_expression
 	}
 	'push' {
@@ -202,13 +211,13 @@ list context match_action {
 		push !match_action->[]
 		match '}'
 	}
-	'warn', $string_regex {
+	'warn' {
 		push 'warn'
-		push $1
+		push !spawn_expression
 	}
-	'die', $string_regex {
+	'die' {
 		push 'die'
-		push $1
+		push !spawn_expression
 	}
 	# '}' {
 	# 	return
@@ -406,15 +415,17 @@ list context spawn_expression_hash {
 	'}' {
 		return
 	}
-	$variable_regex, '=>' {
-		push $0
-		push !spawn_expression
-	}
-	$string_regex, '=>' {
-		push $0
-		push !spawn_expression
-	}
+	# $variable_regex, '=>' {
+	# 	push $0
+	# 	push !spawn_expression
+	# }
+	# $string_regex, '=>' {
+	# 	push $0
+	# 	push !spawn_expression
+	# }
 	default {
-		die 'push expression hash pair expected'
+		push !spawn_expression
+		match '=>'
+		push !spawn_expression
 	}
 }

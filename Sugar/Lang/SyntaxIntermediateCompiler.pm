@@ -413,40 +413,24 @@ sub compile_syntax_action {
 
 sub compile_syntax_spawn_expression {
 	my ($self, $context_type, $expression) = @_;
-	if (not defined $expression) {
+
+	confess "what: $expression" unless ref $expression;
+	warn "got spawn expression: $expression ($expression->{type})";
+
+	if ($expression->{type} eq 'undef') {
 		return 'undef'
 
-	} elsif (ref $expression eq 'HASH') {
-		my @keys = keys %$expression;
-		if (@keys) {
-			my ($call_expression) = @keys;
-			my $object_expression = $expression->{$call_expression};
-			# warn "got call_expression: $call_expression";
-			my $context_function = $self->get_function_by_name($call_expression);
-			return "\$self->$context_function(" . $self->compile_syntax_spawn_expression($context_type, $object_expression) . ")";
-		} else {
-			return '{}'
-		}
+	} elsif ($expression->{type} eq 'get_token_line_number') {
+		confess "invalid spawn expression token: '$expression->{token}'" unless $expression->{token} =~ /\A\$(\d+)\Z/s;
+		return "\$tokens[$1][2]";
+	} elsif ($expression->{type} eq 'get_token_offset') {
+		confess "invalid spawn expression token: '$expression->{token}'" unless $expression->{token} =~ /\A\$(\d+)\Z/s;
+		return "\$tokens[$1][3]";
+	} elsif ($expression->{type} eq 'get_token_text') {
+		confess "invalid spawn expression token: '$expression->{token}'" unless $expression->{token} =~ /\A\$(\d+)\Z/s;
+		return "\$tokens[$1][1]";
 
-	} elsif (ref $expression eq 'ARRAY' and @$expression == 0) {
-		return '[]'
-
-	} elsif (ref $expression eq 'ARRAY') {
-		my $code = "{ ";
-		my @items = @$expression;
-		while (@items) {
-			my $field = shift @items;
-			my $value = shift @items;
-			$code .= $self->compile_syntax_spawn_expression($context_type, $field) . " => " . $self->compile_syntax_spawn_expression($context_type, $value) . ", ";
-		}
-		$code .= "}";
-		return $code
-
-	} elsif ($expression =~ /\A[!\&][a-zA-Z_][a-zA-Z_0-9]*\Z/) {
-		my $context_function = $self->get_function_by_name($expression);
-		return "\$self->$context_function";
-
-	} elsif ($expression eq '$_') {
+	} elsif ($expression->{type} eq 'get_context') {
 		if ($context_type eq 'object_context') {
 			return "\$context_object"
 		} elsif ($context_type eq 'list_context') {
@@ -455,23 +439,113 @@ sub compile_syntax_spawn_expression {
 			return "\$context_value"
 		}
 
-	} elsif ($expression =~ /\A\$(\d+)\Z/) {
-		return "\$tokens[$1][1]";
-
-	} elsif ($expression =~ /\Apop\Z/) {
+	} elsif ($expression->{type} eq 'pop_list') {
 		if ($context_type eq 'list_context') {
 			return "pop \@\$context_list";
 		} else {
 			confess "use of pop in $context_type";
 		}
 
-	} elsif ($expression =~ /\A'(.*)'\Z/s) {
-		my $value = $1;
-		return "'$value'";
+	} elsif ($expression->{type} eq 'call_context') {
+		# warn "got call_expression: $expression";
+		my $context = $self->get_function_by_name($expression->{context});
+		if (exists $expression->{argument}) {
+			return "\$self->$context(" . $self->compile_syntax_spawn_expression($context_type, $expression->{argument}) . ")";
+		} else {
+			return "\$self->$context";
+		}
+
+	} elsif ($expression->{type} eq 'call_function') {
+		# warn "got call_expression: $expression";
+		my $function = $self->get_function_by_name($expression->{function});
+		if (exists $expression->{argument}) {
+			return "\$self->$function(" . $self->compile_syntax_spawn_expression($context_type, $expression->{argument}) . ")";
+		} else {
+			return "\$self->$function";
+		}
+
+	} elsif ($expression->{type} eq 'string') {
+		confess "invalid spawn expression string: '$expression->{string}'" unless $expression->{string} =~ /\A'(.*)'\Z/s;
+		return "'$1'";
+	} elsif ($expression->{type} eq 'empty_list') {
+		return '[]'
+	} elsif ($expression->{type} eq 'empty_hash') {
+		return '{}'
+	} elsif ($expression->{type} eq 'hash_constructor') {
+		my $code = "{ ";
+		my @items = @{$expression->{arguments}};
+		while (@items) {
+			my $field = shift @items;
+			my $value = shift @items;
+			warn "debug hash_constructor: $field => $value";
+			$code .= $self->compile_syntax_spawn_expression($context_type, $field) . " => " . $self->compile_syntax_spawn_expression($context_type, $value) . ", ";
+		}
+		$code .= "}";
+		return $code
 
 	} else {
 		confess "invalid spawn expression: '$expression'";
 	}
+
+	# if (not defined $expression) {
+	# 	return 'undef'
+
+	# } elsif (ref $expression eq 'HASH') {
+	# 	my @keys = keys %$expression;
+	# 	if (@keys) {
+	# 		my ($call_expression) = @keys;
+	# 		my $object_expression = $expression->{$call_expression};
+	# 		# warn "got call_expression: $call_expression";
+	# 		my $context_function = $self->get_function_by_name($call_expression);
+	# 		return "\$self->$context_function(" . $self->compile_syntax_spawn_expression($context_type, $object_expression) . ")";
+	# 	} else {
+	# 		return '{}'
+	# 	}
+
+	# } elsif (ref $expression eq 'ARRAY' and @$expression == 0) {
+	# 	return '[]'
+
+	# } elsif (ref $expression eq 'ARRAY') {
+	# 	my $code = "{ ";
+	# 	my @items = @$expression;
+	# 	while (@items) {
+	# 		my $field = shift @items;
+	# 		my $value = shift @items;
+	# 		$code .= $self->compile_syntax_spawn_expression($context_type, $field) . " => " . $self->compile_syntax_spawn_expression($context_type, $value) . ", ";
+	# 	}
+	# 	$code .= "}";
+	# 	return $code
+
+	# } elsif ($expression =~ /\A[!\&][a-zA-Z_][a-zA-Z_0-9]*\Z/) {
+	# 	my $context_function = $self->get_function_by_name($expression);
+	# 	return "\$self->$context_function";
+
+	# } elsif ($expression eq '$_') {
+	# 	if ($context_type eq 'object_context') {
+	# 		return "\$context_object"
+	# 	} elsif ($context_type eq 'list_context') {
+	# 		return "\$context_list"
+	# 	} else {
+	# 		return "\$context_value"
+	# 	}
+
+	# } elsif ($expression =~ /\A\$(\d+)\Z/) {
+	# 	return "\$tokens[$1][1]";
+
+	# } elsif ($expression =~ /\Apop\Z/) {
+	# 	if ($context_type eq 'list_context') {
+	# 		return "pop \@\$context_list";
+	# 	} else {
+	# 		confess "use of pop in $context_type";
+	# 	}
+
+	# } elsif ($expression =~ /\A'(.*)'\Z/s) {
+	# 	my $value = $1;
+	# 	return "'$value'";
+
+	# } else {
+	# 	confess "invalid spawn expression: '$expression'";
+	# }
 }
 
 1;
