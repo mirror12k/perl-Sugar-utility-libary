@@ -233,7 +233,7 @@ sub {';
 		$first_item = 0;
 	}
 
-	$self->{context_default_case} //= [ 'return' ];
+	$self->{context_default_case} //= [ { type => 'return_statement' } ];
 	my $action_code = $self->compile_syntax_action($context_type, undef, $self->{context_default_case});
 	unless ($first_item) {
 		$code .= "e {$action_code\t\t}\n";
@@ -295,100 +295,47 @@ sub compile_syntax_action {
 		# push @code, "my \@tokens;";
 	}
 	
-	my @actions = @$actions_list;
-	while (@actions) {
-		my $action = shift @actions;
+	# my @actions = @$actions_list;
+	# while (@actions) {
+		# my $action = shift @actions;
+	warn "debug: ", Dumper $actions_list;
+	foreach my $action (@$actions_list) {
 
-		if ($action eq 'push') {
-			my $expression = shift @actions;
+		confess "invalid action: $action" unless ref $action;
+		if ($action->{type} eq 'push_statement') {
+			my $expression = $self->compile_syntax_spawn_expression($context_type, $action->{expression});
 			if ($context_type eq 'list_context') {
-				push @code, "push \@\$context_list, " . $self->compile_syntax_spawn_expression($context_type, $expression) . ";";
+				push @code, "push \@\$context_list, $expression;";
 			} else {
-				confess "use of push in $context_type: '$expression'";
+				confess "use of push in $context_type";
 			}
-		} elsif ($action eq 'assign_item') {
-			my $value = shift @actions;
+		} elsif ($action->{type} eq 'assign_item_statement') {
+			my $expression = $self->compile_syntax_spawn_expression($context_type, $action->{expression});
 			if ($context_type eq 'object_context') {
-				push @code, "\$context_object = " . $self->compile_syntax_spawn_expression($context_type, $value) . ";";
+				push @code, "\$context_object = $expression;";
 			} elsif ($context_type eq 'list_context') {
-				push @code, "\$context_list = " . $self->compile_syntax_spawn_expression($context_type, $value) . ";";
+				push @code, "\$context_list = $expression;";
 			} else {
-				push @code, "\$context_value = " . $self->compile_syntax_spawn_expression($context_type, $value) . ";";
+				push @code, "\$context_value = $expression;";
 			}
 			
-		} elsif ($action eq 'assign_field') {
-			my $field = shift @actions;
-			my $value = shift @actions;
-			$field = $self->compile_syntax_spawn_expression($context_type, $field);
-			push @code, "\$context_object->{$field} = " . $self->compile_syntax_spawn_expression($context_type, $value) . ";";
+		} elsif ($action->{type} eq 'assign_field_statement') {
+			my $key = $self->compile_syntax_spawn_expression($context_type, $action->{key});
+			my $expression = $self->compile_syntax_spawn_expression($context_type, $action->{expression});
+			push @code, "\$context_object->{$key} = $expression;";
 			
-		} elsif ($action eq 'assign_array_field') {
-			my $field = shift @actions;
-			my $value = shift @actions;
-			$field = $self->compile_syntax_spawn_expression($context_type, $field);
-			push @code, "push \@{\$context_object->{$field}}, " . $self->compile_syntax_spawn_expression($context_type, $value) . ";";
+		} elsif ($action->{type} eq 'assign_array_field_statement') {
+			my $key = $self->compile_syntax_spawn_expression($context_type, $action->{key});
+			my $expression = $self->compile_syntax_spawn_expression($context_type, $action->{expression});
+			push @code, "push \@{\$context_object->{$key}}, $expression;";
 			
-		} elsif ($action eq 'assign_object_field') {
-			my $field = shift @actions;
-			my $key = shift @actions;
-			my $value = shift @actions;
-			$field = $self->compile_syntax_spawn_expression($context_type, $field);
-			$key = $self->compile_syntax_spawn_expression($context_type, $key);
-			push @code, "\$context_object->{$field}{$key} = " . $self->compile_syntax_spawn_expression($context_type, $value) . ";";
+		} elsif ($action->{type} eq 'assign_object_field_statement') {
+			my $key = $self->compile_syntax_spawn_expression($context_type, $action->{key});
+			my $subkey = $self->compile_syntax_spawn_expression($context_type, $action->{subkey});
+			my $expression = $self->compile_syntax_spawn_expression($context_type, $action->{expression});
+			push @code, "\$context_object->{$key}{$subkey} = $expression;";
 
-		} elsif ($action eq 'match') {
-			my $match_condition = shift @actions;
-			push @code, "\$self->confess_at_current_offset('expected "
-				. (ref $match_condition eq 'ARRAY' ? join ', ', @$match_condition : $match_condition) =~ s/'/\\'/gr . "')";
-			push @code, "\tunless " . $self->compile_syntax_condition($match_condition) . ";";
-
-			if (defined $match_condition and ref $match_condition eq 'ARRAY') {
-				my $count = @$match_condition;
-				push @code, "\@tokens = (\@tokens, \$self->step_tokens($count));";
-			} elsif (defined $match_condition) {
-				push @code, "\@tokens = (\@tokens, \$self->next_token->[1]);";
-			} else {
-			}
-
-		} elsif ($action eq 'if') {
-			my $condition = shift @actions;
-			my $conditional_actions = shift @actions;
-
-			my $condition_code = $self->compile_syntax_condition($condition);
-			my $action_code = $self->compile_syntax_action($context_type, $condition, $conditional_actions);
-
-			push @code, "if ($condition_code) {\n\t\t\tmy \@tokens_freeze = \@tokens;\n\t\t\tmy \@tokens = \@tokens_freeze;$action_code\t\t\t}";
-
-			while (@actions and $actions[0] eq 'elsif') {
-				shift @actions;
-				my $condition = shift @actions;
-				my $conditional_actions = shift @actions;
-
-				my $condition_code = $self->compile_syntax_condition($condition);
-				my $action_code = $self->compile_syntax_action($context_type, $condition, $conditional_actions);
-
-				push @code, "elsif ($condition_code) {\n\t\t\tmy \@tokens_freeze = \@tokens;\n\t\t\tmy \@tokens = \@tokens_freeze;$action_code\t\t\t}";
-			}
-
-			if (@actions and $actions[0] eq 'else') {
-				shift @actions;
-				my $conditional_actions = shift @actions;
-
-				my $action_code = $self->compile_syntax_action($context_type, undef, $conditional_actions);
-
-				push @code, "else {$action_code\t\t\t}";
-			}
-
-		} elsif ($action eq 'while') {
-			my $condition = shift @actions;
-			my $conditional_actions = shift @actions;
-
-			my $condition_code = $self->compile_syntax_condition($condition);
-			my $action_code = $self->compile_syntax_action($context_type, $condition, $conditional_actions);
-
-			push @code, "while ($condition_code) {\n\t\t\tmy \@tokens_freeze = \@tokens;\n\t\t\tmy \@tokens = \@tokens_freeze;$action_code\t\t\t}";
-
-		} elsif ($action eq 'return') {
+		} elsif ($action->{type} eq 'return_statement') {
 			if ($context_type eq 'object_context') {
 				push @code, "return \$context_object;";
 			} elsif ($context_type eq 'list_context') {
@@ -396,14 +343,179 @@ sub compile_syntax_action {
 			} else {
 				push @code, "return \$context_value;";
 			}
-			$self->{context_default_case} = [ die => "'unexpected token'" ] unless defined $self->{context_default_case};
-		} elsif ($action eq 'die') {
-			push @code, "\$self->confess_at_current_offset(" . $self->compile_syntax_spawn_expression($context_type, shift @actions) . ");";
-		} elsif ($action eq 'warn') {
-			push @code, "warn " . $self->compile_syntax_spawn_expression($context_type, shift @actions) . ";";
+
+			$self->{context_default_case} //= [ { type => 'die_statement', expression => { type => 'string', string => "'unexpected token'" } } ];
+
+		} elsif ($action->{type} eq 'match_statement') {
+			my $match_condition = $action->{match_list};
+			push @code, "\$self->confess_at_current_offset('expected " . (join ', ', @$match_condition) =~ s/([\\'])/\\$1/gr . "')";
+			push @code, "\tunless " . $self->compile_syntax_condition($match_condition) . ";";
+
+			my $count = @$match_condition;
+			push @code, "\@tokens = (\@tokens, \$self->step_tokens($count));";
+
+		} elsif ($action->{type} eq 'if_statement') {
+			my $condition = $action->{match_list};
+			my $conditional_actions = $action->{block};
+
+			my $condition_code = $self->compile_syntax_condition($condition);
+			my $action_code = $self->compile_syntax_action($context_type, $condition, $conditional_actions);
+
+			push @code, "if ($condition_code) {\n\t\t\tmy \@tokens_freeze = \@tokens;\n\t\t\tmy \@tokens = \@tokens_freeze;$action_code\t\t\t}";
+
+			while (exists $action->{branch}) {
+				$action = $action->{branch};
+				if ($action->{type} eq 'elsif_statement') {
+					my $condition = $action->{match_list};
+					my $conditional_actions = $action->{block};
+
+					my $condition_code = $self->compile_syntax_condition($condition);
+					my $action_code = $self->compile_syntax_action($context_type, $condition, $conditional_actions);
+
+					push @code, "elsif ($condition_code) {\n\t\t\tmy \@tokens_freeze = \@tokens;\n\t\t\tmy \@tokens = \@tokens_freeze;$action_code\t\t\t}";
+				} else {
+					my $conditional_actions = $action->{block};
+					my $action_code = $self->compile_syntax_action($context_type, undef, $conditional_actions);
+
+					push @code, "else {$action_code\t\t\t}";
+				}
+			}
+
+		} elsif ($action->{type} eq 'while_statement') {
+			my $condition = $action->{match_list};
+			my $conditional_actions = $action->{block};
+
+			my $condition_code = $self->compile_syntax_condition($condition);
+			my $action_code = $self->compile_syntax_action($context_type, $condition, $conditional_actions);
+
+			push @code, "while ($condition_code) {\n\t\t\tmy \@tokens_freeze = \@tokens;\n\t\t\tmy \@tokens = \@tokens_freeze;$action_code\t\t\t}";
+
+
+		} elsif ($action->{type} eq 'warn_statement') {
+			my $expression = $self->compile_syntax_spawn_expression($context_type, $action->{expression});
+			push @code, "warn ($expression);";
+
+		} elsif ($action->{type} eq 'die_statement') {
+			my $expression = $self->compile_syntax_spawn_expression($context_type, $action->{expression});
+			push @code, "\$self->confess_at_current_offset($expression);";
+
 		} else {
-			die "undefined action '$action'";
+			die "undefined action '$action->{type}'";
 		}
+
+
+
+
+
+
+
+
+
+		# if ($action eq 'push') {
+		# 	my $expression = shift @actions;
+		# 	if ($context_type eq 'list_context') {
+		# 		push @code, "push \@\$context_list, " . $self->compile_syntax_spawn_expression($context_type, $expression) . ";";
+		# 	} else {
+		# 		confess "use of push in $context_type: '$expression'";
+		# 	}
+		# } elsif ($action eq 'assign_item') {
+		# 	my $value = shift @actions;
+		# 	if ($context_type eq 'object_context') {
+		# 		push @code, "\$context_object = " . $self->compile_syntax_spawn_expression($context_type, $value) . ";";
+		# 	} elsif ($context_type eq 'list_context') {
+		# 		push @code, "\$context_list = " . $self->compile_syntax_spawn_expression($context_type, $value) . ";";
+		# 	} else {
+		# 		push @code, "\$context_value = " . $self->compile_syntax_spawn_expression($context_type, $value) . ";";
+		# 	}
+			
+		# } elsif ($action eq 'assign_field') {
+		# 	my $field = shift @actions;
+		# 	my $value = shift @actions;
+		# 	$field = $self->compile_syntax_spawn_expression($context_type, $field);
+		# 	push @code, "\$context_object->{$field} = " . $self->compile_syntax_spawn_expression($context_type, $value) . ";";
+			
+		# } elsif ($action eq 'assign_array_field') {
+		# 	my $field = shift @actions;
+		# 	my $value = shift @actions;
+		# 	$field = $self->compile_syntax_spawn_expression($context_type, $field);
+		# 	push @code, "push \@{\$context_object->{$field}}, " . $self->compile_syntax_spawn_expression($context_type, $value) . ";";
+			
+		# } elsif ($action eq 'assign_object_field') {
+		# 	my $field = shift @actions;
+		# 	my $key = shift @actions;
+		# 	my $value = shift @actions;
+		# 	$field = $self->compile_syntax_spawn_expression($context_type, $field);
+		# 	$key = $self->compile_syntax_spawn_expression($context_type, $key);
+		# 	push @code, "\$context_object->{$field}{$key} = " . $self->compile_syntax_spawn_expression($context_type, $value) . ";";
+
+		# } elsif ($action eq 'match') {
+		# 	my $match_condition = shift @actions;
+		# 	push @code, "\$self->confess_at_current_offset('expected "
+		# 		. (ref $match_condition eq 'ARRAY' ? join ', ', @$match_condition : $match_condition) =~ s/'/\\'/gr . "')";
+		# 	push @code, "\tunless " . $self->compile_syntax_condition($match_condition) . ";";
+
+		# 	if (defined $match_condition and ref $match_condition eq 'ARRAY') {
+		# 		my $count = @$match_condition;
+		# 		push @code, "\@tokens = (\@tokens, \$self->step_tokens($count));";
+		# 	} elsif (defined $match_condition) {
+		# 		push @code, "\@tokens = (\@tokens, \$self->next_token->[1]);";
+		# 	} else {
+		# 	}
+
+		# } elsif ($action eq 'if') {
+		# 	my $condition = shift @actions;
+		# 	my $conditional_actions = shift @actions;
+
+		# 	my $condition_code = $self->compile_syntax_condition($condition);
+		# 	my $action_code = $self->compile_syntax_action($context_type, $condition, $conditional_actions);
+
+		# 	push @code, "if ($condition_code) {\n\t\t\tmy \@tokens_freeze = \@tokens;\n\t\t\tmy \@tokens = \@tokens_freeze;$action_code\t\t\t}";
+
+		# 	while (@actions and $actions[0] eq 'elsif') {
+		# 		shift @actions;
+		# 		my $condition = shift @actions;
+		# 		my $conditional_actions = shift @actions;
+
+		# 		my $condition_code = $self->compile_syntax_condition($condition);
+		# 		my $action_code = $self->compile_syntax_action($context_type, $condition, $conditional_actions);
+
+		# 		push @code, "elsif ($condition_code) {\n\t\t\tmy \@tokens_freeze = \@tokens;\n\t\t\tmy \@tokens = \@tokens_freeze;$action_code\t\t\t}";
+		# 	}
+
+		# 	if (@actions and $actions[0] eq 'else') {
+		# 		shift @actions;
+		# 		my $conditional_actions = shift @actions;
+
+		# 		my $action_code = $self->compile_syntax_action($context_type, undef, $conditional_actions);
+
+		# 		push @code, "else {$action_code\t\t\t}";
+		# 	}
+
+		# } elsif ($action eq 'while') {
+		# 	my $condition = shift @actions;
+		# 	my $conditional_actions = shift @actions;
+
+		# 	my $condition_code = $self->compile_syntax_condition($condition);
+		# 	my $action_code = $self->compile_syntax_action($context_type, $condition, $conditional_actions);
+
+		# 	push @code, "while ($condition_code) {\n\t\t\tmy \@tokens_freeze = \@tokens;\n\t\t\tmy \@tokens = \@tokens_freeze;$action_code\t\t\t}";
+
+		# } elsif ($action eq 'return') {
+		# 	if ($context_type eq 'object_context') {
+		# 		push @code, "return \$context_object;";
+		# 	} elsif ($context_type eq 'list_context') {
+		# 		push @code, "return \$context_list;";
+		# 	} else {
+		# 		push @code, "return \$context_value;";
+		# 	}
+		# 	$self->{context_default_case} = [ die => "'unexpected token'" ] unless defined $self->{context_default_case};
+		# } elsif ($action eq 'die') {
+		# 	push @code, "\$self->confess_at_current_offset(" . $self->compile_syntax_spawn_expression($context_type, shift @actions) . ");";
+		# } elsif ($action eq 'warn') {
+		# 	push @code, "warn " . $self->compile_syntax_spawn_expression($context_type, shift @actions) . ";";
+		# } else {
+		# 	die "undefined action '$action'";
+		# }
 	}
 
 
@@ -414,16 +526,13 @@ sub compile_syntax_action {
 sub compile_syntax_spawn_expression {
 	my ($self, $context_type, $expression) = @_;
 
-	confess "what: $expression" unless ref $expression;
-	warn "got spawn expression: $expression ($expression->{type})";
-
 	if ($expression->{type} eq 'undef') {
 		return 'undef'
 
 	} elsif ($expression->{type} eq 'get_token_line_number') {
 		confess "invalid spawn expression token: '$expression->{token}'" unless $expression->{token} =~ /\A\$(\d+)\Z/s;
 		return "\$tokens[$1][2]";
-	} elsif ($expression->{type} eq 'get_token_offset') {
+	} elsif ($expression->{type} eq 'get_token_line_offset') {
 		confess "invalid spawn expression token: '$expression->{token}'" unless $expression->{token} =~ /\A\$(\d+)\Z/s;
 		return "\$tokens[$1][3]";
 	} elsif ($expression->{type} eq 'get_token_text') {
@@ -477,7 +586,6 @@ sub compile_syntax_spawn_expression {
 		while (@items) {
 			my $field = shift @items;
 			my $value = shift @items;
-			warn "debug hash_constructor: $field => $value";
 			$code .= $self->compile_syntax_spawn_expression($context_type, $field) . " => " . $self->compile_syntax_spawn_expression($context_type, $value) . ", ";
 		}
 		$code .= "}";

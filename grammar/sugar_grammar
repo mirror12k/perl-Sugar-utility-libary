@@ -154,93 +154,180 @@ list context match_list {
 	}
 }
 
-list context match_action {
-	'$_', '=' {
-		push 'assign_item'
-		push !spawn_expression
-	}
-	'$_', '{', $string_regex, '}', '{' {
-		push 'assign_object_field'
-		push {
-			'type' => 'string'
-			'string' => $2
-		}
-		push !spawn_expression
-		match '}', '='
-		push !spawn_expression
-	}
-	'$_', '{', $string_regex, '}', '[', ']', '=' {
-		push 'assign_array_field'
-		push {
-			'type' => 'string'
-			'string' => $2
-		}
-		push !spawn_expression
-	}
-	'$_', '{', $string_regex, '}', '=' {
-		push 'assign_field'
-		push {
-			'type' => 'string'
-			'string' => $2
-		}
-		push !spawn_expression
-	}
-	'push' {
-		push 'push'
-		push !spawn_expression
-	}
-	'return' {
-		push 'return'
-	}
-	'match' {
-		push 'match'
-		push !match_list->[]
-	}
-	'if' {
-		push 'if'
-		push !match_list->[]
-		match '{'
-		push !match_action->[]
-		match '}'
-		$_ = !if_chain->$_
-	}
-	'while' {
-		push 'while'
-		push !match_list->[]
-		match '{'
-		push !match_action->[]
-		match '}'
-	}
-	'warn' {
-		push 'warn'
-		push !spawn_expression
-	}
-	'die' {
-		push 'die'
-		push !spawn_expression
-	}
-	# '}' {
-	# 	return
-	# }
+item context action_block {
 	default {
+		match '{'
+		$_ = !match_action->[]
+		match '}'
 		return
-		# die 'expected \'}\' to close match actions list'
 	}
 }
 
-list context if_chain {
-	'elsif' {
-		push 'elsif'
-		push !match_list->[]
-		match '{'
-		push !match_action->[]
+list context match_action {
+	'$_', '=' {
+		push {
+			'type' => 'assign_item_statement'
+			'expression' => !spawn_expression
+		}
+	}
+	'$_', '{' {
+		push !spawn_expression
 		match '}'
+		if '{' {
+			push !spawn_expression
+			match '}', '='
+			push {
+				'type' => 'assign_object_field_statement'
+				'expression' => !spawn_expression
+				'subkey' => pop
+				'key' => pop
+			}
+		} elsif '[' {
+			match ']', '='
+			push {
+				'type' => 'assign_array_field_statement'
+				'expression' => !spawn_expression
+				'key' => pop
+			}
+		} else {
+			match '='
+			push {
+				'type' => 'assign_field_statement'
+				'expression' => !spawn_expression
+				'key' => pop
+			}
+		}
+
+	}
+	'push' {
+		push {
+			'type' => 'push_statement'
+			'expression' => !spawn_expression
+		}
+	}
+	'return' {
+		push {
+			'type' => 'return_statement'
+		}
+	}
+	'match' {
+		push {
+			'type' => 'match_statement'
+			'match_list' => !match_list->[]
+		}
+	}
+	'if' {
+		push !if_chain->{
+			'type' => 'if_statement'
+			'match_list' => !match_list->[]
+			'block' => !action_block
+		}
+	}
+	'while' {
+		push {
+			'type' => 'while_statement'
+			'match_list' => !match_list->[]
+			'block' => !action_block
+		}
+	}
+	'warn' {
+		push {
+			'type' => 'warn_statement'
+			'expression' => !spawn_expression
+		}
+	}
+	'die' {
+		push {
+			'type' => 'die_statement'
+			'expression' => !spawn_expression
+		}
+	}
+
+
+
+	# '$_', '=' {
+	# 	push 'assign_item'
+	# 	push !spawn_expression
+	# }
+	# '$_', '{', $string_regex, '}', '{' {
+	# 	push 'assign_object_field'
+	# 	push {
+	# 		'type' => 'string'
+	# 		'string' => $2
+	# 	}
+	# 	push !spawn_expression
+	# 	match '}', '='
+	# 	push !spawn_expression
+	# }
+	# '$_', '{', $string_regex, '}', '[', ']', '=' {
+	# 	push 'assign_array_field'
+	# 	push {
+	# 		'type' => 'string'
+	# 		'string' => $2
+	# 	}
+	# 	push !spawn_expression
+	# }
+	# '$_', '{', $string_regex, '}', '=' {
+	# 	push 'assign_field'
+	# 	push {
+	# 		'type' => 'string'
+	# 		'string' => $2
+	# 	}
+	# 	push !spawn_expression
+	# }
+	# 'push' {
+	# 	push 'push'
+	# 	push !spawn_expression
+	# }
+	# 'return' {
+	# 	push 'return'
+	# }
+	# 'match' {
+	# 	push 'match'
+	# 	push !match_list->[]
+	# }
+	# 'if' {
+	# 	push 'if'
+	# 	push !match_list->[]
+	# 	match '{'
+	# 	push !match_action->[]
+	# 	match '}'
+	# 	$_ = !if_chain->$_
+	# }
+	# 'while' {
+	# 	push 'while'
+	# 	push !match_list->[]
+	# 	match '{'
+	# 	push !match_action->[]
+	# 	match '}'
+	# }
+	# 'warn' {
+	# 	push 'warn'
+	# 	push !spawn_expression
+	# }
+	# 'die' {
+	# 	push 'die'
+	# 	push !spawn_expression
+	# }
+	default {
+		return
+	}
+}
+
+object context if_chain {
+	'elsif' {
+		$_{'branch'} = !if_chain->{
+			'type' => 'elsif_statement'
+			'match_list' => !match_list->[]
+			'block' => !action_block
+		}
+		return
 	}
 	'else' {
-		push 'else'
-		match '{'
-		push !match_action->[]
-		match '}'
+		$_{'branch'} = {
+			'type' => 'else_statement'
+			'block' => !action_block
+		}
 		return
 	}
 	default {
@@ -256,9 +343,9 @@ item context spawn_expression {
 		}
 		return
 	}
-	/\$\d++/, '{', 'offset', '}' {
+	/\$\d++/, '{', 'line_offset', '}' {
 		$_ = {
-			'type' => 'get_token_offset'
+			'type' => 'get_token_line_offset'
 			'token' => $0
 		}
 		return
