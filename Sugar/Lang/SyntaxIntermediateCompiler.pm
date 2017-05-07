@@ -19,9 +19,11 @@ sub new {
 	$self->{variables} = $self->{syntax_definition_intermediate}{variables};
 	$self->{tokens} = [];
 	$self->{ignored_tokens} = $self->{syntax_definition_intermediate}{ignored_tokens};
+	$self->{context_order} = $self->{syntax_definition_intermediate}{context_order};
 	$self->{item_contexts} = $self->{syntax_definition_intermediate}{item_contexts};
 	$self->{list_contexts} = $self->{syntax_definition_intermediate}{list_contexts};
 	$self->{object_contexts} = $self->{syntax_definition_intermediate}{object_contexts};
+	$self->{subroutine_order} = $self->{syntax_definition_intermediate}{subroutine_order};
 	$self->{subroutines} = $self->{syntax_definition_intermediate}{subroutines};
 	$self->{code_definitions} = {};
 	$self->{package_identifier} = $self->{syntax_definition_intermediate}{package_identifier} // 'PACKAGE_NAME';
@@ -100,11 +102,11 @@ caller or main(@ARGV);
 
 ';
 
-	foreach my $context_type (sort keys %{$self->{code_definitions}}) {
+	foreach my $context_type (@{$self->{context_order}}) {
 		$code .= $self->{code_definitions}{$context_type} =~ s/\A(\s*)sub \{/$1sub context_$context_type {/r;
 	}
 
-	foreach my $subroutine (sort keys %{$self->{subroutines}}) {
+	foreach my $subroutine (@{$self->{subroutine_order}}) {
 		my $subroutine_code = $self->{subroutines}{$subroutine};
 		$subroutine_code =~ s/\A\{\{(.*)\}\}\Z/{$1}/s;
 		$code .= "sub $subroutine $subroutine_code\n\n";

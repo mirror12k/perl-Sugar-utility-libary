@@ -76,22 +76,67 @@ sub main {
 caller or main(@ARGV);
 
 
-sub context_action_block {
-	my ($self, $context_value) = @_;
+sub context_root {
+	my ($self) = @_;
+	my $context_object = {};
 
 	while ($self->more_tokens) {
 		my @tokens;
 
-			$self->confess_at_current_offset('expected \'{\'')
-				unless $self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] eq '{';
-			@tokens = (@tokens, $self->step_tokens(1));
-			$context_value = $self->context_match_action([]);
-			$self->confess_at_current_offset('expected \'}\'')
-				unless $self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] eq '}';
-			@tokens = (@tokens, $self->step_tokens(1));
-			return $context_value;
+			if ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] =~ /\A[a-zA-Z_][a-zA-Z0-9_]*+\Z/ and $self->{tokens}[$self->{tokens_index} + 1][1] eq '=') {
+			my @tokens_freeze = @tokens;
+			my @tokens = @tokens_freeze;
+			@tokens = (@tokens, $self->step_tokens(2));
+			$context_object->{'variables'}{$tokens[0][1]} = $self->context_def_value;
+			}
+			elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] eq 'package' and $self->{tokens}[$self->{tokens_index} + 1][1] =~ /\A[a-zA-Z_][a-zA-Z0-9_]*+(\:\:[a-zA-Z_][a-zA-Z0-9_]*+)*+\Z/) {
+			my @tokens_freeze = @tokens;
+			my @tokens = @tokens_freeze;
+			@tokens = (@tokens, $self->step_tokens(2));
+			$context_object->{'package_identifier'} = $tokens[1][1];
+			}
+			elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] eq 'tokens' and $self->{tokens}[$self->{tokens_index} + 1][1] eq '{') {
+			my @tokens_freeze = @tokens;
+			my @tokens = @tokens_freeze;
+			@tokens = (@tokens, $self->step_tokens(2));
+			$context_object->{'tokens'} = $self->context_token_definition([]);
+			}
+			elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] eq 'ignored_tokens' and $self->{tokens}[$self->{tokens_index} + 1][1] eq '{') {
+			my @tokens_freeze = @tokens;
+			my @tokens = @tokens_freeze;
+			@tokens = (@tokens, $self->step_tokens(2));
+			$context_object->{'ignored_tokens'} = $self->context_ignored_tokens_list([]);
+			}
+			elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] eq 'item' and $self->{tokens}[$self->{tokens_index} + 1][1] eq 'context' and $self->{tokens}[$self->{tokens_index} + 2][1] =~ /\A[a-zA-Z_][a-zA-Z0-9_]*+\Z/) {
+			my @tokens_freeze = @tokens;
+			my @tokens = @tokens_freeze;
+			@tokens = (@tokens, $self->step_tokens(3));
+			push @{$context_object->{'context_order'}}, $tokens[2][1];
+			$context_object->{'item_contexts'}{$tokens[2][1]} = $self->context_action_block;
+			}
+			elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] eq 'list' and $self->{tokens}[$self->{tokens_index} + 1][1] eq 'context' and $self->{tokens}[$self->{tokens_index} + 2][1] =~ /\A[a-zA-Z_][a-zA-Z0-9_]*+\Z/) {
+			my @tokens_freeze = @tokens;
+			my @tokens = @tokens_freeze;
+			@tokens = (@tokens, $self->step_tokens(3));
+			push @{$context_object->{'context_order'}}, $tokens[2][1];
+			$context_object->{'list_contexts'}{$tokens[2][1]} = $self->context_action_block;
+			}
+			elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] eq 'object' and $self->{tokens}[$self->{tokens_index} + 1][1] eq 'context' and $self->{tokens}[$self->{tokens_index} + 2][1] =~ /\A[a-zA-Z_][a-zA-Z0-9_]*+\Z/) {
+			my @tokens_freeze = @tokens;
+			my @tokens = @tokens_freeze;
+			@tokens = (@tokens, $self->step_tokens(3));
+			push @{$context_object->{'context_order'}}, $tokens[2][1];
+			$context_object->{'object_contexts'}{$tokens[2][1]} = $self->context_action_block;
+			}
+			elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] eq 'sub' and $self->{tokens}[$self->{tokens_index} + 1][1] =~ /\A[a-zA-Z_][a-zA-Z0-9_]*+\Z/ and $self->{tokens}[$self->{tokens_index} + 2][1] =~ /\A\{\{.*?\}\}\Z/s) {
+			my @tokens_freeze = @tokens;
+			my @tokens = @tokens_freeze;
+			@tokens = (@tokens, $self->step_tokens(3));
+			push @{$context_object->{'subroutine_order'}}, $tokens[2][1];
+			$context_object->{'subroutines'}{$tokens[1][1]} = $tokens[2][1];
+			}
 	}
-	return $context_value;
+	return $context_object;
 }
 
 sub context_def_value {
@@ -128,31 +173,30 @@ sub context_def_value {
 	return $context_value;
 }
 
-sub context_if_chain {
-	my ($self, $context_object) = @_;
+sub context_token_definition {
+	my ($self, $context_list) = @_;
 
 	while ($self->more_tokens) {
 		my @tokens;
 
-			if ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] eq 'elsif') {
+			if ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] eq '}') {
 			my @tokens_freeze = @tokens;
 			my @tokens = @tokens_freeze;
 			@tokens = (@tokens, $self->step_tokens(1));
-			$context_object->{'branch'} = $self->context_if_chain({ 'type' => 'elsif_statement', 'line_number' => $tokens[0][2], 'match_list' => $self->context_match_list([]), 'block' => $self->context_action_block, });
-			return $context_object;
+			return $context_list;
 			}
-			elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] eq 'else') {
+			elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] =~ /\A[a-zA-Z_][a-zA-Z0-9_]*+\Z/ and $self->{tokens}[$self->{tokens_index} + 1][1] eq '=>') {
 			my @tokens_freeze = @tokens;
 			my @tokens = @tokens_freeze;
-			@tokens = (@tokens, $self->step_tokens(1));
-			$context_object->{'branch'} = { 'type' => 'else_statement', 'line_number' => $tokens[0][2], 'block' => $self->context_action_block, };
-			return $context_object;
+			@tokens = (@tokens, $self->step_tokens(2));
+			push @$context_list, $tokens[0][1];
+			push @$context_list, $self->context_def_value;
 			}
 			else {
-			return $context_object;
+			$self->confess_at_current_offset('unexpected token in token_definition');
 			}
 	}
-	return $context_object;
+	return $context_list;
 }
 
 sub context_ignored_tokens_list {
@@ -178,6 +222,76 @@ sub context_ignored_tokens_list {
 			}
 	}
 	return $context_list;
+}
+
+sub context_match_list {
+	my ($self, $context_list) = @_;
+
+	while ($self->more_tokens) {
+		my @tokens;
+
+			push @$context_list, $self->context_match_item;
+			while ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] eq ',') {
+			my @tokens_freeze = @tokens;
+			my @tokens = @tokens_freeze;
+			@tokens = (@tokens, $self->step_tokens(1));
+			push @$context_list, $self->context_match_item;
+			}
+			return $context_list;
+	}
+	return $context_list;
+}
+
+sub context_match_item {
+	my ($self, $context_value) = @_;
+
+	while ($self->more_tokens) {
+		my @tokens;
+
+			if ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] =~ /\A\$\w++\Z/) {
+			my @tokens_freeze = @tokens;
+			my @tokens = @tokens_freeze;
+			@tokens = (@tokens, $self->step_tokens(1));
+			$context_value = $tokens[0][1];
+			return $context_value;
+			}
+			elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] =~ /\A\/([^\\\/]|\\.)*+\/[msixpodualn]*\Z/s) {
+			my @tokens_freeze = @tokens;
+			my @tokens = @tokens_freeze;
+			@tokens = (@tokens, $self->step_tokens(1));
+			$context_value = $tokens[0][1];
+			return $context_value;
+			}
+			elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] =~ /\A'([^\\']|\\[\\'])*+'\Z/s) {
+			my @tokens_freeze = @tokens;
+			my @tokens = @tokens_freeze;
+			@tokens = (@tokens, $self->step_tokens(1));
+			$context_value = $tokens[0][1];
+			return $context_value;
+			}
+			else {
+			$self->confess_at_current_offset('expected match item');
+			}
+	}
+	return $context_value;
+}
+
+sub context_action_block {
+	my ($self, $context_value) = @_;
+
+	while ($self->more_tokens) {
+		my @tokens;
+
+			$self->confess_at_current_offset('expected \'{\'')
+				unless $self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] eq '{';
+			@tokens = (@tokens, $self->step_tokens(1));
+			$context_value = $self->context_match_action([]);
+			$self->confess_at_current_offset('expected \'}\'')
+				unless $self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] eq '}';
+			@tokens = (@tokens, $self->step_tokens(1));
+			return $context_value;
+	}
+	return $context_value;
 }
 
 sub context_match_action {
@@ -284,112 +398,57 @@ sub context_match_action {
 	return $context_list;
 }
 
-sub context_match_item {
-	my ($self, $context_value) = @_;
-
-	while ($self->more_tokens) {
-		my @tokens;
-
-			if ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] =~ /\A\$\w++\Z/) {
-			my @tokens_freeze = @tokens;
-			my @tokens = @tokens_freeze;
-			@tokens = (@tokens, $self->step_tokens(1));
-			$context_value = $tokens[0][1];
-			return $context_value;
-			}
-			elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] =~ /\A\/([^\\\/]|\\.)*+\/[msixpodualn]*\Z/s) {
-			my @tokens_freeze = @tokens;
-			my @tokens = @tokens_freeze;
-			@tokens = (@tokens, $self->step_tokens(1));
-			$context_value = $tokens[0][1];
-			return $context_value;
-			}
-			elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] =~ /\A'([^\\']|\\[\\'])*+'\Z/s) {
-			my @tokens_freeze = @tokens;
-			my @tokens = @tokens_freeze;
-			@tokens = (@tokens, $self->step_tokens(1));
-			$context_value = $tokens[0][1];
-			return $context_value;
-			}
-			else {
-			$self->confess_at_current_offset('expected match item');
-			}
-	}
-	return $context_value;
-}
-
-sub context_match_list {
+sub context_switch_blocks {
 	my ($self, $context_list) = @_;
 
 	while ($self->more_tokens) {
 		my @tokens;
 
-			push @$context_list, $self->context_match_item;
-			while ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] eq ',') {
+			if ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] eq '}') {
 			my @tokens_freeze = @tokens;
 			my @tokens = @tokens_freeze;
 			@tokens = (@tokens, $self->step_tokens(1));
-			push @$context_list, $self->context_match_item;
-			}
 			return $context_list;
+			}
+			elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] eq 'default') {
+			my @tokens_freeze = @tokens;
+			my @tokens = @tokens_freeze;
+			@tokens = (@tokens, $self->step_tokens(1));
+			push @$context_list, { 'type' => 'default_case', 'line_number' => $tokens[0][2], 'block' => $self->context_action_block, };
+			$self->confess_at_current_offset('expected \'}\'')
+				unless $self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] eq '}';
+			@tokens = (@tokens, $self->step_tokens(1));
+			return $context_list;
+			}
+			else {
+			push @$context_list, { 'type' => 'match_case', 'line_number' => $tokens[0][2], 'match_list' => $self->context_match_list([]), 'block' => $self->context_action_block, };
+			}
 	}
 	return $context_list;
 }
 
-sub context_root {
-	my ($self) = @_;
-	my $context_object = {};
+sub context_if_chain {
+	my ($self, $context_object) = @_;
 
 	while ($self->more_tokens) {
 		my @tokens;
 
-			if ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] =~ /\A[a-zA-Z_][a-zA-Z0-9_]*+\Z/ and $self->{tokens}[$self->{tokens_index} + 1][1] eq '=') {
+			if ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] eq 'elsif') {
 			my @tokens_freeze = @tokens;
 			my @tokens = @tokens_freeze;
-			@tokens = (@tokens, $self->step_tokens(2));
-			$context_object->{'variables'}{$tokens[0][1]} = $self->context_def_value;
+			@tokens = (@tokens, $self->step_tokens(1));
+			$context_object->{'branch'} = $self->context_if_chain({ 'type' => 'elsif_statement', 'line_number' => $tokens[0][2], 'match_list' => $self->context_match_list([]), 'block' => $self->context_action_block, });
+			return $context_object;
 			}
-			elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] eq 'package' and $self->{tokens}[$self->{tokens_index} + 1][1] =~ /\A[a-zA-Z_][a-zA-Z0-9_]*+(\:\:[a-zA-Z_][a-zA-Z0-9_]*+)*+\Z/) {
+			elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] eq 'else') {
 			my @tokens_freeze = @tokens;
 			my @tokens = @tokens_freeze;
-			@tokens = (@tokens, $self->step_tokens(2));
-			$context_object->{'package_identifier'} = $tokens[1][1];
+			@tokens = (@tokens, $self->step_tokens(1));
+			$context_object->{'branch'} = { 'type' => 'else_statement', 'line_number' => $tokens[0][2], 'block' => $self->context_action_block, };
+			return $context_object;
 			}
-			elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] eq 'tokens' and $self->{tokens}[$self->{tokens_index} + 1][1] eq '{') {
-			my @tokens_freeze = @tokens;
-			my @tokens = @tokens_freeze;
-			@tokens = (@tokens, $self->step_tokens(2));
-			$context_object->{'tokens'} = $self->context_token_definition([]);
-			}
-			elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] eq 'ignored_tokens' and $self->{tokens}[$self->{tokens_index} + 1][1] eq '{') {
-			my @tokens_freeze = @tokens;
-			my @tokens = @tokens_freeze;
-			@tokens = (@tokens, $self->step_tokens(2));
-			$context_object->{'ignored_tokens'} = $self->context_ignored_tokens_list([]);
-			}
-			elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] eq 'item' and $self->{tokens}[$self->{tokens_index} + 1][1] eq 'context' and $self->{tokens}[$self->{tokens_index} + 2][1] =~ /\A[a-zA-Z_][a-zA-Z0-9_]*+\Z/) {
-			my @tokens_freeze = @tokens;
-			my @tokens = @tokens_freeze;
-			@tokens = (@tokens, $self->step_tokens(3));
-			$context_object->{'item_contexts'}{$tokens[2][1]} = $self->context_action_block;
-			}
-			elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] eq 'list' and $self->{tokens}[$self->{tokens_index} + 1][1] eq 'context' and $self->{tokens}[$self->{tokens_index} + 2][1] =~ /\A[a-zA-Z_][a-zA-Z0-9_]*+\Z/) {
-			my @tokens_freeze = @tokens;
-			my @tokens = @tokens_freeze;
-			@tokens = (@tokens, $self->step_tokens(3));
-			$context_object->{'list_contexts'}{$tokens[2][1]} = $self->context_action_block;
-			}
-			elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] eq 'object' and $self->{tokens}[$self->{tokens_index} + 1][1] eq 'context' and $self->{tokens}[$self->{tokens_index} + 2][1] =~ /\A[a-zA-Z_][a-zA-Z0-9_]*+\Z/) {
-			my @tokens_freeze = @tokens;
-			my @tokens = @tokens_freeze;
-			@tokens = (@tokens, $self->step_tokens(3));
-			$context_object->{'object_contexts'}{$tokens[2][1]} = $self->context_action_block;
-			}
-			elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] eq 'sub' and $self->{tokens}[$self->{tokens_index} + 1][1] =~ /\A[a-zA-Z_][a-zA-Z0-9_]*+\Z/ and $self->{tokens}[$self->{tokens_index} + 2][1] =~ /\A\{\{.*?\}\}\Z/s) {
-			my @tokens_freeze = @tokens;
-			my @tokens = @tokens_freeze;
-			@tokens = (@tokens, $self->step_tokens(3));
-			$context_object->{'subroutines'}{$tokens[1][1]} = $tokens[2][1];
+			else {
+			return $context_object;
 			}
 	}
 	return $context_object;
@@ -524,61 +583,6 @@ sub context_spawn_expression_hash {
 				unless $self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] eq '=>';
 			@tokens = (@tokens, $self->step_tokens(1));
 			push @$context_list, $self->context_spawn_expression;
-			}
-	}
-	return $context_list;
-}
-
-sub context_switch_blocks {
-	my ($self, $context_list) = @_;
-
-	while ($self->more_tokens) {
-		my @tokens;
-
-			if ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] eq '}') {
-			my @tokens_freeze = @tokens;
-			my @tokens = @tokens_freeze;
-			@tokens = (@tokens, $self->step_tokens(1));
-			return $context_list;
-			}
-			elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] eq 'default') {
-			my @tokens_freeze = @tokens;
-			my @tokens = @tokens_freeze;
-			@tokens = (@tokens, $self->step_tokens(1));
-			push @$context_list, { 'type' => 'default_case', 'line_number' => $tokens[0][2], 'block' => $self->context_action_block, };
-			$self->confess_at_current_offset('expected \'}\'')
-				unless $self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] eq '}';
-			@tokens = (@tokens, $self->step_tokens(1));
-			return $context_list;
-			}
-			else {
-			push @$context_list, { 'type' => 'match_case', 'line_number' => $tokens[0][2], 'match_list' => $self->context_match_list([]), 'block' => $self->context_action_block, };
-			}
-	}
-	return $context_list;
-}
-
-sub context_token_definition {
-	my ($self, $context_list) = @_;
-
-	while ($self->more_tokens) {
-		my @tokens;
-
-			if ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] eq '}') {
-			my @tokens_freeze = @tokens;
-			my @tokens = @tokens_freeze;
-			@tokens = (@tokens, $self->step_tokens(1));
-			return $context_list;
-			}
-			elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] =~ /\A[a-zA-Z_][a-zA-Z0-9_]*+\Z/ and $self->{tokens}[$self->{tokens_index} + 1][1] eq '=>') {
-			my @tokens_freeze = @tokens;
-			my @tokens = @tokens_freeze;
-			@tokens = (@tokens, $self->step_tokens(2));
-			push @$context_list, $tokens[0][1];
-			push @$context_list, $self->context_def_value;
-			}
-			else {
-			$self->confess_at_current_offset('unexpected token in token_definition');
 			}
 	}
 	return $context_list;
