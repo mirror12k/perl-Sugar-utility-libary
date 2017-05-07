@@ -38,11 +38,11 @@ our $contexts = {
 	if_chain => 'context_if_chain',
 	ignored_tokens_list => 'context_ignored_tokens_list',
 	match_action => 'context_match_action',
+	match_item => 'context_match_item',
 	match_list => 'context_match_list',
 	root => 'context_root',
 	spawn_expression => 'context_spawn_expression',
 	spawn_expression_hash => 'context_spawn_expression_hash',
-	spawn_expression_list => 'context_spawn_expression_list',
 	switch_blocks => 'context_switch_blocks',
 	token_definition => 'context_token_definition',
 };
@@ -284,54 +284,54 @@ sub context_match_action {
 	return $context_list;
 }
 
+sub context_match_item {
+	my ($self, $context_value) = @_;
+
+	while ($self->more_tokens) {
+		my @tokens;
+
+			if ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] =~ /\A\$\w++\Z/) {
+			my @tokens_freeze = @tokens;
+			my @tokens = @tokens_freeze;
+			@tokens = (@tokens, $self->step_tokens(1));
+			$context_value = $tokens[0][1];
+			return $context_value;
+			}
+			elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] =~ /\A\/([^\\\/]|\\.)*+\/[msixpodualn]*\Z/s) {
+			my @tokens_freeze = @tokens;
+			my @tokens = @tokens_freeze;
+			@tokens = (@tokens, $self->step_tokens(1));
+			$context_value = $tokens[0][1];
+			return $context_value;
+			}
+			elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] =~ /\A'([^\\']|\\[\\'])*+'\Z/s) {
+			my @tokens_freeze = @tokens;
+			my @tokens = @tokens_freeze;
+			@tokens = (@tokens, $self->step_tokens(1));
+			$context_value = $tokens[0][1];
+			return $context_value;
+			}
+			else {
+			$self->confess_at_current_offset('expected match item');
+			}
+	}
+	return $context_value;
+}
+
 sub context_match_list {
 	my ($self, $context_list) = @_;
 
 	while ($self->more_tokens) {
 		my @tokens;
 
-			if ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] =~ /\A\$\w++\Z/ and $self->{tokens}[$self->{tokens_index} + 1][1] eq ',') {
-			my @tokens_freeze = @tokens;
-			my @tokens = @tokens_freeze;
-			@tokens = (@tokens, $self->step_tokens(2));
-			push @$context_list, $tokens[0][1];
-			}
-			elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] =~ /\A\$\w++\Z/) {
+			push @$context_list, $self->context_match_item;
+			while ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] eq ',') {
 			my @tokens_freeze = @tokens;
 			my @tokens = @tokens_freeze;
 			@tokens = (@tokens, $self->step_tokens(1));
-			push @$context_list, $tokens[0][1];
+			push @$context_list, $self->context_match_item;
+			}
 			return $context_list;
-			}
-			elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] =~ /\A\/([^\\\/]|\\.)*+\/[msixpodualn]*\Z/s and $self->{tokens}[$self->{tokens_index} + 1][1] eq ',') {
-			my @tokens_freeze = @tokens;
-			my @tokens = @tokens_freeze;
-			@tokens = (@tokens, $self->step_tokens(2));
-			push @$context_list, $tokens[0][1];
-			}
-			elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] =~ /\A\/([^\\\/]|\\.)*+\/[msixpodualn]*\Z/s) {
-			my @tokens_freeze = @tokens;
-			my @tokens = @tokens_freeze;
-			@tokens = (@tokens, $self->step_tokens(1));
-			push @$context_list, $tokens[0][1];
-			return $context_list;
-			}
-			elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] =~ /\A'([^\\']|\\[\\'])*+'\Z/s and $self->{tokens}[$self->{tokens_index} + 1][1] eq ',') {
-			my @tokens_freeze = @tokens;
-			my @tokens = @tokens_freeze;
-			@tokens = (@tokens, $self->step_tokens(2));
-			push @$context_list, $tokens[0][1];
-			}
-			elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] =~ /\A'([^\\']|\\[\\'])*+'\Z/s) {
-			my @tokens_freeze = @tokens;
-			my @tokens = @tokens_freeze;
-			@tokens = (@tokens, $self->step_tokens(1));
-			push @$context_list, $tokens[0][1];
-			return $context_list;
-			}
-			else {
-			$self->confess_at_current_offset('unexpected end of match list');
-			}
 	}
 	return $context_list;
 }
@@ -524,26 +524,6 @@ sub context_spawn_expression_hash {
 				unless $self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] eq '=>';
 			@tokens = (@tokens, $self->step_tokens(1));
 			push @$context_list, $self->context_spawn_expression;
-			}
-	}
-	return $context_list;
-}
-
-sub context_spawn_expression_list {
-	my ($self, $context_list) = @_;
-
-	while ($self->more_tokens) {
-		my @tokens;
-
-			if ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] =~ /\A!\w++\Z/ and $self->{tokens}[$self->{tokens_index} + 1][1] eq ']') {
-			my @tokens_freeze = @tokens;
-			my @tokens = @tokens_freeze;
-			@tokens = (@tokens, $self->step_tokens(2));
-			push @$context_list, $tokens[0][1];
-			return $context_list;
-			}
-			else {
-			$self->confess_at_current_offset('push expression list expected');
 			}
 	}
 	return $context_list;

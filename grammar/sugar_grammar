@@ -118,48 +118,30 @@ list context ignored_tokens_list {
 	}
 }
 
-# list context context_definition {
-# 	'}' {
-# 		return
-# 	}
-# 	'default', '{' {
-# 		push undef
-# 		push !match_action->[]
-# 		match '}'
-# 	}
-# 	default {
-# 		push !match_list->[]
-# 		match '{'
-# 		push !match_action->[]
-# 		match '}'
-# 	}
-# }
-
 list context match_list {
+	push !match_item
+	while ',' {
+		push !match_item
+	}
+	return
+}
+
+item context match_item {
 	switch {
-		$variable_regex, ',' {
-			push $0
-		}
 		$variable_regex {
-			push $0
+			$_ = $0
 			return
-		}
-		$regex_regex, ',' {
-			push $0
 		}
 		$regex_regex {
-			push $0
+			$_ = $0
 			return
 		}
-		$string_regex, ',' {
-			push $0
-		}
 		$string_regex {
-			push $0
+			$_ = $0
 			return
 		}
 		default {
-			die 'unexpected end of match list'
+			die 'expected match item'
 		}
 	}
 }
@@ -273,76 +255,6 @@ list context match_action {
 			return
 		}
 	}
-
-
-
-	# '$_', '=' {
-	# 	push 'assign_item'
-	# 	push !spawn_expression
-	# }
-	# '$_', '{', $string_regex, '}', '{' {
-	# 	push 'assign_object_field'
-	# 	push {
-	# 		'type' => 'string'
-	# 		'string' => $2
-	# 	}
-	# 	push !spawn_expression
-	# 	match '}', '='
-	# 	push !spawn_expression
-	# }
-	# '$_', '{', $string_regex, '}', '[', ']', '=' {
-	# 	push 'assign_array_field'
-	# 	push {
-	# 		'type' => 'string'
-	# 		'string' => $2
-	# 	}
-	# 	push !spawn_expression
-	# }
-	# '$_', '{', $string_regex, '}', '=' {
-	# 	push 'assign_field'
-	# 	push {
-	# 		'type' => 'string'
-	# 		'string' => $2
-	# 	}
-	# 	push !spawn_expression
-	# }
-	# 'push' {
-	# 	push 'push'
-	# 	push !spawn_expression
-	# }
-	# 'return' {
-	# 	push 'return'
-	# }
-	# 'match' {
-	# 	push 'match'
-	# 	push !match_list->[]
-	# }
-	# 'if' {
-	# 	push 'if'
-	# 	push !match_list->[]
-	# 	match '{'
-	# 	push !match_action->[]
-	# 	match '}'
-	# 	$_ = !if_chain->$_
-	# }
-	# 'while' {
-	# 	push 'while'
-	# 	push !match_list->[]
-	# 	match '{'
-	# 	push !match_action->[]
-	# 	match '}'
-	# }
-	# 'warn' {
-	# 	push 'warn'
-	# 	push !spawn_expression
-	# }
-	# 'die' {
-	# 	push 'die'
-	# 	push !spawn_expression
-	# }
-	# default {
-	# 	return
-	# }
 }
 
 
@@ -502,70 +414,6 @@ item context spawn_expression {
 			die 'push expression expected'
 		}
 	}
-
-	# '$_' {
-	# 	$_ = $0
-	# 	return
-	# }
-	# 'pop' {
-	# 	$_ = 'pop'
-	# 	return
-	# }
-	# $context_reference_regex, '->' {
-	# 	$_ = {
-	# 		$0 => !spawn_expression
-	# 	}
-	# 	return
-	# }
-	# $context_reference_regex {
-	# 	$_ = $0
-	# 	return
-	# }
-	# $function_reference_regex, '->' {
-	# 	$_ = {
-	# 		$0 => !spawn_expression
-	# 	}
-	# 	return
-	# }
-	# $function_reference_regex {
-	# 	$_ = $0
-	# 	return
-	# }
-	# $string_regex {
-	# 	$_ = $0
-	# 	return
-	# }
-	# 'undef' {
-	# 	$_ = undef
-	# 	return
-	# }
-	# '[', ']' {
-	# 	$_ = []
-	# 	return
-	# }
-	# '{', '}' {
-	# 	$_ = {}
-	# 	return
-	# }
-	# '{' {
-	# 	$_ = !spawn_expression_hash->[]
-	# 	return
-	# }
-	# default {
-	# 	die 'push expression expected'
-	# }
-}
-
-list context spawn_expression_list {
-	switch {
-		$context_reference_regex, ']' {
-			push $0
-			return
-		}
-		default {
-			die 'push expression list expected'
-		}
-	}
 }
 
 list context spawn_expression_hash {
@@ -573,14 +421,6 @@ list context spawn_expression_hash {
 		'}' {
 			return
 		}
-		# $variable_regex, '=>' {
-		# 	push $0
-		# 	push !spawn_expression
-		# }
-		# $string_regex, '=>' {
-		# 	push $0
-		# 	push !spawn_expression
-		# }
 		default {
 			push !spawn_expression
 			match '=>'
