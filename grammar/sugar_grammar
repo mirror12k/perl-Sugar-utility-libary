@@ -178,6 +178,7 @@ list context match_action {
 			match '}', '='
 			push {
 				'type' => 'assign_object_field_statement'
+				'line_number' => $0{line_number}
 				'expression' => !spawn_expression
 				'subkey' => pop
 				'key' => pop
@@ -186,6 +187,7 @@ list context match_action {
 			match ']', '='
 			push {
 				'type' => 'assign_array_field_statement'
+				'line_number' => $0{line_number}
 				'expression' => !spawn_expression
 				'key' => pop
 			}
@@ -193,6 +195,7 @@ list context match_action {
 			match '='
 			push {
 				'type' => 'assign_field_statement'
+				'line_number' => $0{line_number}
 				'expression' => !spawn_expression
 				'key' => pop
 			}
@@ -202,23 +205,27 @@ list context match_action {
 	'push' {
 		push {
 			'type' => 'push_statement'
+			'line_number' => $0{line_number}
 			'expression' => !spawn_expression
 		}
 	}
 	'return' {
 		push {
 			'type' => 'return_statement'
+			'line_number' => $0{line_number}
 		}
 	}
 	'match' {
 		push {
 			'type' => 'match_statement'
+			'line_number' => $0{line_number}
 			'match_list' => !match_list->[]
 		}
 	}
 	'if' {
 		push !if_chain->{
 			'type' => 'if_statement'
+			'line_number' => $0{line_number}
 			'match_list' => !match_list->[]
 			'block' => !action_block
 		}
@@ -226,6 +233,7 @@ list context match_action {
 	'while' {
 		push {
 			'type' => 'while_statement'
+			'line_number' => $0{line_number}
 			'match_list' => !match_list->[]
 			'block' => !action_block
 		}
@@ -233,12 +241,14 @@ list context match_action {
 	'warn' {
 		push {
 			'type' => 'warn_statement'
+			'line_number' => $0{line_number}
 			'expression' => !spawn_expression
 		}
 	}
 	'die' {
 		push {
 			'type' => 'die_statement'
+			'line_number' => $0{line_number}
 			'expression' => !spawn_expression
 		}
 	}
@@ -318,6 +328,7 @@ object context if_chain {
 	'elsif' {
 		$_{'branch'} = !if_chain->{
 			'type' => 'elsif_statement'
+			'line_number' => $0{line_number}
 			'match_list' => !match_list->[]
 			'block' => !action_block
 		}
@@ -326,6 +337,7 @@ object context if_chain {
 	'else' {
 		$_{'branch'} = {
 			'type' => 'else_statement'
+			'line_number' => $0{line_number}
 			'block' => !action_block
 		}
 		return

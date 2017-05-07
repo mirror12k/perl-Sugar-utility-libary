@@ -113,9 +113,14 @@ caller or main(@ARGV);
 	return $code
 }
 
+sub confess_at_current_line {
+	my ($self, $msg) = @_;
+	confess "syntax error on line $self->{current_line}: $msg";
+}
+
 sub get_variable {
 	my ($self, $identifier) = @_;
-	confess "undefined variable requested: '$identifier'" unless exists $self->{variables}{$identifier};
+	$self->confess_at_current_line("undefined variable requested: '$identifier'") unless exists $self->{variables}{$identifier};
 	return $self->{variables}{$identifier}
 }
 
@@ -130,14 +135,14 @@ sub get_function_by_name {
 		} elsif (defined $self->{item_contexts}{$context_type}) {
 			return "context_$context_type"
 		} else {
-			confess "undefined context requested: '$context_type'";
+			$self->confess_at_current_line("undefined context requested: '$context_type'");
 		}
 
 	} elsif ($value =~ /\A\&(\w++)\Z/) {
 		return "$1"
 
 	} else {
-		confess "unknown context type requested: '$value'";
+		$self->confess_at_current_line("unknown context type requested: '$value'");
 	}
 }
 
@@ -277,7 +282,7 @@ sub compile_syntax_condition {
 	} elsif ($condition =~ /\A'.*'\Z/s) {
 		return "\$self->{tokens}[\$self->{tokens_index} + $offset][1] eq $condition"
 	} else {
-		confess "invalid syntax condition '$condition'";
+		$self->confess_at_current_line("invalid syntax condition '$condition'");
 	}
 }
 
@@ -298,16 +303,15 @@ sub compile_syntax_action {
 	# my @actions = @$actions_list;
 	# while (@actions) {
 		# my $action = shift @actions;
-	warn "debug: ", Dumper $actions_list;
 	foreach my $action (@$actions_list) {
+		$self->{current_line} = $action->{line_number};
 
-		confess "invalid action: $action" unless ref $action;
 		if ($action->{type} eq 'push_statement') {
 			my $expression = $self->compile_syntax_spawn_expression($context_type, $action->{expression});
 			if ($context_type eq 'list_context') {
 				push @code, "push \@\$context_list, $expression;";
 			} else {
-				confess "use of push in $context_type";
+				$self->confess_at_current_line("use of push in $context_type");
 			}
 		} elsif ($action->{type} eq 'assign_item_statement') {
 			my $expression = $self->compile_syntax_spawn_expression($context_type, $action->{expression});
@@ -530,13 +534,13 @@ sub compile_syntax_spawn_expression {
 		return 'undef'
 
 	} elsif ($expression->{type} eq 'get_token_line_number') {
-		confess "invalid spawn expression token: '$expression->{token}'" unless $expression->{token} =~ /\A\$(\d+)\Z/s;
+		$self->confess_at_current_line("invalid spawn expression token: '$expression->{token}'") unless $expression->{token} =~ /\A\$(\d+)\Z/s;
 		return "\$tokens[$1][2]";
 	} elsif ($expression->{type} eq 'get_token_line_offset') {
-		confess "invalid spawn expression token: '$expression->{token}'" unless $expression->{token} =~ /\A\$(\d+)\Z/s;
+		$self->confess_at_current_line("invalid spawn expression token: '$expression->{token}'") unless $expression->{token} =~ /\A\$(\d+)\Z/s;
 		return "\$tokens[$1][3]";
 	} elsif ($expression->{type} eq 'get_token_text') {
-		confess "invalid spawn expression token: '$expression->{token}'" unless $expression->{token} =~ /\A\$(\d+)\Z/s;
+		$self->confess_at_current_line("invalid spawn expression token: '$expression->{token}'") unless $expression->{token} =~ /\A\$(\d+)\Z/s;
 		return "\$tokens[$1][1]";
 
 	} elsif ($expression->{type} eq 'get_context') {
@@ -552,7 +556,7 @@ sub compile_syntax_spawn_expression {
 		if ($context_type eq 'list_context') {
 			return "pop \@\$context_list";
 		} else {
-			confess "use of pop in $context_type";
+			$self->confess_at_current_line("use of pop in $context_type");
 		}
 
 	} elsif ($expression->{type} eq 'call_context') {
@@ -574,7 +578,7 @@ sub compile_syntax_spawn_expression {
 		}
 
 	} elsif ($expression->{type} eq 'string') {
-		confess "invalid spawn expression string: '$expression->{string}'" unless $expression->{string} =~ /\A'(.*)'\Z/s;
+		$self->confess_at_current_line("invalid spawn expression string: '$expression->{string}'") unless $expression->{string} =~ /\A'(.*)'\Z/s;
 		return "'$1'";
 	} elsif ($expression->{type} eq 'empty_list') {
 		return '[]'
@@ -592,7 +596,7 @@ sub compile_syntax_spawn_expression {
 		return $code
 
 	} else {
-		confess "invalid spawn expression: '$expression'";
+		$self->confess_at_current_line("invalid spawn expression: '$expression->{type}'");
 	}
 
 	# if (not defined $expression) {
