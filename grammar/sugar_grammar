@@ -67,7 +67,7 @@ object context root {
 			$_{'object_contexts'}{$2} = !action_block
 		}
 		'sub', $identifier_regex, $code_block_regex {
-			$_{'subroutine_order'}[] = $2
+			$_{'subroutine_order'}[] = $1
 			$_{'subroutines'}{$1} = $2
 		}
 	}

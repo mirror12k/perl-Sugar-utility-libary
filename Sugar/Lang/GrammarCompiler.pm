@@ -132,7 +132,7 @@ sub context_root {
 			my @tokens_freeze = @tokens;
 			my @tokens = @tokens_freeze;
 			@tokens = (@tokens, $self->step_tokens(3));
-			push @{$context_object->{'subroutine_order'}}, $tokens[2][1];
+			push @{$context_object->{'subroutine_order'}}, $tokens[1][1];
 			$context_object->{'subroutines'}{$tokens[1][1]} = $tokens[2][1];
 			}
 	}
