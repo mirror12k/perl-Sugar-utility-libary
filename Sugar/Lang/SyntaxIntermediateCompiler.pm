@@ -17,6 +17,7 @@ sub new {
 			// croak "syntax_definition_intermediate argument required for Sugar::Lang::SyntaxIntermediateCompiler";
 
 	$self->{variables} = $self->{syntax_definition_intermediate}{variables};
+	$self->{variables_by_name} = {};
 	$self->{tokens} = [];
 	$self->{ignored_tokens} = $self->{syntax_definition_intermediate}{ignored_tokens};
 	$self->{context_order} = $self->{syntax_definition_intermediate}{context_order};
@@ -53,6 +54,12 @@ use Sugar::IO::File;
 
 
 ";
+
+	foreach my $i (0 .. $#{$self->{variables}} / 2) {
+		my $var_name = $self->{variables}[$i*2];
+		my $var_value = $self->{variables_by_name}{$var_name};
+		$code .= "our \$var_$var_name = $var_value;\n";
+	}
 
 	$code .= "our \$tokens = [\n";
 	foreach my $i (0 .. $#{$self->{tokens}} / 2) {
@@ -122,8 +129,8 @@ sub confess_at_current_line {
 
 sub get_variable {
 	my ($self, $identifier) = @_;
-	$self->confess_at_current_line("undefined variable requested: '$identifier'") unless exists $self->{variables}{$identifier};
-	return $self->{variables}{$identifier}
+	$self->confess_at_current_line("undefined variable requested: '$identifier'") unless exists $self->{variables_by_name}{$identifier};
+	return $self->{variables_by_name}{$identifier}
 }
 
 sub get_function_by_name {
@@ -151,6 +158,13 @@ sub get_function_by_name {
 sub compile_syntax_intermediate {
 	my ($self) = @_;
 
+	my @variables = @{$self->{syntax_definition_intermediate}{variables}};
+	while (@variables) {
+		my $key = shift @variables;
+		my $value = $self->compile_syntax_token_value(shift @variables);
+		$self->{variables_by_name}{$key} = $value;
+	}
+
 	my @token_definitions = @{$self->{syntax_definition_intermediate}{tokens}};
 	while (@token_definitions) {
 		my $key = shift @token_definitions;
@@ -176,7 +190,10 @@ sub compile_syntax_token_value {
 	if ($value =~ m#\A/([^\\/]|\\.)*+/[msixpodualn]*\Z#s) {
 		return "qr$value"
 	} elsif ($value =~ /\A\$(\w++)\Z/) {
-		return $self->compile_syntax_token_value($self->get_variable($1))
+		# verify that the variable exists
+		$self->get_variable($1);
+		return "\$var_$1"
+		# return $self->compile_syntax_token_value($self->get_variable($1))
 	} else {
 		confess "invalid syntax token value: $value";
 	}
@@ -250,7 +267,10 @@ sub compile_syntax_condition {
 		}
 		return join ' and ', '$self->more_tokens', @conditions
 	} elsif ($condition =~ m#\A\$(\w++)\Z#s) {
-		return $self->compile_syntax_condition($self->get_variable($1), $offset)
+		# verify that the variable exists
+		$self->get_variable($1);
+		return "\$self->{tokens}[\$self->{tokens_index} + $offset][1] =~ \$var_$1"
+		# return $self->compile_syntax_condition($self->get_variable($1), $offset)
 	} elsif ($condition =~ m#\A/(.*)/([msixpodualn]*)\Z#s) {
 		return "\$self->{tokens}[\$self->{tokens_index} + $offset][1] =~ /\\A$1\\Z/$2"
 	} elsif ($condition =~ /\A'.*'\Z/s) {

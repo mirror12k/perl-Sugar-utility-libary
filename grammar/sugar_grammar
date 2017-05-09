@@ -43,7 +43,8 @@ ignored_tokens {
 object context root {
 	switch {
 		$identifier_regex, '=' {
-			$_{'variables'}{$0} = !def_value
+			$_{'variables'}[] = $0
+			$_{'variables'}[] = !def_value
 		}
 		'package', $package_identifier_regex {
 			$_{'package_identifier'} = $1

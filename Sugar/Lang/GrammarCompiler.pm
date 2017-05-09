@@ -13,18 +13,29 @@ use Sugar::Lang::SyntaxIntermediateCompiler;
 
 
 
+our $var_code_block_regex = qr/\{\{.*?\}\}/s;
+our $var_symbol_regex = qr/\{|\}|\[|\]|->|=>|=|,/;
+our $var_package_identifier_regex = qr/[a-zA-Z_][a-zA-Z0-9_]*+(\:\:[a-zA-Z_][a-zA-Z0-9_]*+)*+/;
+our $var_identifier_regex = qr/[a-zA-Z_][a-zA-Z0-9_]*+/;
+our $var_string_regex = qr/'([^\\']|\\[\\'])*+'/s;
+our $var_regex_regex = qr/\/([^\\\/]|\\.)*+\/[msixpodualn]*/s;
+our $var_variable_regex = qr/\$\w++/;
+our $var_context_reference_regex = qr/!\w++/;
+our $var_function_reference_regex = qr/\&\w++/;
+our $var_comment_regex = qr/\#[^\n]*+\n/s;
+our $var_whitespace_regex = qr/\s++/s;
 our $tokens = [
-	'code_block' => qr/\{\{.*?\}\}/s,
-	'symbol' => qr/\{|\}|\[|\]|->|=>|=|,/,
-	'package_identifier' => qr/[a-zA-Z_][a-zA-Z0-9_]*+(\:\:[a-zA-Z_][a-zA-Z0-9_]*+)*+/,
-	'identifier' => qr/[a-zA-Z_][a-zA-Z0-9_]*+/,
-	'string' => qr/'([^\\']|\\[\\'])*+'/s,
-	'regex' => qr/\/([^\\\/]|\\.)*+\/[msixpodualn]*/s,
-	'variable' => qr/\$\w++/,
-	'context_reference' => qr/!\w++/,
-	'function_reference' => qr/\&\w++/,
-	'comment' => qr/\#[^\n]*+\n/s,
-	'whitespace' => qr/\s++/s,
+	'code_block' => $var_code_block_regex,
+	'symbol' => $var_symbol_regex,
+	'package_identifier' => $var_package_identifier_regex,
+	'identifier' => $var_identifier_regex,
+	'string' => $var_string_regex,
+	'regex' => $var_regex_regex,
+	'variable' => $var_variable_regex,
+	'context_reference' => $var_context_reference_regex,
+	'function_reference' => $var_function_reference_regex,
+	'comment' => $var_comment_regex,
+	'whitespace' => $var_whitespace_regex,
 ];
 
 our $ignored_tokens = [
@@ -83,13 +94,14 @@ sub context_root {
 	while ($self->more_tokens) {
 		my @tokens;
 
-			if ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] =~ /\A[a-zA-Z_][a-zA-Z0-9_]*+\Z/ and $self->{tokens}[$self->{tokens_index} + 1][1] eq '=') {
+			if ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] =~ $var_identifier_regex and $self->{tokens}[$self->{tokens_index} + 1][1] eq '=') {
 			my @tokens_freeze = @tokens;
 			my @tokens = @tokens_freeze;
 			@tokens = (@tokens, $self->step_tokens(2));
-			$context_object->{'variables'}{$tokens[0][1]} = $self->context_def_value;
+			push @{$context_object->{'variables'}}, $tokens[0][1];
+			push @{$context_object->{'variables'}}, $self->context_def_value;
 			}
-			elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] eq 'package' and $self->{tokens}[$self->{tokens_index} + 1][1] =~ /\A[a-zA-Z_][a-zA-Z0-9_]*+(\:\:[a-zA-Z_][a-zA-Z0-9_]*+)*+\Z/) {
+			elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] eq 'package' and $self->{tokens}[$self->{tokens_index} + 1][1] =~ $var_package_identifier_regex) {
 			my @tokens_freeze = @tokens;
 			my @tokens = @tokens_freeze;
 			@tokens = (@tokens, $self->step_tokens(2));
@@ -107,28 +119,28 @@ sub context_root {
 			@tokens = (@tokens, $self->step_tokens(2));
 			$context_object->{'ignored_tokens'} = $self->context_ignored_tokens_list([]);
 			}
-			elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] eq 'item' and $self->{tokens}[$self->{tokens_index} + 1][1] eq 'context' and $self->{tokens}[$self->{tokens_index} + 2][1] =~ /\A[a-zA-Z_][a-zA-Z0-9_]*+\Z/) {
+			elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] eq 'item' and $self->{tokens}[$self->{tokens_index} + 1][1] eq 'context' and $self->{tokens}[$self->{tokens_index} + 2][1] =~ $var_identifier_regex) {
 			my @tokens_freeze = @tokens;
 			my @tokens = @tokens_freeze;
 			@tokens = (@tokens, $self->step_tokens(3));
 			push @{$context_object->{'context_order'}}, $tokens[2][1];
 			$context_object->{'item_contexts'}{$tokens[2][1]} = $self->context_action_block;
 			}
-			elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] eq 'list' and $self->{tokens}[$self->{tokens_index} + 1][1] eq 'context' and $self->{tokens}[$self->{tokens_index} + 2][1] =~ /\A[a-zA-Z_][a-zA-Z0-9_]*+\Z/) {
+			elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] eq 'list' and $self->{tokens}[$self->{tokens_index} + 1][1] eq 'context' and $self->{tokens}[$self->{tokens_index} + 2][1] =~ $var_identifier_regex) {
 			my @tokens_freeze = @tokens;
 			my @tokens = @tokens_freeze;
 			@tokens = (@tokens, $self->step_tokens(3));
 			push @{$context_object->{'context_order'}}, $tokens[2][1];
 			$context_object->{'list_contexts'}{$tokens[2][1]} = $self->context_action_block;
 			}
-			elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] eq 'object' and $self->{tokens}[$self->{tokens_index} + 1][1] eq 'context' and $self->{tokens}[$self->{tokens_index} + 2][1] =~ /\A[a-zA-Z_][a-zA-Z0-9_]*+\Z/) {
+			elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] eq 'object' and $self->{tokens}[$self->{tokens_index} + 1][1] eq 'context' and $self->{tokens}[$self->{tokens_index} + 2][1] =~ $var_identifier_regex) {
 			my @tokens_freeze = @tokens;
 			my @tokens = @tokens_freeze;
 			@tokens = (@tokens, $self->step_tokens(3));
 			push @{$context_object->{'context_order'}}, $tokens[2][1];
 			$context_object->{'object_contexts'}{$tokens[2][1]} = $self->context_action_block;
 			}
-			elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] eq 'sub' and $self->{tokens}[$self->{tokens_index} + 1][1] =~ /\A[a-zA-Z_][a-zA-Z0-9_]*+\Z/ and $self->{tokens}[$self->{tokens_index} + 2][1] =~ /\A\{\{.*?\}\}\Z/s) {
+			elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] eq 'sub' and $self->{tokens}[$self->{tokens_index} + 1][1] =~ $var_identifier_regex and $self->{tokens}[$self->{tokens_index} + 2][1] =~ $var_code_block_regex) {
 			my @tokens_freeze = @tokens;
 			my @tokens = @tokens_freeze;
 			@tokens = (@tokens, $self->step_tokens(3));
@@ -145,21 +157,21 @@ sub context_def_value {
 	while ($self->more_tokens) {
 		my @tokens;
 
-			if ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] =~ /\A'([^\\']|\\[\\'])*+'\Z/s) {
+			if ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] =~ $var_string_regex) {
 			my @tokens_freeze = @tokens;
 			my @tokens = @tokens_freeze;
 			@tokens = (@tokens, $self->step_tokens(1));
 			$context_value = $tokens[0][1];
 			return $context_value;
 			}
-			elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] =~ /\A\/([^\\\/]|\\.)*+\/[msixpodualn]*\Z/s) {
+			elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] =~ $var_regex_regex) {
 			my @tokens_freeze = @tokens;
 			my @tokens = @tokens_freeze;
 			@tokens = (@tokens, $self->step_tokens(1));
 			$context_value = $tokens[0][1];
 			return $context_value;
 			}
-			elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] =~ /\A\$\w++\Z/) {
+			elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] =~ $var_variable_regex) {
 			my @tokens_freeze = @tokens;
 			my @tokens = @tokens_freeze;
 			@tokens = (@tokens, $self->step_tokens(1));
@@ -185,7 +197,7 @@ sub context_token_definition {
 			@tokens = (@tokens, $self->step_tokens(1));
 			return $context_list;
 			}
-			elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] =~ /\A[a-zA-Z_][a-zA-Z0-9_]*+\Z/ and $self->{tokens}[$self->{tokens_index} + 1][1] eq '=>') {
+			elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] =~ $var_identifier_regex and $self->{tokens}[$self->{tokens_index} + 1][1] eq '=>') {
 			my @tokens_freeze = @tokens;
 			my @tokens = @tokens_freeze;
 			@tokens = (@tokens, $self->step_tokens(2));
@@ -211,7 +223,7 @@ sub context_ignored_tokens_list {
 			@tokens = (@tokens, $self->step_tokens(1));
 			return $context_list;
 			}
-			elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] =~ /\A[a-zA-Z_][a-zA-Z0-9_]*+\Z/) {
+			elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] =~ $var_identifier_regex) {
 			my @tokens_freeze = @tokens;
 			my @tokens = @tokens_freeze;
 			@tokens = (@tokens, $self->step_tokens(1));
@@ -248,21 +260,21 @@ sub context_match_item {
 	while ($self->more_tokens) {
 		my @tokens;
 
-			if ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] =~ /\A\$\w++\Z/) {
+			if ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] =~ $var_variable_regex) {
 			my @tokens_freeze = @tokens;
 			my @tokens = @tokens_freeze;
 			@tokens = (@tokens, $self->step_tokens(1));
 			$context_value = $tokens[0][1];
 			return $context_value;
 			}
-			elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] =~ /\A\/([^\\\/]|\\.)*+\/[msixpodualn]*\Z/s) {
+			elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] =~ $var_regex_regex) {
 			my @tokens_freeze = @tokens;
 			my @tokens = @tokens_freeze;
 			@tokens = (@tokens, $self->step_tokens(1));
 			$context_value = $tokens[0][1];
 			return $context_value;
 			}
-			elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] =~ /\A'([^\\']|\\[\\'])*+'\Z/s) {
+			elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] =~ $var_string_regex) {
 			my @tokens_freeze = @tokens;
 			my @tokens = @tokens_freeze;
 			@tokens = (@tokens, $self->step_tokens(1));
@@ -495,35 +507,35 @@ sub context_spawn_expression {
 			$context_value = { 'type' => 'pop_list', };
 			return $context_value;
 			}
-			elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] =~ /\A!\w++\Z/ and $self->{tokens}[$self->{tokens_index} + 1][1] eq '->') {
+			elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] =~ $var_context_reference_regex and $self->{tokens}[$self->{tokens_index} + 1][1] eq '->') {
 			my @tokens_freeze = @tokens;
 			my @tokens = @tokens_freeze;
 			@tokens = (@tokens, $self->step_tokens(2));
 			$context_value = { 'type' => 'call_context', 'context' => $tokens[0][1], 'argument' => $self->context_spawn_expression, };
 			return $context_value;
 			}
-			elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] =~ /\A!\w++\Z/) {
+			elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] =~ $var_context_reference_regex) {
 			my @tokens_freeze = @tokens;
 			my @tokens = @tokens_freeze;
 			@tokens = (@tokens, $self->step_tokens(1));
 			$context_value = { 'type' => 'call_context', 'context' => $tokens[0][1], };
 			return $context_value;
 			}
-			elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] =~ /\A\&\w++\Z/ and $self->{tokens}[$self->{tokens_index} + 1][1] eq '->') {
+			elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] =~ $var_function_reference_regex and $self->{tokens}[$self->{tokens_index} + 1][1] eq '->') {
 			my @tokens_freeze = @tokens;
 			my @tokens = @tokens_freeze;
 			@tokens = (@tokens, $self->step_tokens(2));
 			$context_value = { 'type' => 'call_function', 'function' => $tokens[0][1], 'argument' => $self->context_spawn_expression, };
 			return $context_value;
 			}
-			elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] =~ /\A\&\w++\Z/) {
+			elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] =~ $var_function_reference_regex) {
 			my @tokens_freeze = @tokens;
 			my @tokens = @tokens_freeze;
 			@tokens = (@tokens, $self->step_tokens(1));
 			$context_value = { 'type' => 'call_function', 'function' => $tokens[0][1], };
 			return $context_value;
 			}
-			elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] =~ /\A'([^\\']|\\[\\'])*+'\Z/s) {
+			elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] =~ $var_string_regex) {
 			my @tokens_freeze = @tokens;
 			my @tokens = @tokens_freeze;
 			@tokens = (@tokens, $self->step_tokens(1));
