@@ -1,6 +1,5 @@
 
 
-asdf = 'qert'
 qwert = /testing/msix
 
 tokens {}
@@ -79,6 +78,12 @@ list context test_switch {
 			push '0'
 		}
 	}
+}
+
+
+item context test_replace {
+	match /\w++/
+	$_ = s/([a-z])/!$1/g->$0
 }
 
 

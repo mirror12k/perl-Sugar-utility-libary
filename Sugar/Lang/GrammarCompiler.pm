@@ -19,7 +19,8 @@ our $var_symbol_regex = qr/\{|\}|\[|\]|->|=>|=|,/;
 our $var_package_identifier_regex = qr/[a-zA-Z_][a-zA-Z0-9_]*+(\:\:[a-zA-Z_][a-zA-Z0-9_]*+)*+/;
 our $var_identifier_regex = qr/[a-zA-Z_][a-zA-Z0-9_]*+/;
 our $var_string_regex = qr/'([^\\']|\\[\\'])*+'/s;
-our $var_regex_regex = qr/\/([^\\\/]|\\.)*+\/[msixpodualn]*/s;
+our $var_regex_regex = qr/\/([^\\\/]|\\.)*+\/[msixpodualn]*+/s;
+our $var_substitution_regex_regex = qr/s\/([^\\\/]|\\.)*+\/([^\\\/]|\\.)*+\/[msixpodualngcer]*+/s;
 our $var_variable_regex = qr/\$\w++/;
 our $var_context_reference_regex = qr/!\w++/;
 our $var_function_reference_regex = qr/\&\w++/;
@@ -30,10 +31,11 @@ our $var_whitespace_regex = qr/\s++/s;
 our $tokens = [
 	'code_block' => $var_code_block_regex,
 	'symbol' => $var_symbol_regex,
+	'regex' => $var_regex_regex,
+	'substitution_regex' => $var_substitution_regex_regex,
 	'package_identifier' => $var_package_identifier_regex,
 	'identifier' => $var_identifier_regex,
 	'string' => $var_string_regex,
-	'regex' => $var_regex_regex,
 	'variable' => $var_variable_regex,
 	'context_reference' => $var_context_reference_regex,
 	'function_reference' => $var_function_reference_regex,
@@ -164,6 +166,13 @@ sub context_def_value {
 		my @tokens;
 
 			if ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] =~ $var_string_regex) {
+			my @tokens_freeze = @tokens;
+			my @tokens = @tokens_freeze;
+			@tokens = (@tokens, $self->step_tokens(1));
+			$context_value = $tokens[0][1];
+			return $context_value;
+			}
+			elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] =~ $var_substitution_regex_regex) {
 			my @tokens_freeze = @tokens;
 			my @tokens = @tokens_freeze;
 			@tokens = (@tokens, $self->step_tokens(1));
@@ -541,6 +550,13 @@ sub context_spawn_expression {
 			$context_value = { 'type' => 'call_function', 'function' => $tokens[0][1], };
 			return $context_value;
 			}
+			elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] =~ $var_substitution_regex_regex and $self->{tokens}[$self->{tokens_index} + 1][1] eq '->') {
+			my @tokens_freeze = @tokens;
+			my @tokens = @tokens_freeze;
+			@tokens = (@tokens, $self->step_tokens(2));
+			$context_value = { 'type' => 'call_substitution', 'regex' => $tokens[0][1], 'argument' => $self->context_spawn_expression, };
+			return $context_value;
+			}
 			elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] =~ $var_string_regex) {
 			my @tokens_freeze = @tokens;
 			my @tokens = @tokens_freeze;
@@ -620,7 +636,7 @@ sub main {
 	foreach my $file (@_) {
 		$parser->{filepath} = Sugar::IO::File->new($file);
 		my $tree = $parser->parse;
-		# say Dumper $tree;
+		say Dumper $tree;
 
 		my $compiler = Sugar::Lang::SyntaxIntermediateCompiler->new(syntax_definition_intermediate => $tree);
 		say $compiler->to_package;

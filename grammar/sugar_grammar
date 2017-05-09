@@ -8,7 +8,8 @@ symbol_regex = /\{|\}|\[|\]|->|=>|=|,/
 package_identifier_regex = /[a-zA-Z_][a-zA-Z0-9_]*+(\:\:[a-zA-Z_][a-zA-Z0-9_]*+)*+/
 identifier_regex = /[a-zA-Z_][a-zA-Z0-9_]*+/
 string_regex = /'([^\\']|\\[\\'])*+'/s
-regex_regex = /\/([^\\\/]|\\.)*+\/[msixpodualn]*/s
+regex_regex = /\/([^\\\/]|\\.)*+\/[msixpodualn]*+/s
+substitution_regex_regex = /s\/([^\\\/]|\\.)*+\/([^\\\/]|\\.)*+\/[msixpodualngcer]*+/s
 variable_regex = /\$\w++/
 context_reference_regex = /!\w++/
 function_reference_regex = /\&\w++/
@@ -20,11 +21,12 @@ whitespace_regex = /\s++/s
 tokens {
 	code_block => $code_block_regex
 	symbol => $symbol_regex
+	regex => $regex_regex
+	substitution_regex => $substitution_regex_regex
 
 	package_identifier => $package_identifier_regex
 	identifier => $identifier_regex
 	string => $string_regex
-	regex => $regex_regex
 	variable => $variable_regex
 	context_reference => $context_reference_regex
 	function_reference => $function_reference_regex
@@ -77,6 +79,10 @@ object context root {
 item context def_value {
 	switch {
 		$string_regex {
+			$_ = $0
+			return
+		}
+		$substitution_regex_regex {
 			$_ = $0
 			return
 		}
@@ -378,6 +384,14 @@ item context spawn_expression {
 			$_ = {
 				'type' => 'call_function'
 				'function' => $0
+			}
+			return
+		}
+		$substitution_regex_regex, '->' {
+			$_ = {
+				'type' => 'call_substitution'
+				'regex' => $0
+				'argument' => !spawn_expression
 			}
 			return
 		}

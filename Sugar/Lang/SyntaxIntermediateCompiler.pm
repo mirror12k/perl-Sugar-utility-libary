@@ -185,8 +185,10 @@ sub compile_syntax_intermediate {
 
 sub compile_syntax_token_value {
 	my ($self, $value) = @_;
-	if ($value =~ m#\A/([^\\/]|\\.)*+/[msixpodualn]*\Z#s) {
+	if ($value =~ m#\A$Sugar::Lang::GrammarCompiler::var_regex_regex\Z#s) {
 		return "qr$value"
+	} elsif ($value =~ m#\A$Sugar::Lang::GrammarCompiler::var_substitution_regex_regex\Z#s) {
+		return "sub { \$_[0] =~ ${value}r }"
 	} elsif ($value =~ /\A\$(\w++)\Z/) {
 		# verify that the variable exists
 		$self->get_variable($1);
@@ -463,7 +465,8 @@ sub compile_syntax_spawn_expression {
 		# warn "got call_expression: $expression";
 		my $context = $self->get_function_by_name($expression->{context});
 		if (exists $expression->{argument}) {
-			return "\$self->$context(" . $self->compile_syntax_spawn_expression($context_type, $expression->{argument}) . ")";
+			my $expression_code = $self->compile_syntax_spawn_expression($context_type, $expression->{argument});
+			return "\$self->$context($expression_code)";
 		} else {
 			return "\$self->$context";
 		}
@@ -472,10 +475,16 @@ sub compile_syntax_spawn_expression {
 		# warn "got call_expression: $expression";
 		my $function = $self->get_function_by_name($expression->{function});
 		if (exists $expression->{argument}) {
-			return "\$self->$function(" . $self->compile_syntax_spawn_expression($context_type, $expression->{argument}) . ")";
+			my $expression_code = $self->compile_syntax_spawn_expression($context_type, $expression->{argument});
+			return "\$self->$function($expression_code)";
 		} else {
 			return "\$self->$function";
 		}
+
+	} elsif ($expression->{type} eq 'call_substitution') {
+		# warn "got call_expression: $expression";
+		my $expression_code = $self->compile_syntax_spawn_expression($context_type, $expression->{argument});
+		return "$expression_code =~ $expression->{regex}r";
 
 	} elsif ($expression->{type} eq 'string') {
 		$self->confess_at_current_line("invalid spawn expression string: '$expression->{string}'") unless $expression->{string} =~ /\A'(.*)'\Z/s;
