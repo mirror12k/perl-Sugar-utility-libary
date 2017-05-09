@@ -45,33 +45,33 @@ ignored_tokens {
 object context root {
 	switch {
 		$identifier_regex, '=' {
-			$_{'variables'}[] = $0
-			$_{'variables'}[] = !def_value
+			$_{variables}[] = $0
+			$_{variables}[] = !def_value
 		}
 		'package', $package_identifier_regex {
-			$_{'package_identifier'} = $1
+			$_{package_identifier} = $1
 		}
 		'tokens', '{' {
-			$_{'tokens'} = !token_definition->[]
+			$_{tokens} = !token_definition->[]
 		}
 		'ignored_tokens', '{' {
-			$_{'ignored_tokens'} = !ignored_tokens_list->[]
+			$_{ignored_tokens} = !ignored_tokens_list->[]
 		}
 		'item', 'context', $identifier_regex {
-			$_{'context_order'}[] = $2
-			$_{'item_contexts'}{$2} = !action_block
+			$_{context_order}[] = $2
+			$_{item_contexts}{$2} = !action_block
 		}
 		'list', 'context', $identifier_regex {
-			$_{'context_order'}[] = $2
-			$_{'list_contexts'}{$2} = !action_block
+			$_{context_order}[] = $2
+			$_{list_contexts}{$2} = !action_block
 		}
 		'object', 'context', $identifier_regex {
-			$_{'context_order'}[] = $2
-			$_{'object_contexts'}{$2} = !action_block
+			$_{context_order}[] = $2
+			$_{object_contexts}{$2} = !action_block
 		}
 		'sub', $identifier_regex, $code_block_regex {
-			$_{'subroutine_order'}[] = $1
-			$_{'subroutines'}{$1} = $2
+			$_{subroutine_order}[] = $1
+			$_{subroutines}{$1} = $2
 		}
 	}
 }
@@ -168,9 +168,9 @@ list context match_action {
 	switch {
 		'$_', '=' {
 			push {
-				'type' => 'assign_item_statement'
-				'line_number' => $0{line_number}
-				'expression' => !spawn_expression
+				type => 'assign_item_statement'
+				line_number => $0{line_number}
+				expression => !spawn_expression
 			}
 		}
 		'$_', '{' {
@@ -180,87 +180,87 @@ list context match_action {
 				push !spawn_expression
 				match '}', '='
 				push {
-					'type' => 'assign_object_field_statement'
-					'line_number' => $0{line_number}
-					'expression' => !spawn_expression
-					'subkey' => pop
-					'key' => pop
+					type => 'assign_object_field_statement'
+					line_number => $0{line_number}
+					expression => !spawn_expression
+					subkey => pop
+					key => pop
 				}
 			} elsif '[' {
 				match ']', '='
 				push {
-					'type' => 'assign_array_field_statement'
-					'line_number' => $0{line_number}
-					'expression' => !spawn_expression
-					'key' => pop
+					type => 'assign_array_field_statement'
+					line_number => $0{line_number}
+					expression => !spawn_expression
+					key => pop
 				}
 			} else {
 				match '='
 				push {
-					'type' => 'assign_field_statement'
-					'line_number' => $0{line_number}
-					'expression' => !spawn_expression
-					'key' => pop
+					type => 'assign_field_statement'
+					line_number => $0{line_number}
+					expression => !spawn_expression
+					key => pop
 				}
 			}
 
 		}
 		'push' {
 			push {
-				'type' => 'push_statement'
-				'line_number' => $0{line_number}
-				'expression' => !spawn_expression
+				type => 'push_statement'
+				line_number => $0{line_number}
+				expression => !spawn_expression
 			}
 		}
 		'return' {
 			push {
-				'type' => 'return_statement'
-				'line_number' => $0{line_number}
+				type => 'return_statement'
+				line_number => $0{line_number}
 			}
 		}
 		'match' {
 			push {
-				'type' => 'match_statement'
-				'line_number' => $0{line_number}
-				'match_list' => !match_list->[]
+				type => 'match_statement'
+				line_number => $0{line_number}
+				match_list => !match_list->[]
 			}
 		}
 		'if' {
 			push !if_chain->{
-				'type' => 'if_statement'
-				'line_number' => $0{line_number}
-				'match_list' => !match_list->[]
-				'block' => !action_block
+				type => 'if_statement'
+				line_number => $0{line_number}
+				match_list => !match_list->[]
+				block => !action_block
 			}
 		}
 		'switch' {
 			match '{'
 			push !if_chain->{
-				'type' => 'switch_statement'
-				'line_number' => $0{line_number}
-				'switch_cases' => !switch_blocks->[]
+				type => 'switch_statement'
+				line_number => $0{line_number}
+				switch_cases => !switch_blocks->[]
 			}
 		}
 		'while' {
 			push {
-				'type' => 'while_statement'
-				'line_number' => $0{line_number}
-				'match_list' => !match_list->[]
-				'block' => !action_block
+				type => 'while_statement'
+				line_number => $0{line_number}
+				match_list => !match_list->[]
+				block => !action_block
 			}
 		}
 		'warn' {
 			push {
-				'type' => 'warn_statement'
-				'line_number' => $0{line_number}
-				'expression' => !spawn_expression
+				type => 'warn_statement'
+				line_number => $0{line_number}
+				expression => !spawn_expression
 			}
 		}
 		'die' {
 			push {
-				'type' => 'die_statement'
-				'line_number' => $0{line_number}
-				'expression' => !spawn_expression
+				type => 'die_statement'
+				line_number => $0{line_number}
+				expression => !spawn_expression
 			}
 		}
 		default {
@@ -277,19 +277,19 @@ list context switch_blocks {
 		}
 		'default' {
 			push {
-				'type' => 'default_case'
-				'line_number' => $0{line_number}
-				'block' => !action_block
+				type => 'default_case'
+				line_number => $0{line_number}
+				block => !action_block
 			}
 			match '}'
 			return
 		}
 		default {
 			push {
-				'type' => 'match_case'
-				'line_number' => $0{line_number}
-				'match_list' => !match_list->[]
-				'block' => !action_block
+				type => 'match_case'
+				line_number => $0{line_number}
+				match_list => !match_list->[]
+				block => !action_block
 			}
 		}
 	}
@@ -301,18 +301,18 @@ object context if_chain {
 	switch {
 		'elsif' {
 			$_{'branch'} = !if_chain->{
-				'type' => 'elsif_statement'
-				'line_number' => $0{line_number}
-				'match_list' => !match_list->[]
-				'block' => !action_block
+				type => 'elsif_statement'
+				line_number => $0{line_number}
+				match_list => !match_list->[]
+				block => !action_block
 			}
 			return
 		}
 		'else' {
 			$_{'branch'} = {
-				'type' => 'else_statement'
-				'line_number' => $0{line_number}
-				'block' => !action_block
+				type => 'else_statement'
+				line_number => $0{line_number}
+				block => !action_block
 			}
 			return
 		}
@@ -326,102 +326,102 @@ item context spawn_expression {
 	switch {
 		/\$\d++/, '{', 'line_number', '}' {
 			$_ = {
-				'type' => 'get_token_line_number'
-				'token' => $0
+				type => 'get_token_line_number'
+				token => $0
 			}
 			return
 		}
 		/\$\d++/, '{', 'line_offset', '}' {
 			$_ = {
-				'type' => 'get_token_line_offset'
-				'token' => $0
+				type => 'get_token_line_offset'
+				token => $0
 			}
 			return
 		}
 		/\$\d++/ {
 			$_ = {
-				'type' => 'get_token_text'
-				'token' => $0
+				type => 'get_token_text'
+				token => $0
 			}
 			return
 		}
 		'$_' {
 			$_ = !more_spawn_expression->{
-				'type' => 'get_context'
+				type => 'get_context'
 			}
 			return
 		}
 		'pop' {
 			$_ = {
-				'type' => 'pop_list'
+				type => 'pop_list'
 			}
 			return
 		}
 
 		$context_reference_regex, '->' {
 			$_ = {
-				'type' => 'call_context'
-				'context' => $0
-				'argument' => !spawn_expression
+				type => 'call_context'
+				context => $0
+				argument => !spawn_expression
 			}
 			return
 		}
 		$context_reference_regex {
 			$_ = {
-				'type' => 'call_context'
-				'context' => $0
+				type => 'call_context'
+				context => $0
 			}
 			return
 		}
 		$function_reference_regex, '->' {
 			$_ = {
-				'type' => 'call_function'
-				'function' => $0
-				'argument' => !spawn_expression
+				type => 'call_function'
+				function => $0
+				argument => !spawn_expression
 			}
 			return
 		}
 		$function_reference_regex {
 			$_ = {
-				'type' => 'call_function'
-				'function' => $0
+				type => 'call_function'
+				function => $0
 			}
 			return
 		}
 		$substitution_regex_regex, '->' {
 			$_ = {
-				'type' => 'call_substitution'
-				'regex' => $0
-				'argument' => !spawn_expression
+				type => 'call_substitution'
+				regex => $0
+				argument => !spawn_expression
 			}
 			return
 		}
 		$variable_regex, '->' {
 			$_ = {
-				'type' => 'call_variable'
-				'variable' => $0
-				'argument' => !spawn_expression
+				type => 'call_variable'
+				variable => $0
+				argument => !spawn_expression
 			}
 			return
 		}
 		$variable_regex {
 			$_ = {
-				'type' => 'call_variable'
-				'variable' => $0
+				type => 'call_variable'
+				variable => $0
 			}
 			return
 		}
 		$string_regex {
 			$_ = {
-				'type' => 'string'
-				'string' => $0
+				type => 'string'
+				string => $0
 			}
 			return
 		}
 		$identifier_regex {
 			$_ = {
-				'type' => 'bareword'
-				'value' => $0
+				type => 'bareword'
+				value => $0
 			}
 			return
 		}
@@ -429,26 +429,26 @@ item context spawn_expression {
 
 		'undef' {
 			$_ = {
-				'type' => 'undef'
+				type => 'undef'
 			}
 			return
 		}
 		'[', ']' {
 			$_ = {
-				'type' => 'empty_list'
+				type => 'empty_list'
 			}
 			return
 		}
 		'{', '}' {
 			$_ = {
-				'type' => 'empty_hash'
+				type => 'empty_hash'
 			}
 			return
 		}
 		'{' {
 			$_ = {
-				'type' => 'hash_constructor'
-				'arguments' => !spawn_expression_hash->[]
+				type => 'hash_constructor'
+				arguments => !spawn_expression_hash->[]
 			}
 			return
 		}
@@ -462,9 +462,9 @@ object context more_spawn_expression {
 	switch {
 		'{' {
 			$_ = {
-				'type' => 'access'
-				'left_expression' => $_
-				'right_expression' => !spawn_expression
+				type => 'access'
+				left_expression => $_
+				right_expression => !spawn_expression
 			}
 			match '}'
 		}
