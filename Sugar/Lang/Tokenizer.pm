@@ -27,7 +27,8 @@ sub new {
 
 sub compile_tokenizer_regex {
 	my ($self) = @_;
-	my $token_pieces = join '|', map "(?<" . $self->{token_regexes}[$_*2] . ">" . $self->{token_regexes}[$_*2+1] . ")", 0 .. $#{$self->{token_regexes}} / 2;
+	my $token_pieces = join '|',
+			map "(?<" . $self->{token_regexes}[$_*2] . ">" . $self->{token_regexes}[$_*2+1] . ")", 0 .. $#{$self->{token_regexes}} / 2;
 	$self->{tokenizer_regex} = qr/$token_pieces/s;
 }
 
@@ -60,7 +61,8 @@ sub parse_tokens {
 		$line_number += ()= ($token_text =~ /\n/g);
 	}
 
-	confess "error parsing file on line $line_number:\nHERE ---->" . substr ($text, pos $text // 0) if not defined pos $text or pos $text != length $text;
+	confess "parsing error on line $line_number:\nHERE ---->" . substr ($text, pos $text // 0, 200) . "\n\n\n"
+			if not defined pos $text or pos $text != length $text;
 
 	if (defined $self->{ignored_tokens}) {
 		foreach my $ignored_token (@{$self->{ignored_tokens}}) {
