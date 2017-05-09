@@ -273,7 +273,7 @@ sub compile_syntax_condition {
 	} elsif ($condition =~ m#\A\$(\w++)\Z#s) {
 		# verify that the variable exists
 		$self->get_variable($1);
-		return "\$self->{tokens}[\$self->{tokens_index} + $offset][1] =~ \$var_$1"
+		return "\$self->{tokens}[\$self->{tokens_index} + $offset][1] =~ /\\A\$var_$1\\Z/"
 		# return $self->compile_syntax_condition($self->get_variable($1), $offset)
 	} elsif ($condition =~ m#\A/(.*)/([msixpodualn]*)\Z#s) {
 		return "\$self->{tokens}[\$self->{tokens_index} + $offset][1] =~ /\\A$1\\Z/$2"
