@@ -1,6 +1,7 @@
 
 
 qwert = /testing/msix
+my_fun = s/\basdf\b/qwer/g
 
 tokens {}
 
@@ -84,6 +85,7 @@ list context test_switch {
 item context test_replace {
 	match /\w++/
 	$_ = s/([a-z])/!$1/g->$0
+	$_ = $my_fun->$0
 }
 
 

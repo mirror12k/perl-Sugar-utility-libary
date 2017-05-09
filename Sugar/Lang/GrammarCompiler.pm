@@ -331,7 +331,7 @@ sub context_match_action {
 			my @tokens_freeze = @tokens;
 			my @tokens = @tokens_freeze;
 			@tokens = (@tokens, $self->step_tokens(2));
-			push @$context_list, { 'type' => 'assign_item_statement', 'expression' => $self->context_spawn_expression, };
+			push @$context_list, { 'type' => 'assign_item_statement', 'line_number' => $tokens[0][2], 'expression' => $self->context_spawn_expression, };
 			}
 			elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] eq '$_' and $self->{tokens}[$self->{tokens_index} + 1][1] eq '{') {
 			my @tokens_freeze = @tokens;
@@ -557,6 +557,20 @@ sub context_spawn_expression {
 			$context_value = { 'type' => 'call_substitution', 'regex' => $tokens[0][1], 'argument' => $self->context_spawn_expression, };
 			return $context_value;
 			}
+			elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] =~ $var_variable_regex and $self->{tokens}[$self->{tokens_index} + 1][1] eq '->') {
+			my @tokens_freeze = @tokens;
+			my @tokens = @tokens_freeze;
+			@tokens = (@tokens, $self->step_tokens(2));
+			$context_value = { 'type' => 'call_variable', 'variable' => $tokens[0][1], 'argument' => $self->context_spawn_expression, };
+			return $context_value;
+			}
+			elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] =~ $var_variable_regex) {
+			my @tokens_freeze = @tokens;
+			my @tokens = @tokens_freeze;
+			@tokens = (@tokens, $self->step_tokens(1));
+			$context_value = { 'type' => 'call_variable', 'variable' => $tokens[0][1], };
+			return $context_value;
+			}
 			elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] =~ $var_string_regex) {
 			my @tokens_freeze = @tokens;
 			my @tokens = @tokens_freeze;
@@ -636,7 +650,7 @@ sub main {
 	foreach my $file (@_) {
 		$parser->{filepath} = Sugar::IO::File->new($file);
 		my $tree = $parser->parse;
-		say Dumper $tree;
+		# say Dumper $tree;
 
 		my $compiler = Sugar::Lang::SyntaxIntermediateCompiler->new(syntax_definition_intermediate => $tree);
 		say $compiler->to_package;

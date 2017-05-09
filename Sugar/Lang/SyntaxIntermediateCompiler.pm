@@ -53,16 +53,20 @@ use feature 'say';
 	$code .= "\n\n##############################\n##### variables and settings\n##############################\n\n";
 
 
-	foreach my $i (0 .. $#{$self->{variables}} / 2) {
-		my $var_name = $self->{variables}[$i*2];
-		my $var_value = $self->{variables_by_name}{$var_name};
-		$code .= "our \$var_$var_name = $var_value;\n";
+	if (@{$self->{variables}}) {
+		foreach my $i (0 .. $#{$self->{variables}} / 2) {
+			my $var_name = $self->{variables}[$i*2];
+			my $var_value = $self->{variables_by_name}{$var_name};
+			$code .= "our \$var_$var_name = $var_value;\n";
+		}
 	}
 	$code .= "\n\n";
 
 	$code .= "our \$tokens = [\n";
-	foreach my $i (0 .. $#{$self->{tokens}} / 2) {
-		$code .= "\t'$self->{tokens}[$i*2]' => $self->{tokens}[$i*2+1],\n";
+	if (@{$self->{tokens}}) {
+		foreach my $i (0 .. $#{$self->{tokens}} / 2) {
+			$code .= "\t'$self->{tokens}[$i*2]' => $self->{tokens}[$i*2+1],\n";
+		}
 	}
 	$code .= "];\n\n";
 
@@ -462,7 +466,7 @@ sub compile_syntax_spawn_expression {
 		}
 
 	} elsif ($expression->{type} eq 'call_context') {
-		# warn "got call_expression: $expression";
+		# warn "got call_context: $expression";
 		my $context = $self->get_function_by_name($expression->{context});
 		if (exists $expression->{argument}) {
 			my $expression_code = $self->compile_syntax_spawn_expression($context_type, $expression->{argument});
@@ -472,7 +476,7 @@ sub compile_syntax_spawn_expression {
 		}
 
 	} elsif ($expression->{type} eq 'call_function') {
-		# warn "got call_expression: $expression";
+		# warn "got call_function: $expression";
 		my $function = $self->get_function_by_name($expression->{function});
 		if (exists $expression->{argument}) {
 			my $expression_code = $self->compile_syntax_spawn_expression($context_type, $expression->{argument});
@@ -481,8 +485,19 @@ sub compile_syntax_spawn_expression {
 			return "\$self->$function";
 		}
 
+	} elsif ($expression->{type} eq 'call_variable') {
+		# warn "got call_variable: $expression->{variable}";
+		my $var_name = $expression->{variable} =~ s/\A\$//r;
+		$self->get_variable($var_name);
+		if (exists $expression->{argument}) {
+			my $expression_code = $self->compile_syntax_spawn_expression($context_type, $expression->{argument});
+			return "\$var_$var_name->($expression_code)";
+		} else {
+			return "\$var_$var_name->()";
+		}
+
 	} elsif ($expression->{type} eq 'call_substitution') {
-		# warn "got call_expression: $expression";
+		# warn "got call_substitution: $expression";
 		my $expression_code = $self->compile_syntax_spawn_expression($context_type, $expression->{argument});
 		return "$expression_code =~ $expression->{regex}r";
 

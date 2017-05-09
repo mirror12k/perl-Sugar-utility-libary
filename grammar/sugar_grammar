@@ -169,6 +169,7 @@ list context match_action {
 		'$_', '=' {
 			push {
 				'type' => 'assign_item_statement'
+				'line_number' => $0{line_number}
 				'expression' => !spawn_expression
 			}
 		}
@@ -392,6 +393,21 @@ item context spawn_expression {
 				'type' => 'call_substitution'
 				'regex' => $0
 				'argument' => !spawn_expression
+			}
+			return
+		}
+		$variable_regex, '->' {
+			$_ = {
+				'type' => 'call_variable'
+				'variable' => $0
+				'argument' => !spawn_expression
+			}
+			return
+		}
+		$variable_regex {
+			$_ = {
+				'type' => 'call_variable'
+				'variable' => $0
 			}
 			return
 		}
