@@ -579,6 +579,13 @@ sub context_spawn_expression {
 			$context_value = { 'type' => 'string', 'string' => $tokens[0][1], };
 			return $context_value;
 			}
+			elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] =~ /\A$var_identifier_regex\Z/) {
+			my @tokens_freeze = @tokens;
+			my @tokens = @tokens_freeze;
+			@tokens = (@tokens, $self->step_tokens(1));
+			$context_value = { 'type' => 'bareword', 'value' => $tokens[0][1], };
+			return $context_value;
+			}
 			elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] eq 'undef') {
 			my @tokens_freeze = @tokens;
 			my @tokens = @tokens_freeze;

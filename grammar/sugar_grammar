@@ -418,6 +418,13 @@ item context spawn_expression {
 			}
 			return
 		}
+		$identifier_regex {
+			$_ = {
+				'type' => 'bareword'
+				'value' => $0
+			}
+			return
+		}
 
 
 		'undef' {

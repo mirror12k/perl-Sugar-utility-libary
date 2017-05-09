@@ -512,6 +512,8 @@ sub compile_syntax_spawn_expression {
 	} elsif ($expression->{type} eq 'string') {
 		$self->confess_at_current_line("invalid spawn expression string: '$expression->{string}'") unless $expression->{string} =~ /\A'(.*)'\Z/s;
 		return "'$1'";
+	} elsif ($expression->{type} eq 'bareword') {
+		return "$expression->{value}";
 	} elsif ($expression->{type} eq 'empty_list') {
 		return '[]'
 	} elsif ($expression->{type} eq 'empty_hash') {

@@ -87,7 +87,11 @@ item context test_replace {
 	$_ = s/([a-z])/!$1/g->$0
 	$_ = $my_fun->$0
 
-	$_ = $_{'asdf'}
+	$_ = $_{asdf}
+	$_ = {
+		qwer => '15'
+		zxcv => '25'
+	}
 }
 
 
