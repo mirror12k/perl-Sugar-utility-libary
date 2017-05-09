@@ -56,6 +56,7 @@ our $contexts = {
 	match_action => 'context_match_action',
 	match_item => 'context_match_item',
 	match_list => 'context_match_list',
+	more_spawn_expression => 'context_more_spawn_expression',
 	root => 'context_root',
 	spawn_expression => 'context_spawn_expression',
 	spawn_expression_hash => 'context_spawn_expression_hash',
@@ -512,7 +513,7 @@ sub context_spawn_expression {
 			my @tokens_freeze = @tokens;
 			my @tokens = @tokens_freeze;
 			@tokens = (@tokens, $self->step_tokens(1));
-			$context_value = { 'type' => 'get_context', };
+			$context_value = $self->context_more_spawn_expression({ 'type' => 'get_context', });
 			return $context_value;
 			}
 			elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] eq 'pop') {
@@ -611,6 +612,28 @@ sub context_spawn_expression {
 			}
 	}
 	return $context_value;
+}
+
+sub context_more_spawn_expression {
+	my ($self, $context_object) = @_;
+
+	while ($self->more_tokens) {
+		my @tokens;
+
+			if ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] eq '{') {
+			my @tokens_freeze = @tokens;
+			my @tokens = @tokens_freeze;
+			@tokens = (@tokens, $self->step_tokens(1));
+			$context_object = { 'type' => 'access', 'left_expression' => $context_object, 'right_expression' => $self->context_spawn_expression, };
+			$self->confess_at_current_offset('expected \'}\'')
+				unless $self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] eq '}';
+			@tokens = (@tokens, $self->step_tokens(1));
+			}
+			else {
+			return $context_object;
+			}
+	}
+	return $context_object;
 }
 
 sub context_spawn_expression_hash {

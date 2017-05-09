@@ -436,17 +436,25 @@ sub compile_syntax_action {
 sub compile_syntax_spawn_expression {
 	my ($self, $context_type, $expression) = @_;
 
-	if ($expression->{type} eq 'undef') {
+	if ($expression->{type} eq 'access') {
+		my $left = $self->compile_syntax_spawn_expression($context_type, $expression->{left_expression});
+		my $right = $self->compile_syntax_spawn_expression($context_type, $expression->{right_expression});
+		return "${left}->{$right}"
+
+	} elsif ($expression->{type} eq 'undef') {
 		return 'undef'
 
 	} elsif ($expression->{type} eq 'get_token_line_number') {
-		$self->confess_at_current_line("invalid spawn expression token: '$expression->{token}'") unless $expression->{token} =~ /\A\$(\d+)\Z/s;
+		$self->confess_at_current_line("invalid spawn expression token: '$expression->{token}'")
+				unless $expression->{token} =~ /\A\$(\d+)\Z/s;
 		return "\$tokens[$1][2]";
 	} elsif ($expression->{type} eq 'get_token_line_offset') {
-		$self->confess_at_current_line("invalid spawn expression token: '$expression->{token}'") unless $expression->{token} =~ /\A\$(\d+)\Z/s;
+		$self->confess_at_current_line("invalid spawn expression token: '$expression->{token}'")
+				unless $expression->{token} =~ /\A\$(\d+)\Z/s;
 		return "\$tokens[$1][3]";
 	} elsif ($expression->{type} eq 'get_token_text') {
-		$self->confess_at_current_line("invalid spawn expression token: '$expression->{token}'") unless $expression->{token} =~ /\A\$(\d+)\Z/s;
+		$self->confess_at_current_line("invalid spawn expression token: '$expression->{token}'")
+				unless $expression->{token} =~ /\A\$(\d+)\Z/s;
 		return "\$tokens[$1][1]";
 
 	} elsif ($expression->{type} eq 'get_context') {

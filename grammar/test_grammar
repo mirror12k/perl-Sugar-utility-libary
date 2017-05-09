@@ -86,6 +86,8 @@ item context test_replace {
 	match /\w++/
 	$_ = s/([a-z])/!$1/g->$0
 	$_ = $my_fun->$0
+
+	$_ = $_{'asdf'}
 }
 
 
