@@ -6,12 +6,13 @@ use warnings;
 
 use feature 'say';
 
-use Data::Dumper;
-
-use Sugar::IO::File;
-use Sugar::Lang::SyntaxIntermediateCompiler;
 
 
+
+
+##############################
+##### variables and settings
+##############################
 
 our $var_code_block_regex = qr/\{\{.*?\}\}/s;
 our $var_symbol_regex = qr/\{|\}|\[|\]|->|=>|=|,/;
@@ -24,6 +25,8 @@ our $var_context_reference_regex = qr/!\w++/;
 our $var_function_reference_regex = qr/\&\w++/;
 our $var_comment_regex = qr/\#[^\n]*+\n/s;
 our $var_whitespace_regex = qr/\s++/s;
+
+
 our $tokens = [
 	'code_block' => $var_code_block_regex,
 	'symbol' => $var_symbol_regex,
@@ -60,6 +63,12 @@ our $contexts = {
 
 
 
+##############################
+##### api
+##############################
+
+
+
 sub new {
 	my ($class, %opts) = @_;
 
@@ -72,19 +81,16 @@ sub new {
 	return $self
 }
 
-sub main {
-	my $parser = __PACKAGE__->new;
-	foreach my $file (@_) {
-		$parser->{filepath} = Sugar::IO::File->new($file);
-		my $tree = $parser->parse;
-		# say Dumper $tree;
-
-		my $compiler = Sugar::Lang::SyntaxIntermediateCompiler->new(syntax_definition_intermediate => $tree);
-		say $compiler->to_package;
-	}
+sub parse {
+	my ($self, @args) = @_;
+	return $self->SUPER::parse(@args)
 }
 
-caller or main(@ARGV);
+
+
+##############################
+##### sugar contexts functions
+##############################
 
 
 sub context_root {
@@ -599,4 +605,28 @@ sub context_spawn_expression_hash {
 	}
 	return $context_list;
 }
+
+
+##############################
+##### native perl functions
+##############################
+
+sub main {
+	use Data::Dumper;
+	use Sugar::IO::File;
+	use Sugar::Lang::SyntaxIntermediateCompiler;
+
+	my $parser = __PACKAGE__->new;
+	foreach my $file (@_) {
+		$parser->{filepath} = Sugar::IO::File->new($file);
+		my $tree = $parser->parse;
+		# say Dumper $tree;
+
+		my $compiler = Sugar::Lang::SyntaxIntermediateCompiler->new(syntax_definition_intermediate => $tree);
+		say $compiler->to_package;
+	}
+}
+
+caller or main(@ARGV);
+
 

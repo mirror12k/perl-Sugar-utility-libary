@@ -46,20 +46,19 @@ use warnings;
 
 use feature 'say';
 
-use Data::Dumper;
-
-use Sugar::IO::File;
-# use Sugar::Lang::SyntaxIntermediateCompiler;
-
 
 
 ";
+
+	$code .= "\n\n##############################\n##### variables and settings\n##############################\n\n";
+
 
 	foreach my $i (0 .. $#{$self->{variables}} / 2) {
 		my $var_name = $self->{variables}[$i*2];
 		my $var_value = $self->{variables_by_name}{$var_name};
 		$code .= "our \$var_$var_name = $var_value;\n";
 	}
+	$code .= "\n\n";
 
 	$code .= "our \$tokens = [\n";
 	foreach my $i (0 .. $#{$self->{tokens}} / 2) {
@@ -79,6 +78,8 @@ use Sugar::IO::File;
 	}
 	$code .= "};\n\n";
 
+	$code .= "\n\n##############################\n##### api\n##############################\n\n";
+
 	$code .= '
 
 sub new {
@@ -93,30 +94,27 @@ sub new {
 	return $self
 }
 
-sub main {
-	my $parser = __PACKAGE__->new;
-	foreach my $file (@_) {
-		$parser->{filepath} = Sugar::IO::File->new($file);
-		my $tree = $parser->parse;
-		say Dumper $tree;
-
-		# my $compiler = Sugar::Lang::SyntaxIntermediateCompiler->new(syntax_definition_intermediate => $tree);
-		# say $compiler->to_package;
-	}
+sub parse {
+	my ($self, @args) = @_;
+	return $self->SUPER::parse(@args)
 }
 
-caller or main(@ARGV);
-
 ';
+
+	$code .= "\n\n##############################\n##### sugar contexts functions\n##############################\n\n";
 
 	foreach my $context_type (@{$self->{context_order}}) {
 		$code .= $self->{code_definitions}{$context_type} =~ s/\A(\s*)sub \{/$1sub context_$context_type {/r;
 	}
 
+	$code .= "\n\n##############################\n##### native perl functions\n##############################\n\n";
+
 	foreach my $subroutine (@{$self->{subroutine_order}}) {
 		my $subroutine_code = $self->{subroutines}{$subroutine};
 		$subroutine_code =~ s/\A\{\{(.*)\}\}\Z/{$1}/s;
 		$code .= "sub $subroutine $subroutine_code\n\n";
+
+		$code .= "caller or main(\@ARGV);\n\n" if $subroutine eq 'main';
 	}
 
 	return $code
