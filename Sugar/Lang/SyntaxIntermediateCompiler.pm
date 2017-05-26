@@ -121,6 +121,8 @@ sub parse {
 		$code .= "caller or main(\@ARGV);\n\n" if $subroutine eq 'main';
 	}
 
+	$code .= "\n\n1;\n\n" unless exists $self->{subroutines}{main};
+
 	return $code
 }
 
@@ -262,25 +264,60 @@ sub {';
 }
 
 sub compile_syntax_condition {
-	my ($self, $condition, $offset) = @_;
+	my ($self, $context_type, $condition, $offset) = @_;
 	$offset //= 0;
 	if (ref $condition eq 'ARRAY') {
 		my @conditions = @$condition;
 		foreach my $i (0 .. $#conditions) {
-			$conditions[$i] = $self->compile_syntax_condition($conditions[$i], $i);
+			$conditions[$i] = $self->compile_syntax_condition($context_type, $conditions[$i], $i);
 		}
 		return join ' and ', '$self->more_tokens', @conditions
-	} elsif ($condition =~ m#\A\$(\w++)\Z#s) {
+
+	} elsif ($condition->{type} eq 'function_match') {
+		my $function = $self->get_function_by_name($condition->{function});
+		if (exists $condition->{argument}) {
+			my $expression_code = $self->compile_syntax_spawn_expression($context_type, $condition->{argument});
+			return "\$self->$function(\$self->{tokens_index} + $offset, $expression_code)";
+		} else {
+			return "\$self->$function(\$self->{tokens_index} + $offset)";
+		}
+
+	} elsif ($condition->{type} eq 'variable_match') {
+		$self->confess_at_current_line("invalid variable condition value: $condition->{variable}") unless $condition->{variable} =~ m#\A\$(\w++)\Z#s;
 		# verify that the variable exists
 		$self->get_variable($1);
 		return "\$self->{tokens}[\$self->{tokens_index} + $offset][1] =~ /\\A\$var_$1\\Z/"
-		# return $self->compile_syntax_condition($self->get_variable($1), $offset)
-	} elsif ($condition =~ m#\A/(.*)/([msixpodualn]*)\Z#s) {
+
+	} elsif ($condition->{type} eq 'regex_match') {
+		$self->confess_at_current_line("invalid regex condition value: $condition->{regex}") unless $condition->{regex} =~ m#\A/(.*)/([msixpodualn]*)\Z#s;
 		return "\$self->{tokens}[\$self->{tokens_index} + $offset][1] =~ /\\A$1\\Z/$2"
-	} elsif ($condition =~ /\A'.*'\Z/s) {
-		return "\$self->{tokens}[\$self->{tokens_index} + $offset][1] eq $condition"
+
+	} elsif ($condition->{type} eq 'string_match') {
+		$self->confess_at_current_line("invalid string condition value: $condition->{string}") unless $condition->{string} =~ /\A'.*'\Z/s;
+		return "\$self->{tokens}[\$self->{tokens_index} + $offset][1] eq $condition->{string}"
+
 	} else {
-		$self->confess_at_current_line("invalid syntax condition '$condition'");
+		$self->confess_at_current_line("invalid syntax condition '$condition->{type}'");
+	}
+}
+
+sub syntax_condition_as_string {
+	my ($self, $condition) = @_;
+	if ($condition->{type} eq 'function_match') {
+		return "$condition->{function}"
+
+	} elsif ($condition->{type} eq 'variable_match') {
+		$self->confess_at_current_line("invalid variable condition value: $condition->{variable}") unless $condition->{variable} =~ m#\A\$(\w++)\Z#s;
+		return $self->get_variable($1)
+
+	} elsif ($condition->{type} eq 'regex_match') {
+		return "$condition->{regex}"
+
+	} elsif ($condition->{type} eq 'string_match') {
+		return "$condition->{string}"
+
+	} else {
+		$self->confess_at_current_line("invalid syntax condition '$condition->{type}'");
 	}
 }
 
@@ -350,8 +387,9 @@ sub compile_syntax_action {
 
 		} elsif ($action->{type} eq 'match_statement') {
 			my $match_condition = $action->{match_list};
-			push @code, "\$self->confess_at_current_offset('expected " . (join ', ', @$match_condition) =~ s/([\\'])/\\$1/gr . "')";
-			push @code, "\tunless " . $self->compile_syntax_condition($match_condition) . ";";
+			my $match_description = (join ', ', map $self->syntax_condition_as_string($_), @$match_condition) =~ s/([\\'])/\\$1/gr;
+			push @code, "\$self->confess_at_current_offset('expected $match_description')";
+			push @code, "\tunless " . $self->compile_syntax_condition($context_type, $match_condition) . ";";
 
 			my $count = @$match_condition;
 			push @code, "\@tokens = (\@tokens, \$self->step_tokens($count));";
@@ -360,7 +398,7 @@ sub compile_syntax_action {
 			my $condition = $action->{match_list};
 			my $conditional_actions = $action->{block};
 
-			my $condition_code = $self->compile_syntax_condition($condition);
+			my $condition_code = $self->compile_syntax_condition($context_type, $condition);
 			my $action_code = $self->compile_syntax_action($context_type, $condition, $conditional_actions);
 
 			push @code, "if ($condition_code) {\n\t\t\tmy \@tokens_freeze = \@tokens;\n\t\t\tmy \@tokens = \@tokens_freeze;$action_code\t\t\t}";
@@ -371,7 +409,7 @@ sub compile_syntax_action {
 					my $condition = $action->{match_list};
 					my $conditional_actions = $action->{block};
 
-					my $condition_code = $self->compile_syntax_condition($condition);
+					my $condition_code = $self->compile_syntax_condition($context_type, $condition);
 					my $action_code = $self->compile_syntax_action($context_type, $condition, $conditional_actions);
 
 					push @code, "elsif ($condition_code) {\n\t\t\tmy \@tokens_freeze = \@tokens;\n\t\t\tmy \@tokens = \@tokens_freeze;$action_code\t\t\t}";
@@ -388,7 +426,7 @@ sub compile_syntax_action {
 			foreach my $case (@{$action->{switch_cases}}) {
 				$self->{current_line} = $case->{line_number};
 				if ($case->{type} eq 'match_case') {
-					my $condition_code = $self->compile_syntax_condition($case->{match_list});
+					my $condition_code = $self->compile_syntax_condition($context_type, $case->{match_list});
 					my $action_code = $self->compile_syntax_action($context_type, $case->{match_list}, $case->{block});
 
 					if ($first) {
@@ -409,7 +447,7 @@ sub compile_syntax_action {
 			my $condition = $action->{match_list};
 			my $conditional_actions = $action->{block};
 
-			my $condition_code = $self->compile_syntax_condition($condition);
+			my $condition_code = $self->compile_syntax_condition($context_type, $condition);
 			my $action_code = $self->compile_syntax_action($context_type, $condition, $conditional_actions);
 
 			push @code, "while ($condition_code) {\n\t\t\tmy \@tokens_freeze = \@tokens;\n\t\t\tmy \@tokens = \@tokens_freeze;$action_code\t\t\t}";

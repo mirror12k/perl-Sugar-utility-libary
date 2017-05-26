@@ -276,25 +276,39 @@ sub context_match_item {
 	while ($self->more_tokens) {
 		my @tokens;
 
-			if ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] =~ /\A$var_variable_regex\Z/) {
+			if ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] =~ /\A$var_function_reference_regex\Z/ and $self->{tokens}[$self->{tokens_index} + 1][1] eq '->') {
+			my @tokens_freeze = @tokens;
+			my @tokens = @tokens_freeze;
+			@tokens = (@tokens, $self->step_tokens(2));
+			$context_value = { type => 'function_match', function => $tokens[0][1], argument => $self->context_spawn_expression, };
+			return $context_value;
+			}
+			elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] =~ /\A$var_function_reference_regex\Z/) {
 			my @tokens_freeze = @tokens;
 			my @tokens = @tokens_freeze;
 			@tokens = (@tokens, $self->step_tokens(1));
-			$context_value = $tokens[0][1];
+			$context_value = { type => 'function_match', function => $tokens[0][1], };
+			return $context_value;
+			}
+			elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] =~ /\A$var_variable_regex\Z/) {
+			my @tokens_freeze = @tokens;
+			my @tokens = @tokens_freeze;
+			@tokens = (@tokens, $self->step_tokens(1));
+			$context_value = { type => 'variable_match', variable => $tokens[0][1], };
 			return $context_value;
 			}
 			elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] =~ /\A$var_regex_regex\Z/) {
 			my @tokens_freeze = @tokens;
 			my @tokens = @tokens_freeze;
 			@tokens = (@tokens, $self->step_tokens(1));
-			$context_value = $tokens[0][1];
+			$context_value = { type => 'regex_match', regex => $tokens[0][1], };
 			return $context_value;
 			}
 			elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] =~ /\A$var_string_regex\Z/) {
 			my @tokens_freeze = @tokens;
 			my @tokens = @tokens_freeze;
 			@tokens = (@tokens, $self->step_tokens(1));
-			$context_value = $tokens[0][1];
+			$context_value = { type => 'string_match', string => $tokens[0][1], };
 			return $context_value;
 			}
 			else {

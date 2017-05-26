@@ -139,16 +139,40 @@ list context match_list {
 
 item context match_item {
 	switch {
+		$function_reference_regex, '->' {
+			$_ = {
+				type => 'function_match'
+				function => $0
+				argument => !spawn_expression
+			}
+			return
+		}
+		$function_reference_regex {
+			$_ = {
+				type => 'function_match'
+				function => $0
+			}
+			return
+		}
 		$variable_regex {
-			$_ = $0
+			$_ = {
+				type => 'variable_match'
+				variable => $0
+			}
 			return
 		}
 		$regex_regex {
-			$_ = $0
+			$_ = {
+				type => 'regex_match'
+				regex => $0
+			}
 			return
 		}
 		$string_regex {
-			$_ = $0
+			$_ = {
+				type => 'string_match'
+				string => $0
+			}
 			return
 		}
 		default {

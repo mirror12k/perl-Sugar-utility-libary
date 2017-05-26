@@ -75,6 +75,9 @@ list context test_switch {
 		'asdf' {
 			push '5'
 		}
+		&match_function {
+			push 'chilly'
+		}
 		default {
 			push '0'
 		}
@@ -98,4 +101,10 @@ item context test_replace {
 sub native_perl_function {{
 	my ($self) = @_;
 	print 'hello world!'
+}}
+
+
+sub match_function {{
+	my ($offset) = @_;
+	return $self->{tokens}[$offset][1] eq 'chilly'
 }}
