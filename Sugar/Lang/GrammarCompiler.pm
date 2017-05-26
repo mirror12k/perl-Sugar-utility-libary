@@ -56,6 +56,7 @@ our $contexts = {
 	match_action => 'context_match_action',
 	match_item => 'context_match_item',
 	match_list => 'context_match_list',
+	match_list_arrow => 'context_match_list_arrow',
 	more_spawn_expression => 'context_more_spawn_expression',
 	root => 'context_root',
 	spawn_expression => 'context_spawn_expression',
@@ -270,6 +271,21 @@ sub context_match_list {
 	return $context_list;
 }
 
+sub context_match_list_arrow {
+	my ($self, $context_list) = @_;
+
+	while ($self->more_tokens) {
+		my @tokens;
+
+			$context_list = $self->context_match_list($context_list);
+			$self->confess_at_current_offset('expected \'=>\'')
+				unless $self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] eq '=>';
+			@tokens = (@tokens, $self->step_tokens(1));
+			return $context_list;
+	}
+	return $context_list;
+}
+
 sub context_match_item {
 	my ($self, $context_value) = @_;
 
@@ -404,7 +420,7 @@ sub context_match_action {
 			my @tokens_freeze = @tokens;
 			my @tokens = @tokens_freeze;
 			@tokens = (@tokens, $self->step_tokens(1));
-			push @$context_list, $self->context_if_chain({ type => 'if_statement', line_number => $tokens[0][2], match_list => $self->context_match_list([]), block => $self->context_action_block, });
+			push @$context_list, $self->context_if_chain({ type => 'if_statement', line_number => $tokens[0][2], match_list => $self->context_match_list_arrow([]), block => $self->context_action_block, });
 			}
 			elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] eq 'switch') {
 			my @tokens_freeze = @tokens;
@@ -419,7 +435,7 @@ sub context_match_action {
 			my @tokens_freeze = @tokens;
 			my @tokens = @tokens_freeze;
 			@tokens = (@tokens, $self->step_tokens(1));
-			push @$context_list, { type => 'while_statement', line_number => $tokens[0][2], match_list => $self->context_match_list([]), block => $self->context_action_block, };
+			push @$context_list, { type => 'while_statement', line_number => $tokens[0][2], match_list => $self->context_match_list_arrow([]), block => $self->context_action_block, };
 			}
 			elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] eq 'warn') {
 			my @tokens_freeze = @tokens;
@@ -463,7 +479,7 @@ sub context_switch_blocks {
 			return $context_list;
 			}
 			else {
-			push @$context_list, { type => 'match_case', line_number => $tokens[0][2], match_list => $self->context_match_list([]), block => $self->context_action_block, };
+			push @$context_list, { type => 'match_case', line_number => $tokens[0][2], match_list => $self->context_match_list_arrow([]), block => $self->context_action_block, };
 			}
 	}
 	return $context_list;
@@ -479,7 +495,7 @@ sub context_if_chain {
 			my @tokens_freeze = @tokens;
 			my @tokens = @tokens_freeze;
 			@tokens = (@tokens, $self->step_tokens(1));
-			$context_object->{'branch'} = $self->context_if_chain({ type => 'elsif_statement', line_number => $tokens[0][2], match_list => $self->context_match_list([]), block => $self->context_action_block, });
+			$context_object->{'branch'} = $self->context_if_chain({ type => 'elsif_statement', line_number => $tokens[0][2], match_list => $self->context_match_list_arrow([]), block => $self->context_action_block, });
 			return $context_object;
 			}
 			elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] eq 'else') {
