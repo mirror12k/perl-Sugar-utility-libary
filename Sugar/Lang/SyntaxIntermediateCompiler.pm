@@ -208,6 +208,8 @@ sub compile_syntax_token_value {
 sub compile_syntax_context {
 	my ($self, $context_type, $context_name, $context) = @_;
 
+	my $is_linear_context = $context->[-1]{type} eq 'return_statement';
+
 	my $code = '
 sub {';
 	my @args_list = ('$self');
@@ -235,22 +237,27 @@ sub {';
 		}
 	}
 
+	unless ($is_linear_context) {
 	# $code .= "\t\tsay 'in context $context_name';\n"; # DEBUG INLINE TREE BUILDER
 	$code .= '
 	while ($self->more_tokens) {
-		my @tokens;
 ';
+	}
+
+	$code .= "\tmy \@tokens;\n";
 
 	$code .= $self->compile_syntax_action($context_type, undef, $context);
 
-	$code .= "\t}\n";
+	unless ($is_linear_context) {
+		$code .= "\t}\n";
 
-	if ($context_type eq 'object_context') {
-		$code .= "\treturn \$context_object;\n";
-	} elsif ($context_type eq 'list_context') {
-		$code .= "\treturn \$context_list;\n";
-	} else {
-		$code .= "\treturn \$context_value;\n";
+		if ($context_type eq 'object_context') {
+			$code .= "\treturn \$context_object;\n";
+		} elsif ($context_type eq 'list_context') {
+			$code .= "\treturn \$context_list;\n";
+		} else {
+			$code .= "\treturn \$context_value;\n";
+		}
 	}
 
 	$code .= "}\n";

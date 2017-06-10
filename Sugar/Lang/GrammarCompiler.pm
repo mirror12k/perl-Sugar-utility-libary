@@ -102,7 +102,7 @@ sub context_root {
 	my $context_object = {};
 
 	while ($self->more_tokens) {
-		my @tokens;
+	my @tokens;
 
 			if ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] =~ /\A$var_identifier_regex\Z/ and $self->{tokens}[$self->{tokens_index} + 1][1] eq '=') {
 			my @tokens_freeze = @tokens;
@@ -165,7 +165,7 @@ sub context_def_value {
 	my ($self, $context_value) = @_;
 
 	while ($self->more_tokens) {
-		my @tokens;
+	my @tokens;
 
 			if ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] =~ /\A$var_string_regex\Z/) {
 			my @tokens_freeze = @tokens;
@@ -206,7 +206,7 @@ sub context_token_definition {
 	my ($self, $context_list) = @_;
 
 	while ($self->more_tokens) {
-		my @tokens;
+	my @tokens;
 
 			if ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] eq '}') {
 			my @tokens_freeze = @tokens;
@@ -232,7 +232,7 @@ sub context_ignored_tokens_list {
 	my ($self, $context_list) = @_;
 
 	while ($self->more_tokens) {
-		my @tokens;
+	my @tokens;
 
 			if ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] eq '}') {
 			my @tokens_freeze = @tokens;
@@ -255,9 +255,7 @@ sub context_ignored_tokens_list {
 
 sub context_match_list {
 	my ($self, $context_list) = @_;
-
-	while ($self->more_tokens) {
-		my @tokens;
+	my @tokens;
 
 			push @$context_list, $self->context_match_item;
 			while ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] eq ',') {
@@ -267,30 +265,24 @@ sub context_match_list {
 			push @$context_list, $self->context_match_item;
 			}
 			return $context_list;
-	}
-	return $context_list;
 }
 
 sub context_match_list_arrow {
 	my ($self, $context_list) = @_;
-
-	while ($self->more_tokens) {
-		my @tokens;
+	my @tokens;
 
 			$context_list = $self->context_match_list($context_list);
 			$self->confess_at_current_offset('expected \'=>\'')
 				unless $self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] eq '=>';
 			@tokens = (@tokens, $self->step_tokens(1));
 			return $context_list;
-	}
-	return $context_list;
 }
 
 sub context_match_item {
 	my ($self, $context_value) = @_;
 
 	while ($self->more_tokens) {
-		my @tokens;
+	my @tokens;
 
 			if ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] =~ /\A$var_function_reference_regex\Z/ and $self->{tokens}[$self->{tokens_index} + 1][1] eq '->') {
 			my @tokens_freeze = @tokens;
@@ -336,9 +328,7 @@ sub context_match_item {
 
 sub context_action_block {
 	my ($self, $context_value) = @_;
-
-	while ($self->more_tokens) {
-		my @tokens;
+	my @tokens;
 
 			$self->confess_at_current_offset('expected \'{\'')
 				unless $self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] eq '{';
@@ -348,15 +338,13 @@ sub context_action_block {
 				unless $self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] eq '}';
 			@tokens = (@tokens, $self->step_tokens(1));
 			return $context_value;
-	}
-	return $context_value;
 }
 
 sub context_match_action {
 	my ($self, $context_list) = @_;
 
 	while ($self->more_tokens) {
-		my @tokens;
+	my @tokens;
 
 			if ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] eq '$_' and $self->{tokens}[$self->{tokens_index} + 1][1] eq '=') {
 			my @tokens_freeze = @tokens;
@@ -460,7 +448,7 @@ sub context_switch_blocks {
 	my ($self, $context_list) = @_;
 
 	while ($self->more_tokens) {
-		my @tokens;
+	my @tokens;
 
 			if ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] eq '}') {
 			my @tokens_freeze = @tokens;
@@ -489,7 +477,7 @@ sub context_if_chain {
 	my ($self, $context_object) = @_;
 
 	while ($self->more_tokens) {
-		my @tokens;
+	my @tokens;
 
 			if ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] eq 'elsif') {
 			my @tokens_freeze = @tokens;
@@ -516,7 +504,7 @@ sub context_spawn_expression {
 	my ($self, $context_value) = @_;
 
 	while ($self->more_tokens) {
-		my @tokens;
+	my @tokens;
 
 			if ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] =~ /\A\$\d++\Z/ and $self->{tokens}[$self->{tokens_index} + 1][1] eq '{' and $self->{tokens}[$self->{tokens_index} + 2][1] eq 'line_number' and $self->{tokens}[$self->{tokens_index} + 3][1] eq '}') {
 			my @tokens_freeze = @tokens;
@@ -655,7 +643,7 @@ sub context_more_spawn_expression {
 	my ($self, $context_object) = @_;
 
 	while ($self->more_tokens) {
-		my @tokens;
+	my @tokens;
 
 			if ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] eq '{') {
 			my @tokens_freeze = @tokens;
@@ -677,7 +665,7 @@ sub context_spawn_expression_hash {
 	my ($self, $context_list) = @_;
 
 	while ($self->more_tokens) {
-		my @tokens;
+	my @tokens;
 
 			if ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] eq '}') {
 			my @tokens_freeze = @tokens;
