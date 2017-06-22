@@ -293,11 +293,11 @@ sub compile_syntax_condition {
 		$self->confess_at_current_line("invalid variable condition value: $condition->{variable}") unless $condition->{variable} =~ m#\A\$(\w++)\Z#s;
 		# verify that the variable exists
 		$self->get_variable($1);
-		return "\$self->{tokens}[\$self->{tokens_index} + $offset][1] =~ /\\A\$var_$1\\Z/"
+		return "\$self->{tokens}[\$self->{tokens_index} + $offset][1] =~ /\\A(\$var_$1)\\Z/"
 
 	} elsif ($condition->{type} eq 'regex_match') {
 		$self->confess_at_current_line("invalid regex condition value: $condition->{regex}") unless $condition->{regex} =~ m#\A/(.*)/([msixpodualn]*)\Z#s;
-		return "\$self->{tokens}[\$self->{tokens_index} + $offset][1] =~ /\\A$1\\Z/$2"
+		return "\$self->{tokens}[\$self->{tokens_index} + $offset][1] =~ /\\A($1)\\Z/$2"
 
 	} elsif ($condition->{type} eq 'string_match') {
 		$self->confess_at_current_line("invalid string condition value: $condition->{string}") unless $condition->{string} =~ /\A'.*'\Z/s;
