@@ -11,6 +11,7 @@ use IO::Dir;
 use overload '""' => 'path';
 
 
+use Sugar::IO::Dir;
 use Sugar::IO::Archive;
 
 
@@ -32,6 +33,14 @@ return string path to the directory that this represents
 =head2 $file->exists
 
 return true if a file already exists with the given path
+
+=head2 $dir->name
+
+returns the file's individual name
+
+=head2 $dir->dir
+
+returns the directory holding this file
 
 =head2 $file->read
 
@@ -84,9 +93,13 @@ sub as_archive {
 
 sub name {
 	my ($self) = @_;
-	my $path = $self->{file_path};
-	croak "invalid file_path '$path'" unless $path =~ /([^\/]+)\/?$/m;
+	croak "invalid file_path '" . $self->path . "'" unless $self->path =~ /([^\/]+)\Z/s;
 	return $1
+}
+
+sub dir {
+	my ($self) = @_;
+	return Sugar::IO::Dir->new($self->path . '/..')->simplify
 }
 
 

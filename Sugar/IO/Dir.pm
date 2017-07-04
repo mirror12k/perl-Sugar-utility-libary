@@ -29,6 +29,14 @@ returns a new Sugar::IO::Dir object with a given path
 
 return string path to the directory that this represents
 
+=head2 $dir->exists
+
+returns true if the specified directory exists
+
+=head2 $dir->name
+
+returns the directory's individual name
+
 =head2 $dir->upper
 
 return the upper directory from this one
@@ -120,7 +128,7 @@ sub exists {
 sub name {
 	my ($self) = @_;
 	my $path = $self->{directory_path};
-	croak "invalid directory_path '$path'" unless $path =~ /([^\/]+)\/?$/m;
+	croak "invalid directory_path '$path'" unless $path =~ /([^\/]+)\/?\Z/s;
 	return $1
 }
 
@@ -132,12 +140,12 @@ sub simplify {
 
 	$path =~ s#^\./(?!$)##;
 	$path =~ s#//#/#g while $path =~ m#//#;
-	$path =~ s#/./#/#g while $path =~ m#/./#;
-	while ($path =~ m#(/|^)(?!\.\.)[^/]+/\.\.(/|$)#) {
-		$path =~ s#(/|^)(?!\.\.)[^/]+/\.\.(/|$)#$1#g ;
+	$path =~ s#/\./#/#g while $path =~ m#/\./#;
+	while ($path =~ m#(/|\A)(?!\.\.)[^/]+/\.\.(/|\Z)#s) {
+		$path =~ s#(/|\A)(?!\.\.)[^/]+/\.\.(/|\Z)#$1#sg ;
 		$path = '.' if $path eq '';
 	}
-	$path =~ s#(?<!^)/$##;
+	$path =~ s#(?<!\A)/\Z##;
 
 	return $self if $path eq $self->path;
 	return Sugar::IO::Dir->new($path)
@@ -267,8 +275,6 @@ sub mk {
 
 	my $upper = $self->upper;
 	unless ($upper->exists) {
-		warn "making upper first: $upper";
-		sleep 2;
 		$upper->mk;
 	}
 
