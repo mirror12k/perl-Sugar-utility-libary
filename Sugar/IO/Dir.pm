@@ -29,6 +29,11 @@ returns a new Sugar::IO::Dir object with a given path
 
 return string path to the directory that this represents
 
+=head2 $dir->upper
+
+return the upper directory from this one
+croaks if you try to get the upper directory of root
+
 =head2 $dir->simplify
 
 return a new directory object with the path component stripped of redundant tokens
@@ -56,7 +61,7 @@ returns a list of Sugar::IO::File objects representing all files in the director
 =head2 $dir->file($name)
 
 safely checks that a file exists in the given directory with the given name, and returns a Sugar::IO::File representing it.
-croaks if the name is invalid or the file doesn't exist (or isn't a file)
+croaks if the name is invalid
 
 =head2 $dir->new_file($name)
 
@@ -66,12 +71,21 @@ croaks if the name is invalid or the file already exists
 =head2 $dir->dir($name)
 
 safely checks that a sub-directory exists in the given directory with the given name, and returns a Sugar::IO::Dir representing it.
-croaks if the name is invalid or the dir doesn't exist (or isn't a directory)
+croaks if the name is invalid
 
 =head2 $dir->new_dir($name)
 
 safely checks that a sub-directory doesn't exist in the given directory with the given name, and returns a Sugar::IO::Dir representing it.
 croaks if the name is invalid or the dir already exists
+
+=head2 $dir->mk
+
+safely creates the specified directory (or makes sure that it exists)
+recursively creates directories if necessary
+
+=head2 $dir->rm
+
+completely deletes the directory and anything in it
 
 =head2 $dir->read_directory
 
@@ -121,11 +135,19 @@ sub simplify {
 	$path =~ s#/./#/#g while $path =~ m#/./#;
 	while ($path =~ m#(/|^)(?!\.\.)[^/]+/\.\.(/|$)#) {
 		$path =~ s#(/|^)(?!\.\.)[^/]+/\.\.(/|$)#$1#g ;
+		$path = '.' if $path eq '';
 	}
 	$path =~ s#(?<!^)/$##;
 
 	return $self if $path eq $self->path;
 	return Sugar::IO::Dir->new($path)
+}
+
+sub upper {
+	my ($self) = @_;
+	croak "attempt to get upper directory of root" if $self->path eq '/';
+
+	return Sugar::IO::Dir->new($self->path . '/..')->simplify
 }
 
 
@@ -198,17 +220,17 @@ sub recursive_files {
 
 sub file {
 	my ($self, $name) = @_;
-	croak "invalid filename '$name'" if $name =~ m#/# or $name eq '..' or $name eq '.';
+	croak "invalid filename '$name'" if $name =~ m#/# or $name eq '..' or $name eq '.' or $name eq '';
 
 	my $file = Sugar::IO::File->new($self->path . "/$name");
-	croak "missing file '$file'" unless $file->exists;
+	# croak "missing file '$file'" unless $file->exists;
 
 	return $file
 }
 
 sub new_file {
 	my ($self, $name) = @_;
-	croak "invalid filename '$name'" if $name =~ m#/# or $name eq '..' or $name eq '.';
+	croak "invalid filename '$name'" if $name =~ m#/# or $name eq '..' or $name eq '.' or $name eq '';
 
 	my $file = Sugar::IO::File->new($self->path . "/$name");
 	croak "file already exists '$file'" if $file->exists;
@@ -218,17 +240,17 @@ sub new_file {
 
 sub dir {
 	my ($self, $name) = @_;
-	croak "invalid directory name '$name'" if $name =~ m#/# or $name eq '..' or $name eq '.';
+	croak "invalid directory name '$name'" if $name =~ m#/# or $name eq '..' or $name eq '.' or $name eq '';
 
 	my $dir = Sugar::IO::Dir->new($self->path . "/$name");
-	croak "missing directory '$dir'" unless $dir->exists;
+	# croak "missing directory '$dir'" unless $dir->exists;
 
 	return $dir
 }
 
 sub new_dir {
 	my ($self, $name) = @_;
-	croak "invalid directory name '$name'" if $name =~ m#/# or $name eq '..' or $name eq '.';
+	croak "invalid directory name '$name'" if $name =~ m#/# or $name eq '..' or $name eq '.' or $name eq '';
 
 	my $dir = Sugar::IO::Dir->new($self->path . "/$name");
 	croak "directory already exists '$dir'" if $dir->exists;
@@ -241,7 +263,14 @@ sub new_dir {
 
 sub mk {
 	my ($self) = @_;
-	croak "attempt to make directory which already exists: '" . $self->path . "'" if $self->exists;
+	carp "attempt to make directory which already exists: '" . $self->path . "'" if $self->exists;
+
+	my $upper = $self->upper;
+	unless ($upper->exists) {
+		warn "making upper first: $upper";
+		sleep 2;
+		$upper->mk;
+	}
 
 	mkdir $self->path
 }
