@@ -208,7 +208,7 @@ sub compile_syntax_token_value {
 sub compile_syntax_context {
 	my ($self, $context_type, $context_name, $context) = @_;
 
-	my $is_linear_context = $context->[-1]{type} eq 'return_statement';
+	my $is_linear_context = ($context->[-1]{type} eq 'return_statement' or $context->[-1]{type} eq 'return_expression_statement');
 
 	my $code = '
 sub {';
@@ -424,6 +424,12 @@ sub compile_syntax_action {
 			} else {
 				push @code, "return \$context_value;";
 			}
+
+			$self->{context_default_case} //= [ { type => 'die_statement', expression => { type => 'string', string => "'unexpected token'" } } ];
+
+		} elsif ($action->{type} eq 'return_expression_statement') {
+			my $expression = $self->compile_syntax_spawn_expression($context_type, $action->{expression});
+			push @code, "return $expression;";
 
 			$self->{context_default_case} //= [ { type => 'die_statement', expression => { type => 'string', string => "'unexpected token'" } } ];
 

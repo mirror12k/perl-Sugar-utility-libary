@@ -82,20 +82,16 @@ object context root {
 item context def_value {
 	switch {
 		*string => {
-			$_ = $0
-			return
+			return $0
 		}
 		*substitution_regex => {
-			$_ = $0
-			return
+			return $0
 		}
 		*regex => {
-			$_ = $0
-			return
+			return $0
 		}
 		*variable => {
-			$_ = $0
-			return
+			return $0
 		}
 		default {
 			die 'unexpected token in def_value'
@@ -167,47 +163,41 @@ list context match_list_arrow {
 item context match_item {
 	switch {
 		*function_reference, '->' => {
-			$_ = {
+			return {
 				type => 'function_match'
 				function => $0
 				argument => !spawn_expression
 			}
-			return
 		}
 		*function_reference => {
-			$_ = {
+			return {
 				type => 'function_match'
 				function => $0
 			}
-			return
 		}
 		*variable => {
-			$_ = {
+			return {
 				type => 'variable_match'
 				variable => $0
 			}
-			return
 		}
 		*regex => {
-			$_ = {
+			return {
 				type => 'regex_match'
 				regex => $0
 			}
-			return
 		}
 		*string => {
-			$_ = {
+			return {
 				type => 'string_match'
 				string => $0
 			}
-			return
 		}
 		'*', *identifier => {
-			$_ = {
+			return {
 				type => 'token_type_match'
 				value => $1
 			}
-			return
 		}
 		default {
 			die 'expected match item'
@@ -271,9 +261,17 @@ list context match_action {
 			}
 		}
 		'return' => {
-			push {
-				type => 'return_statement'
-				line_number => $0{line_number}
+			if ('}') => {
+				push {
+					type => 'return_statement'
+					line_number => $0{line_number}
+				}
+			} else {
+				push {
+					type => 'return_expression_statement'
+					expression => !spawn_expression
+					line_number => $0{line_number}
+				}
 			}
 		}
 		'match' => {
@@ -383,132 +381,114 @@ object context if_chain {
 item context spawn_expression {
 	switch {
 		/\$\d++/, '{', 'line_number', '}' => {
-			$_ = {
+			return {
 				type => 'get_token_line_number'
 				token => $0
 			}
-			return
 		}
 		/\$\d++/, '{', 'line_offset', '}' => {
-			$_ = {
+			return {
 				type => 'get_token_line_offset'
 				token => $0
 			}
-			return
 		}
 		/\$\d++/ => {
-			$_ = {
+			return {
 				type => 'get_token_text'
 				token => $0
 			}
-			return
 		}
 		'$_' => {
-			$_ = !more_spawn_expression->{
+			return !more_spawn_expression->{
 				type => 'get_context'
 			}
-			return
 		}
 		'pop' => {
-			$_ = {
+			return {
 				type => 'pop_list'
 			}
-			return
 		}
 
 		*context_reference, '->' => {
-			$_ = {
+			return {
 				type => 'call_context'
 				context => $0
 				argument => !spawn_expression
 			}
-			return
 		}
 		*context_reference => {
-			$_ = {
+			return {
 				type => 'call_context'
 				context => $0
 			}
-			return
 		}
 		*function_reference, '->' => {
-			$_ = {
+			return {
 				type => 'call_function'
 				function => $0
 				argument => !spawn_expression
 			}
-			return
 		}
 		*function_reference => {
-			$_ = {
+			return {
 				type => 'call_function'
 				function => $0
 			}
-			return
 		}
 		*substitution_regex, '->' => {
-			$_ = {
+			return {
 				type => 'call_substitution'
 				regex => $0
 				argument => !spawn_expression
 			}
-			return
 		}
 		*variable, '->' => {
-			$_ = {
+			return {
 				type => 'call_variable'
 				variable => $0
 				argument => !spawn_expression
 			}
-			return
 		}
 		*variable => {
-			$_ = {
+			return {
 				type => 'call_variable'
 				variable => $0
 			}
-			return
 		}
 		*string => {
-			$_ = {
+			return {
 				type => 'string'
 				string => $0
 			}
-			return
 		}
 		*identifier => {
-			$_ = {
+			return {
 				type => 'bareword'
 				value => $0
 			}
-			return
 		}
 
 
 		'undef' => {
-			$_ = {
+			return {
 				type => 'undef'
 			}
-			return
 		}
 		'[', ']' => {
-			$_ = {
+			return {
 				type => 'empty_list'
 			}
-			return
 		}
 		'{', '}' => {
-			$_ = {
+			return {
 				type => 'empty_hash'
 			}
-			return
 		}
 		'{' => {
-			$_ = {
+			return {
 				type => 'hash_constructor'
 				arguments => !spawn_expression_hash->[]
 			}
-			return
 		}
 		default {
 			die 'push expression expected'
