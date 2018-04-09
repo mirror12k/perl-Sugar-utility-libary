@@ -204,27 +204,27 @@ list context match_action {
 			}
 		}
 		'$_', '{' => {
-			push !spawn_expression
+			$key_expression = !spawn_expression
 			match '}'
 			if '{' => {
-				push !spawn_expression
+				$subkey_expression = !spawn_expression
 				match '}', '='
 				push assign_object_field_statement:{
 					expression => !spawn_expression
-					subkey => pop
-					key => pop
+					subkey => $subkey_expression
+					key => $key_expression
 				}
 			} elsif '[' => {
 				match ']', '='
 				push assign_array_field_statement:{
 					expression => !spawn_expression
-					key => pop
+					key => $key_expression
 				}
 			} else {
 				match '='
 				push assign_field_statement:{
 					expression => !spawn_expression
-					key => pop
+					key => $key_expression
 				}
 			}
 
@@ -273,6 +273,12 @@ list context match_action {
 		}
 		'die' => {
 			push die_statement:{
+				expression => !spawn_expression
+			}
+		}
+		*variable, '=' => {
+			push variable_assignment_statement:{
+				variable => $0
 				expression => !spawn_expression
 			}
 		}
@@ -342,6 +348,7 @@ item context spawn_expression {
 			return !more_spawn_expression->get_context:{}
 		}
 		'pop' => {
+			warn 'pop expressions are deprecated'
 			return pop_list:{}
 		}
 
@@ -414,7 +421,7 @@ item context spawn_expression {
 			}
 		}
 		*variable => {
-			return call_variable:{ variable => $0 }
+			return variable_value:{ variable => $0 }
 		}
 		*string => {
 			return string:{ string => $0 }

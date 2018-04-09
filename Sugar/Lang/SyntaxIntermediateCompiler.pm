@@ -137,6 +137,11 @@ sub get_variable {
 	return $self->{variables_by_name}{$identifier}
 }
 
+sub exists_variable {
+	my ($self, $identifier) = @_;
+	return exists $self->{variables_by_name}{$identifier}
+}
+
 sub get_function_by_name {
 	my ($self, $value) = @_;
 	if ($value =~ /\A\!(\w++)\Z/) {
@@ -368,6 +373,10 @@ sub compile_syntax_action {
 
 	my @code;
 
+	# create a new variable scope
+	my $previous_variable_scope = $self->{variables_by_name};
+	$self->{variables_by_name} = { %{$self->{variables_by_name}} };
+
 	if (defined $condition) {
 		my $count = $self->get_syntax_match_list_tokens_eaten($condition);
 		push @code, "my \@tokens = (\@tokens, \$self->step_tokens($count));" if $count > 0;
@@ -498,12 +507,24 @@ sub compile_syntax_action {
 			my $expression = $self->compile_syntax_spawn_expression($context_type, $action->{expression});
 			push @code, "\$self->confess_at_current_offset($expression);";
 
+		} elsif ($action->{type} eq 'variable_assignment_statement') {
+			my $var_name = $action->{variable} =~ s/\A\$//r;
+			my $expression = $self->compile_syntax_spawn_expression($context_type, $action->{expression});
+
+			if ($self->exists_variable($var_name)) {
+				push @code, "\$var_$var_name = $expression;";
+			} else {
+				$self->{variables_by_name}{$var_name} = "\$var_$var_name";
+				push @code, "my \$var_$var_name = $expression;";
+			}
+
 		} else {
 			die "undefined action '$action->{type}'";
 		}
 	}
 
-
+	# unscope
+	$self->{variables_by_name} = $previous_variable_scope;
 
 	return join ("\n\t\t\t", '', @code) . "\n";
 }
@@ -572,12 +593,13 @@ sub compile_syntax_spawn_expression {
 		# warn "got call_variable: $expression->{variable}";
 		my $var_name = $expression->{variable} =~ s/\A\$//r;
 		$self->get_variable($var_name);
-		if (exists $expression->{argument}) {
-			my $expression_code = $self->compile_syntax_spawn_expression($context_type, $expression->{argument});
-			return "\$var_$var_name->($expression_code)";
-		} else {
-			return "\$var_$var_name->()";
-		}
+		my $expression_code = $self->compile_syntax_spawn_expression($context_type, $expression->{argument});
+		return "\$var_$var_name->($expression_code)";
+
+	} elsif ($expression->{type} eq 'variable_value') {
+		my $var_name = $expression->{variable} =~ s/\A\$//r;
+		$self->get_variable($var_name);
+		return "\$var_$var_name";
 
 	} elsif ($expression->{type} eq 'call_substitution') {
 		# warn "got call_substitution: $expression";
@@ -608,7 +630,8 @@ sub compile_syntax_spawn_expression {
 		while (@items) {
 			my $field = shift @items;
 			my $value = shift @items;
-			$code .= $self->compile_syntax_spawn_expression($context_type, $field) . " => " . $self->compile_syntax_spawn_expression($context_type, $value) . ", ";
+			$code .= $self->compile_syntax_spawn_expression($context_type, $field). " => "
+					. $self->compile_syntax_spawn_expression($context_type, $value) . ", ";
 		}
 		$code .= "}";
 		return $code
