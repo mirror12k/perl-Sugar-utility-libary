@@ -3,7 +3,7 @@ package Sugar::Lang::GrammarCompiler
 
 # regex definitions
 code_block_regex = /\{\{.*?\}\}/s
-symbol_regex = /\(|\)|\{|\}|\[|\]|->|=>|=|,|\*/
+symbol_regex = /\(|\)|\{|\}|\[|\]|->|=>|=|,|\*|:/
 
 package_identifier_regex = /[a-zA-Z_][a-zA-Z0-9_]*+(\:\:[a-zA-Z_][a-zA-Z0-9_]*+)++/
 identifier_regex = /[a-zA-Z_][a-zA-Z0-9_]*+/
@@ -163,41 +163,25 @@ list context match_list_arrow {
 item context match_item {
 	switch {
 		*function_reference, '->' => {
-			return {
-				type => 'function_match'
+			return function_match:{
 				function => $0
 				argument => !spawn_expression
 			}
 		}
 		*function_reference => {
-			return {
-				type => 'function_match'
-				function => $0
-			}
+			return function_match:{ function => $0 }
 		}
 		*variable => {
-			return {
-				type => 'variable_match'
-				variable => $0
-			}
+			return variable_match:{ variable => $0 }
 		}
 		*regex => {
-			return {
-				type => 'regex_match'
-				regex => $0
-			}
+			return regex_match:{ regex => $0 }
 		}
 		*string => {
-			return {
-				type => 'string_match'
-				string => $0
-			}
+			return string_match:{ string => $0 }
 		}
 		'*', *identifier => {
-			return {
-				type => 'token_type_match'
-				value => $1
-			}
+			return token_type_match:{ value => $1 }
 		}
 		default {
 			die 'expected match item'
@@ -215,9 +199,7 @@ item context action_block {
 list context match_action {
 	switch {
 		'$_', '=' => {
-			push {
-				type => 'assign_item_statement'
-				line_number => $0{line_number}
+			push assign_item_statement:{
 				expression => !spawn_expression
 			}
 		}
@@ -227,26 +209,20 @@ list context match_action {
 			if '{' => {
 				push !spawn_expression
 				match '}', '='
-				push {
-					type => 'assign_object_field_statement'
-					line_number => $0{line_number}
+				push assign_object_field_statement:{
 					expression => !spawn_expression
 					subkey => pop
 					key => pop
 				}
 			} elsif '[' => {
 				match ']', '='
-				push {
-					type => 'assign_array_field_statement'
-					line_number => $0{line_number}
+				push assign_array_field_statement:{
 					expression => !spawn_expression
 					key => pop
 				}
 			} else {
 				match '='
-				push {
-					type => 'assign_field_statement'
-					line_number => $0{line_number}
+				push assign_field_statement:{
 					expression => !spawn_expression
 					key => pop
 				}
@@ -254,68 +230,49 @@ list context match_action {
 
 		}
 		'push' => {
-			push {
-				type => 'push_statement'
-				line_number => $0{line_number}
+			push push_statement:{
 				expression => !spawn_expression
 			}
 		}
 		'return' => {
 			if ('}') => {
-				push {
-					type => 'return_statement'
-					line_number => $0{line_number}
-				}
+				push return_statement:{}
 			} else {
-				push {
-					type => 'return_expression_statement'
+				push return_expression_statement:{
 					expression => !spawn_expression
-					line_number => $0{line_number}
 				}
 			}
 		}
 		'match' => {
-			push {
-				type => 'match_statement'
-				line_number => $0{line_number}
+			push match_statement:{
 				match_list => !match_list_specifier
 			}
 		}
 		'if' => {
-			push !if_chain->{
-				type => 'if_statement'
-				line_number => $0{line_number}
+			push !if_chain->if_statement:{
 				match_list => !match_list_arrow
 				block => !action_block
 			}
 		}
 		'switch' => {
 			match '{'
-			push !if_chain->{
-				type => 'switch_statement'
-				line_number => $0{line_number}
+			push !if_chain->switch_statement:{
 				switch_cases => !switch_blocks->[]
 			}
 		}
 		'while' => {
-			push {
-				type => 'while_statement'
-				line_number => $0{line_number}
+			push while_statement:{
 				match_list => !match_list_arrow
 				block => !action_block
 			}
 		}
 		'warn' => {
-			push {
-				type => 'warn_statement'
-				line_number => $0{line_number}
+			push warn_statement:{
 				expression => !spawn_expression
 			}
 		}
 		'die' => {
-			push {
-				type => 'die_statement'
-				line_number => $0{line_number}
+			push die_statement:{
 				expression => !spawn_expression
 			}
 		}
@@ -332,18 +289,14 @@ list context switch_blocks {
 			return
 		}
 		'default' => {
-			push {
-				type => 'default_case'
-				line_number => $0{line_number}
+			push default_case:{
 				block => !action_block
 			}
 			match '}'
 			return
 		}
 		default {
-			push {
-				type => 'match_case'
-				line_number => $0{line_number}
+			push match_case:{
 				match_list => !match_list_arrow
 				block => !action_block
 			}
@@ -356,18 +309,14 @@ list context switch_blocks {
 object context if_chain {
 	switch {
 		'elsif' => {
-			$_{'branch'} = !if_chain->{
-				type => 'elsif_statement'
-				line_number => $0{line_number}
+			$_{'branch'} = !if_chain->elsif_statement:{
 				match_list => !match_list_arrow
 				block => !action_block
 			}
 			return
 		}
 		'else' => {
-			$_{'branch'} = {
-				type => 'else_statement'
-				line_number => $0{line_number}
+			$_{'branch'} = else_statement:{
 				block => !action_block
 			}
 			return
@@ -381,115 +330,99 @@ object context if_chain {
 item context spawn_expression {
 	switch {
 		/\$\d++/, '{', 'line_number', '}' => {
-			return {
-				type => 'get_token_line_number'
-				token => $0
-			}
+			return get_token_line_number:{ token => $0 }
 		}
 		/\$\d++/, '{', 'line_offset', '}' => {
-			return {
-				type => 'get_token_line_offset'
-				token => $0
-			}
+			return get_token_line_offset:{ token => $0 }
 		}
 		/\$\d++/ => {
-			return {
-				type => 'get_token_text'
-				token => $0
-			}
+			return get_token_text:{ token => $0 }
 		}
 		'$_' => {
-			return !more_spawn_expression->{
-				type => 'get_context'
-			}
+			return !more_spawn_expression->get_context:{}
 		}
 		'pop' => {
-			return {
-				type => 'pop_list'
+			return pop_list:{}
+		}
+
+
+
+		'[', ']' => {
+			return empty_list:{}
+		}
+		'[' => {
+			return list_constructor:{
+				arguments => !spawn_expression_list->[]
+			}
+		}
+		'{', '}' => {
+			return empty_hash:{}
+		}
+		'{' => {
+			return hash_constructor:{
+				arguments => !spawn_expression_hash->[]
+			}
+		}
+		*identifier, ':', '{' => {
+			# translate down a typed object into a basic object constructor
+			return hash_constructor:{
+				arguments => !spawn_expression_hash->[
+					bareword:{ value => 'type' }, bareword_string:{ value => $0 },
+					bareword:{ value => 'line_number' }, get_token_line_number:{ token => '$0' },
+				]
 			}
 		}
 
+		'undef' => {
+			return undef:{}
+		}
+
+
+
 		*context_reference, '->' => {
-			return {
-				type => 'call_context'
+			return call_context:{
 				context => $0
 				argument => !spawn_expression
 			}
 		}
 		*context_reference => {
-			return {
-				type => 'call_context'
+			return call_context:{
 				context => $0
 			}
 		}
 		*function_reference, '->' => {
-			return {
-				type => 'call_function'
+			return call_function:{
 				function => $0
 				argument => !spawn_expression
 			}
 		}
 		*function_reference => {
-			return {
-				type => 'call_function'
+			return call_function:{
 				function => $0
 			}
 		}
 		*substitution_regex, '->' => {
-			return {
-				type => 'call_substitution'
+			return call_substitution:{
 				regex => $0
 				argument => !spawn_expression
 			}
 		}
 		*variable, '->' => {
-			return {
-				type => 'call_variable'
+			return call_variable:{
 				variable => $0
 				argument => !spawn_expression
 			}
 		}
 		*variable => {
-			return {
-				type => 'call_variable'
-				variable => $0
-			}
+			return call_variable:{ variable => $0 }
 		}
 		*string => {
-			return {
-				type => 'string'
-				string => $0
-			}
+			return string:{ string => $0 }
 		}
 		*identifier => {
-			return {
-				type => 'bareword'
-				value => $0
-			}
+			return bareword:{ value => $0 }
 		}
 
-
-		'undef' => {
-			return {
-				type => 'undef'
-			}
-		}
-		'[', ']' => {
-			return {
-				type => 'empty_list'
-			}
-		}
-		'{', '}' => {
-			return {
-				type => 'empty_hash'
-			}
-		}
-		'{' => {
-			return {
-				type => 'hash_constructor'
-				arguments => !spawn_expression_hash->[]
-			}
-		}
 		default {
 			die 'push expression expected'
 		}
@@ -499,8 +432,7 @@ item context spawn_expression {
 object context more_spawn_expression {
 	switch {
 		'{' => {
-			$_ = {
-				type => 'access'
+			$_ = access:{
 				left_expression => $_
 				right_expression => !spawn_expression
 			}
@@ -508,6 +440,24 @@ object context more_spawn_expression {
 		}
 		default {
 			return
+		}
+	}
+}
+
+list context spawn_expression_list {
+	switch {
+		']' => {
+			return
+		}
+		default {
+			push !spawn_expression
+			if ',' => {
+				# keep going
+			} elsif ']' => {
+				return
+			} else {
+				return
+			}
 		}
 	}
 }

@@ -587,12 +587,21 @@ sub compile_syntax_spawn_expression {
 	} elsif ($expression->{type} eq 'string') {
 		$self->confess_at_current_line("invalid spawn expression string: '$expression->{string}'") unless $expression->{string} =~ /\A'(.*)'\Z/s;
 		return "'$1'";
+	} elsif ($expression->{type} eq 'bareword_string') {
+		return "'$expression->{value}'";
 	} elsif ($expression->{type} eq 'bareword') {
 		return "$expression->{value}";
 	} elsif ($expression->{type} eq 'empty_list') {
 		return '[]'
 	} elsif ($expression->{type} eq 'empty_hash') {
 		return '{}'
+	} elsif ($expression->{type} eq 'list_constructor') {
+		my $code = "[ ";
+		foreach my $field (@{$expression->{arguments}}) {
+			$code .= $self->compile_syntax_spawn_expression($context_type, $field) . ", ";
+		}
+		$code .= "]";
+		return $code
 	} elsif ($expression->{type} eq 'hash_constructor') {
 		my $code = "{ ";
 		my @items = @{$expression->{arguments}};

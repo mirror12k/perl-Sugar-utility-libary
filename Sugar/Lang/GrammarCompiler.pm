@@ -15,7 +15,7 @@ use feature 'say';
 ##############################
 
 our $var_code_block_regex = qr/\{\{.*?\}\}/s;
-our $var_symbol_regex = qr/\(|\)|\{|\}|\[|\]|->|=>|=|,|\*/;
+our $var_symbol_regex = qr/\(|\)|\{|\}|\[|\]|->|=>|=|,|\*|:/;
 our $var_package_identifier_regex = qr/[a-zA-Z_][a-zA-Z0-9_]*+(\:\:[a-zA-Z_][a-zA-Z0-9_]*+)++/;
 our $var_identifier_regex = qr/[a-zA-Z_][a-zA-Z0-9_]*+/;
 our $var_string_regex = qr/'([^\\']|\\[\\'])*+'/s;
@@ -62,6 +62,7 @@ our $contexts = {
 	root => 'context_root',
 	spawn_expression => 'context_spawn_expression',
 	spawn_expression_hash => 'context_spawn_expression_hash',
+	spawn_expression_list => 'context_spawn_expression_list',
 	switch_blocks => 'context_switch_blocks',
 	token_definition => 'context_token_definition',
 };
@@ -278,27 +279,27 @@ sub context_match_item {
 
 			if ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][0] eq 'function_reference' and $self->{tokens}[$self->{tokens_index} + 1][1] eq '->') {
 			my @tokens = (@tokens, $self->step_tokens(2));
-			return { type => 'function_match', function => $tokens[0][1], argument => $self->context_spawn_expression, };
+			return { type => 'function_match', line_number => $tokens[0][2], function => $tokens[0][1], argument => $self->context_spawn_expression, };
 			}
 			elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][0] eq 'function_reference') {
 			my @tokens = (@tokens, $self->step_tokens(1));
-			return { type => 'function_match', function => $tokens[0][1], };
+			return { type => 'function_match', line_number => $tokens[0][2], function => $tokens[0][1], };
 			}
 			elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][0] eq 'variable') {
 			my @tokens = (@tokens, $self->step_tokens(1));
-			return { type => 'variable_match', variable => $tokens[0][1], };
+			return { type => 'variable_match', line_number => $tokens[0][2], variable => $tokens[0][1], };
 			}
 			elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][0] eq 'regex') {
 			my @tokens = (@tokens, $self->step_tokens(1));
-			return { type => 'regex_match', regex => $tokens[0][1], };
+			return { type => 'regex_match', line_number => $tokens[0][2], regex => $tokens[0][1], };
 			}
 			elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][0] eq 'string') {
 			my @tokens = (@tokens, $self->step_tokens(1));
-			return { type => 'string_match', string => $tokens[0][1], };
+			return { type => 'string_match', line_number => $tokens[0][2], string => $tokens[0][1], };
 			}
 			elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] eq '*' and $self->{tokens}[$self->{tokens_index} + 1][0] eq 'identifier') {
 			my @tokens = (@tokens, $self->step_tokens(2));
-			return { type => 'token_type_match', value => $tokens[1][1], };
+			return { type => 'token_type_match', line_number => $tokens[0][2], value => $tokens[1][1], };
 			}
 			else {
 			$self->confess_at_current_offset('expected match item');
@@ -369,7 +370,7 @@ sub context_match_action {
 			push @$context_list, { type => 'return_statement', line_number => $tokens[0][2], };
 			}
 			else {
-			push @$context_list, { type => 'return_expression_statement', expression => $self->context_spawn_expression, line_number => $tokens[0][2], };
+			push @$context_list, { type => 'return_expression_statement', line_number => $tokens[0][2], expression => $self->context_spawn_expression, };
 			}
 			}
 			elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] eq 'match') {
@@ -462,75 +463,83 @@ sub context_spawn_expression {
 
 			if ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] =~ /\A(\$\d++)\Z/ and $self->{tokens}[$self->{tokens_index} + 1][1] eq '{' and $self->{tokens}[$self->{tokens_index} + 2][1] eq 'line_number' and $self->{tokens}[$self->{tokens_index} + 3][1] eq '}') {
 			my @tokens = (@tokens, $self->step_tokens(4));
-			return { type => 'get_token_line_number', token => $tokens[0][1], };
+			return { type => 'get_token_line_number', line_number => $tokens[0][2], token => $tokens[0][1], };
 			}
 			elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] =~ /\A(\$\d++)\Z/ and $self->{tokens}[$self->{tokens_index} + 1][1] eq '{' and $self->{tokens}[$self->{tokens_index} + 2][1] eq 'line_offset' and $self->{tokens}[$self->{tokens_index} + 3][1] eq '}') {
 			my @tokens = (@tokens, $self->step_tokens(4));
-			return { type => 'get_token_line_offset', token => $tokens[0][1], };
+			return { type => 'get_token_line_offset', line_number => $tokens[0][2], token => $tokens[0][1], };
 			}
 			elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] =~ /\A(\$\d++)\Z/) {
 			my @tokens = (@tokens, $self->step_tokens(1));
-			return { type => 'get_token_text', token => $tokens[0][1], };
+			return { type => 'get_token_text', line_number => $tokens[0][2], token => $tokens[0][1], };
 			}
 			elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] eq '$_') {
 			my @tokens = (@tokens, $self->step_tokens(1));
-			return $self->context_more_spawn_expression({ type => 'get_context', });
+			return $self->context_more_spawn_expression({ type => 'get_context', line_number => $tokens[0][2], });
 			}
 			elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] eq 'pop') {
 			my @tokens = (@tokens, $self->step_tokens(1));
-			return { type => 'pop_list', };
-			}
-			elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][0] eq 'context_reference' and $self->{tokens}[$self->{tokens_index} + 1][1] eq '->') {
-			my @tokens = (@tokens, $self->step_tokens(2));
-			return { type => 'call_context', context => $tokens[0][1], argument => $self->context_spawn_expression, };
-			}
-			elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][0] eq 'context_reference') {
-			my @tokens = (@tokens, $self->step_tokens(1));
-			return { type => 'call_context', context => $tokens[0][1], };
-			}
-			elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][0] eq 'function_reference' and $self->{tokens}[$self->{tokens_index} + 1][1] eq '->') {
-			my @tokens = (@tokens, $self->step_tokens(2));
-			return { type => 'call_function', function => $tokens[0][1], argument => $self->context_spawn_expression, };
-			}
-			elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][0] eq 'function_reference') {
-			my @tokens = (@tokens, $self->step_tokens(1));
-			return { type => 'call_function', function => $tokens[0][1], };
-			}
-			elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][0] eq 'substitution_regex' and $self->{tokens}[$self->{tokens_index} + 1][1] eq '->') {
-			my @tokens = (@tokens, $self->step_tokens(2));
-			return { type => 'call_substitution', regex => $tokens[0][1], argument => $self->context_spawn_expression, };
-			}
-			elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][0] eq 'variable' and $self->{tokens}[$self->{tokens_index} + 1][1] eq '->') {
-			my @tokens = (@tokens, $self->step_tokens(2));
-			return { type => 'call_variable', variable => $tokens[0][1], argument => $self->context_spawn_expression, };
-			}
-			elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][0] eq 'variable') {
-			my @tokens = (@tokens, $self->step_tokens(1));
-			return { type => 'call_variable', variable => $tokens[0][1], };
-			}
-			elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][0] eq 'string') {
-			my @tokens = (@tokens, $self->step_tokens(1));
-			return { type => 'string', string => $tokens[0][1], };
-			}
-			elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][0] eq 'identifier') {
-			my @tokens = (@tokens, $self->step_tokens(1));
-			return { type => 'bareword', value => $tokens[0][1], };
-			}
-			elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] eq 'undef') {
-			my @tokens = (@tokens, $self->step_tokens(1));
-			return { type => 'undef', };
+			return { type => 'pop_list', line_number => $tokens[0][2], };
 			}
 			elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] eq '[' and $self->{tokens}[$self->{tokens_index} + 1][1] eq ']') {
 			my @tokens = (@tokens, $self->step_tokens(2));
-			return { type => 'empty_list', };
+			return { type => 'empty_list', line_number => $tokens[0][2], };
+			}
+			elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] eq '[') {
+			my @tokens = (@tokens, $self->step_tokens(1));
+			return { type => 'list_constructor', line_number => $tokens[0][2], arguments => $self->context_spawn_expression_list([]), };
 			}
 			elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] eq '{' and $self->{tokens}[$self->{tokens_index} + 1][1] eq '}') {
 			my @tokens = (@tokens, $self->step_tokens(2));
-			return { type => 'empty_hash', };
+			return { type => 'empty_hash', line_number => $tokens[0][2], };
 			}
 			elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] eq '{') {
 			my @tokens = (@tokens, $self->step_tokens(1));
-			return { type => 'hash_constructor', arguments => $self->context_spawn_expression_hash([]), };
+			return { type => 'hash_constructor', line_number => $tokens[0][2], arguments => $self->context_spawn_expression_hash([]), };
+			}
+			elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][0] eq 'identifier' and $self->{tokens}[$self->{tokens_index} + 1][1] eq ':' and $self->{tokens}[$self->{tokens_index} + 2][1] eq '{') {
+			my @tokens = (@tokens, $self->step_tokens(3));
+			return { type => 'hash_constructor', line_number => $tokens[0][2], arguments => $self->context_spawn_expression_hash([ { type => 'bareword', line_number => $tokens[0][2], value => 'type', }, { type => 'bareword_string', line_number => $tokens[0][2], value => $tokens[0][1], }, { type => 'bareword', line_number => $tokens[0][2], value => 'line_number', }, { type => 'get_token_line_number', line_number => $tokens[0][2], token => '$0', }, ]), };
+			}
+			elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] eq 'undef') {
+			my @tokens = (@tokens, $self->step_tokens(1));
+			return { type => 'undef', line_number => $tokens[0][2], };
+			}
+			elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][0] eq 'context_reference' and $self->{tokens}[$self->{tokens_index} + 1][1] eq '->') {
+			my @tokens = (@tokens, $self->step_tokens(2));
+			return { type => 'call_context', line_number => $tokens[0][2], context => $tokens[0][1], argument => $self->context_spawn_expression, };
+			}
+			elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][0] eq 'context_reference') {
+			my @tokens = (@tokens, $self->step_tokens(1));
+			return { type => 'call_context', line_number => $tokens[0][2], context => $tokens[0][1], };
+			}
+			elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][0] eq 'function_reference' and $self->{tokens}[$self->{tokens_index} + 1][1] eq '->') {
+			my @tokens = (@tokens, $self->step_tokens(2));
+			return { type => 'call_function', line_number => $tokens[0][2], function => $tokens[0][1], argument => $self->context_spawn_expression, };
+			}
+			elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][0] eq 'function_reference') {
+			my @tokens = (@tokens, $self->step_tokens(1));
+			return { type => 'call_function', line_number => $tokens[0][2], function => $tokens[0][1], };
+			}
+			elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][0] eq 'substitution_regex' and $self->{tokens}[$self->{tokens_index} + 1][1] eq '->') {
+			my @tokens = (@tokens, $self->step_tokens(2));
+			return { type => 'call_substitution', line_number => $tokens[0][2], regex => $tokens[0][1], argument => $self->context_spawn_expression, };
+			}
+			elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][0] eq 'variable' and $self->{tokens}[$self->{tokens_index} + 1][1] eq '->') {
+			my @tokens = (@tokens, $self->step_tokens(2));
+			return { type => 'call_variable', line_number => $tokens[0][2], variable => $tokens[0][1], argument => $self->context_spawn_expression, };
+			}
+			elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][0] eq 'variable') {
+			my @tokens = (@tokens, $self->step_tokens(1));
+			return { type => 'call_variable', line_number => $tokens[0][2], variable => $tokens[0][1], };
+			}
+			elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][0] eq 'string') {
+			my @tokens = (@tokens, $self->step_tokens(1));
+			return { type => 'string', line_number => $tokens[0][2], string => $tokens[0][1], };
+			}
+			elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][0] eq 'identifier') {
+			my @tokens = (@tokens, $self->step_tokens(1));
+			return { type => 'bareword', line_number => $tokens[0][2], value => $tokens[0][1], };
 			}
 			else {
 			$self->confess_at_current_offset('push expression expected');
@@ -547,7 +556,7 @@ sub context_more_spawn_expression {
 
 			if ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] eq '{') {
 			my @tokens = (@tokens, $self->step_tokens(1));
-			$context_object = { type => 'access', left_expression => $context_object, right_expression => $self->context_spawn_expression, };
+			$context_object = { type => 'access', line_number => $tokens[0][2], left_expression => $context_object, right_expression => $self->context_spawn_expression, };
 			$self->confess_at_current_offset('expected \'}\'')
 				unless $self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] eq '}';
 			@tokens = (@tokens, $self->step_tokens(1));
@@ -557,6 +566,33 @@ sub context_more_spawn_expression {
 			}
 	}
 	return $context_object;
+}
+
+sub context_spawn_expression_list {
+	my ($self, $context_list) = @_;
+
+	while ($self->more_tokens) {
+	my @tokens;
+
+			if ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] eq ']') {
+			my @tokens = (@tokens, $self->step_tokens(1));
+			return $context_list;
+			}
+			else {
+			push @$context_list, $self->context_spawn_expression;
+			if ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] eq ',') {
+			my @tokens = (@tokens, $self->step_tokens(1));
+			}
+			elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] eq ']') {
+			my @tokens = (@tokens, $self->step_tokens(1));
+			return $context_list;
+			}
+			else {
+			return $context_list;
+			}
+			}
+	}
+	return $context_list;
 }
 
 sub context_spawn_expression_hash {
