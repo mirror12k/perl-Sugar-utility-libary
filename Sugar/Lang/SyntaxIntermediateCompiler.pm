@@ -276,7 +276,7 @@ sub compile_syntax_condition {
 	if (ref $condition eq 'ARRAY') {
 		my @conditions = @$condition;
 		foreach my $i (0 .. $#conditions) {
-			$conditions[$i] = $self->compile_syntax_condition($context_type, $conditions[$i], $i);
+			$conditions[$i] = $self->compile_syntax_condition($context_type, $conditions[$i], $offset + $i);
 		}
 		return join ' and ', '$self->more_tokens', @conditions
 
@@ -303,6 +303,10 @@ sub compile_syntax_condition {
 		$self->confess_at_current_line("invalid string condition value: $condition->{string}") unless $condition->{string} =~ /\A'.*'\Z/s;
 		return "\$self->{tokens}[\$self->{tokens_index} + $offset][1] eq $condition->{string}"
 
+	} elsif ($condition->{type} eq 'token_type_match') {
+		# $self->confess_at_current_line("invalid string condition value: $condition->{string}") unless $condition->{string} =~ /\A'.*'\Z/s;
+		return "\$self->{tokens}[\$self->{tokens_index} + $offset][0] eq '$condition->{value}'"
+
 	} else {
 		$self->confess_at_current_line("invalid syntax condition '$condition->{type}'");
 	}
@@ -322,6 +326,9 @@ sub syntax_condition_as_string {
 
 	} elsif ($condition->{type} eq 'string_match') {
 		return "$condition->{string}"
+
+	} elsif ($condition->{type} eq 'token_type_match') {
+		return "$condition->{value}"
 
 	} else {
 		$self->confess_at_current_line("invalid syntax condition '$condition->{type}'");

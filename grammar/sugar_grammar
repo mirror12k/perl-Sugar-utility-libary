@@ -3,9 +3,9 @@ package Sugar::Lang::GrammarCompiler
 
 # regex definitions
 code_block_regex = /\{\{.*?\}\}/s
-symbol_regex = /\{|\}|\[|\]|->|=>|=|,/
+symbol_regex = /\{|\}|\[|\]|->|=>|=|,|\*/
 
-package_identifier_regex = /[a-zA-Z_][a-zA-Z0-9_]*+(\:\:[a-zA-Z_][a-zA-Z0-9_]*+)*+/
+package_identifier_regex = /[a-zA-Z_][a-zA-Z0-9_]*+(\:\:[a-zA-Z_][a-zA-Z0-9_]*+)++/
 identifier_regex = /[a-zA-Z_][a-zA-Z0-9_]*+/
 string_regex = /'([^\\']|\\[\\'])*+'/s
 regex_regex = /\/([^\\\/]|\\.)*+\/[msixpodualn]*+/s
@@ -44,11 +44,14 @@ ignored_tokens {
 # context definitions
 object context root {
 	switch {
-		$identifier_regex, '=' => {
+		*identifier, '=' => {
 			$_{variables}[] = $0
 			$_{variables}[] = !def_value
 		}
-		'package', $package_identifier_regex => {
+		'package', *package_identifier => {
+			$_{package_identifier} = $1
+		}
+		'package', *identifier => {
 			$_{package_identifier} = $1
 		}
 		'tokens', '{' => {
@@ -57,19 +60,19 @@ object context root {
 		'ignored_tokens', '{' => {
 			$_{ignored_tokens} = !ignored_tokens_list->[]
 		}
-		'item', 'context', $identifier_regex => {
+		'item', 'context', *identifier => {
 			$_{context_order}[] = $2
 			$_{item_contexts}{$2} = !action_block
 		}
-		'list', 'context', $identifier_regex => {
+		'list', 'context', *identifier => {
 			$_{context_order}[] = $2
 			$_{list_contexts}{$2} = !action_block
 		}
-		'object', 'context', $identifier_regex => {
+		'object', 'context', *identifier => {
 			$_{context_order}[] = $2
 			$_{object_contexts}{$2} = !action_block
 		}
-		'sub', $identifier_regex, $code_block_regex => {
+		'sub', *identifier, *code_block => {
 			$_{subroutine_order}[] = $1
 			$_{subroutines}{$1} = $2
 		}
@@ -78,19 +81,19 @@ object context root {
 
 item context def_value {
 	switch {
-		$string_regex => {
+		*string => {
 			$_ = $0
 			return
 		}
-		$substitution_regex_regex => {
+		*substitution_regex => {
 			$_ = $0
 			return
 		}
-		$regex_regex => {
+		*regex => {
 			$_ = $0
 			return
 		}
-		$variable_regex => {
+		*variable => {
 			$_ = $0
 			return
 		}
@@ -105,7 +108,7 @@ list context token_definition {
 		'}' => {
 			return
 		}
-		$identifier_regex, '=>' => {
+		*identifier, '=>' => {
 			push $0
 			push !def_value
 		}
@@ -120,7 +123,7 @@ list context ignored_tokens_list {
 		'}' => {
 			return
 		}
-		$identifier_regex => {
+		*identifier => {
 			push $0
 		}
 		default {
@@ -145,7 +148,7 @@ list context match_list_arrow {
 
 item context match_item {
 	switch {
-		$function_reference_regex, '->' => {
+		*function_reference, '->' => {
 			$_ = {
 				type => 'function_match'
 				function => $0
@@ -153,31 +156,38 @@ item context match_item {
 			}
 			return
 		}
-		$function_reference_regex => {
+		*function_reference => {
 			$_ = {
 				type => 'function_match'
 				function => $0
 			}
 			return
 		}
-		$variable_regex => {
+		*variable => {
 			$_ = {
 				type => 'variable_match'
 				variable => $0
 			}
 			return
 		}
-		$regex_regex => {
+		*regex => {
 			$_ = {
 				type => 'regex_match'
 				regex => $0
 			}
 			return
 		}
-		$string_regex => {
+		*string => {
 			$_ = {
 				type => 'string_match'
 				string => $0
+			}
+			return
+		}
+		'*', *identifier => {
+			$_ = {
+				type => 'token_type_match'
+				value => $1
 			}
 			return
 		}
@@ -388,7 +398,7 @@ item context spawn_expression {
 			return
 		}
 
-		$context_reference_regex, '->' => {
+		*context_reference, '->' => {
 			$_ = {
 				type => 'call_context'
 				context => $0
@@ -396,14 +406,14 @@ item context spawn_expression {
 			}
 			return
 		}
-		$context_reference_regex => {
+		*context_reference => {
 			$_ = {
 				type => 'call_context'
 				context => $0
 			}
 			return
 		}
-		$function_reference_regex, '->' => {
+		*function_reference, '->' => {
 			$_ = {
 				type => 'call_function'
 				function => $0
@@ -411,14 +421,14 @@ item context spawn_expression {
 			}
 			return
 		}
-		$function_reference_regex => {
+		*function_reference => {
 			$_ = {
 				type => 'call_function'
 				function => $0
 			}
 			return
 		}
-		$substitution_regex_regex, '->' => {
+		*substitution_regex, '->' => {
 			$_ = {
 				type => 'call_substitution'
 				regex => $0
@@ -426,7 +436,7 @@ item context spawn_expression {
 			}
 			return
 		}
-		$variable_regex, '->' => {
+		*variable, '->' => {
 			$_ = {
 				type => 'call_variable'
 				variable => $0
@@ -434,21 +444,21 @@ item context spawn_expression {
 			}
 			return
 		}
-		$variable_regex => {
+		*variable => {
 			$_ = {
 				type => 'call_variable'
 				variable => $0
 			}
 			return
 		}
-		$string_regex => {
+		*string => {
 			$_ = {
 				type => 'string'
 				string => $0
 			}
 			return
 		}
-		$identifier_regex => {
+		*identifier => {
 			$_ = {
 				type => 'bareword'
 				value => $0
