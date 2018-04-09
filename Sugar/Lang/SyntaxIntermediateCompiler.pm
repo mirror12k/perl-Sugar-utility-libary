@@ -273,14 +273,7 @@ sub {';
 sub compile_syntax_condition {
 	my ($self, $context_type, $condition, $offset) = @_;
 	$offset //= 0;
-	if (ref $condition eq 'ARRAY') {
-		my @conditions = @$condition;
-		foreach my $i (0 .. $#conditions) {
-			$conditions[$i] = $self->compile_syntax_condition($context_type, $conditions[$i], $offset + $i);
-		}
-		return join ' and ', '$self->more_tokens', @conditions
-
-	} elsif ($condition->{type} eq 'function_match') {
+	if ($condition->{type} eq 'function_match') {
 		my $function = $self->get_function_by_name($condition->{function});
 		if (exists $condition->{argument}) {
 			my $expression_code = $self->compile_syntax_spawn_expression($context_type, $condition->{argument});
@@ -312,6 +305,41 @@ sub compile_syntax_condition {
 	}
 }
 
+sub compile_syntax_match_list {
+	my ($self, $context_type, $condition, $offset) = @_;
+	$offset //= 0;
+
+	my @conditions = (@{$condition->{match_conditions}}, @{$condition->{look_ahead_conditons}});
+	foreach my $i (0 .. $#conditions) {
+		$conditions[$i] = $self->compile_syntax_condition($context_type, $conditions[$i], $offset + $i);
+	}
+	return join ' and ', '$self->more_tokens', @conditions
+}
+
+sub get_syntax_match_list_tokens_eaten {
+	my ($self, $condition) = @_;
+	return scalar @{$condition->{match_conditions}};
+}
+
+sub syntax_match_list_as_string {
+	my ($self, $condition) = @_;
+
+	my $string = join ', ', map $self->syntax_condition_as_string($_), @{$condition->{match_conditions}};
+
+	if (@{$condition->{look_ahead_conditons}}) {
+		my $look_ahead_string = join ', ', map $self->syntax_condition_as_string($_), @{$condition->{look_ahead_conditons}};
+		if ($string) {
+			$string = "$string, (look-ahead: $look_ahead_string)";
+		} else {
+			$string = "(look-ahead: $look_ahead_string)";
+		}
+	}
+
+	$string =~ s/([\\'])/\\$1/g;
+
+	return $string;
+}
+
 sub syntax_condition_as_string {
 	my ($self, $condition) = @_;
 	if ($condition->{type} eq 'function_match') {
@@ -328,7 +356,7 @@ sub syntax_condition_as_string {
 		return "$condition->{string}"
 
 	} elsif ($condition->{type} eq 'token_type_match') {
-		return "$condition->{value}"
+		return "$condition->{value} token"
 
 	} else {
 		$self->confess_at_current_line("invalid syntax condition '$condition->{type}'");
@@ -340,12 +368,12 @@ sub compile_syntax_action {
 
 	my @code;
 
-	if (defined $condition and ref $condition eq 'ARRAY') {
-		my $count = @$condition;
-		push @code, "my \@tokens = (\@tokens, \$self->step_tokens($count));";
-	} elsif (defined $condition) {
-		push @code, "my \@tokens = (\@tokens, \$self->next_token->[1]);";
-	} else {
+	if (defined $condition) {
+		my $count = $self->get_syntax_match_list_tokens_eaten($condition);
+		push @code, "my \@tokens = (\@tokens, \$self->step_tokens($count));" if $count > 0;
+	# } elsif (defined $condition) {
+	# 	push @code, "my \@tokens = (\@tokens, \$self->next_token->[1]);";
+	# } else {
 		# push @code, "my \@tokens;";
 	}
 	
@@ -400,36 +428,28 @@ sub compile_syntax_action {
 			$self->{context_default_case} //= [ { type => 'die_statement', expression => { type => 'string', string => "'unexpected token'" } } ];
 
 		} elsif ($action->{type} eq 'match_statement') {
-			my $match_condition = $action->{match_list};
-			my $match_description = (join ', ', map $self->syntax_condition_as_string($_), @$match_condition) =~ s/([\\'])/\\$1/gr;
+			my $match_description = $self->syntax_match_list_as_string($action->{match_list});
 			push @code, "\$self->confess_at_current_offset('expected $match_description')";
-			push @code, "\tunless " . $self->compile_syntax_condition($context_type, $match_condition) . ";";
+			push @code, "\tunless " . $self->compile_syntax_match_list($context_type, $action->{match_list}) . ";";
 
-			my $count = @$match_condition;
-			push @code, "\@tokens = (\@tokens, \$self->step_tokens($count));";
+			my $count = $self->get_syntax_match_list_tokens_eaten($action->{match_list});
+			push @code, "\@tokens = (\@tokens, \$self->step_tokens($count));" if $count > 0;
 
 		} elsif ($action->{type} eq 'if_statement') {
-			my $condition = $action->{match_list};
-			my $conditional_actions = $action->{block};
-
-			my $condition_code = $self->compile_syntax_condition($context_type, $condition);
-			my $action_code = $self->compile_syntax_action($context_type, $condition, $conditional_actions);
+			my $condition_code = $self->compile_syntax_match_list($context_type, $action->{match_list});
+			my $action_code = $self->compile_syntax_action($context_type, $action->{match_list}, $action->{block});
 
 			push @code, "if ($condition_code) {$action_code\t\t\t}";
 
 			while (exists $action->{branch}) {
 				$action = $action->{branch};
 				if ($action->{type} eq 'elsif_statement') {
-					my $condition = $action->{match_list};
-					my $conditional_actions = $action->{block};
-
-					my $condition_code = $self->compile_syntax_condition($context_type, $condition);
-					my $action_code = $self->compile_syntax_action($context_type, $condition, $conditional_actions);
+					my $condition_code = $self->compile_syntax_match_list($context_type, $action->{match_list});
+					my $action_code = $self->compile_syntax_action($context_type, $action->{match_list}, $action->{block});
 
 					push @code, "elsif ($condition_code) {$action_code\t\t\t}";
 				} else {
-					my $conditional_actions = $action->{block};
-					my $action_code = $self->compile_syntax_action($context_type, undef, $conditional_actions);
+					my $action_code = $self->compile_syntax_action($context_type, undef, $action->{block});
 
 					push @code, "else {$action_code\t\t\t}";
 				}
@@ -440,7 +460,7 @@ sub compile_syntax_action {
 			foreach my $case (@{$action->{switch_cases}}) {
 				$self->{current_line} = $case->{line_number};
 				if ($case->{type} eq 'match_case') {
-					my $condition_code = $self->compile_syntax_condition($context_type, $case->{match_list});
+					my $condition_code = $self->compile_syntax_match_list($context_type, $case->{match_list});
 					my $action_code = $self->compile_syntax_action($context_type, $case->{match_list}, $case->{block});
 
 					if ($first) {
@@ -458,11 +478,8 @@ sub compile_syntax_action {
 			}
 
 		} elsif ($action->{type} eq 'while_statement') {
-			my $condition = $action->{match_list};
-			my $conditional_actions = $action->{block};
-
-			my $condition_code = $self->compile_syntax_condition($context_type, $condition);
-			my $action_code = $self->compile_syntax_action($context_type, $condition, $conditional_actions);
+			my $condition_code = $self->compile_syntax_match_list($context_type, $action->{match_list});
+			my $action_code = $self->compile_syntax_action($context_type, $action->{match_list}, $action->{block});
 
 			push @code, "while ($condition_code) {$action_code\t\t\t}";
 
