@@ -401,29 +401,49 @@ sub compile_syntax_action {
 			}
 		} elsif ($action->{type} eq 'assign_item_statement') {
 			my $expression = $self->compile_syntax_spawn_expression($context_type, $action->{expression});
-			if ($context_type eq 'object_context') {
-				push @code, "\$context_object = $expression;";
-			} elsif ($context_type eq 'list_context') {
-				push @code, "\$context_list = $expression;";
+			if ($action->{variable} eq '$_') {
+				if ($context_type eq 'object_context') {
+					push @code, "\$context_object = $expression;";
+				} elsif ($context_type eq 'list_context') {
+					push @code, "\$context_list = $expression;";
+				} else {
+					push @code, "\$context_value = $expression;";
+				}
 			} else {
-				push @code, "\$context_value = $expression;";
+				my $var_name = $action->{variable} =~ s/\A\$//r;
+				# push @code, "\$var_$var_name = $expression;";
+				if ($self->exists_variable($var_name)) {
+					push @code, "\$var_$var_name = $expression;";
+				} else {
+					$self->{variables_by_name}{$var_name} = "\$var_$var_name";
+					push @code, "my \$var_$var_name = $expression;";
+				}
 			}
 			
 		} elsif ($action->{type} eq 'assign_field_statement') {
 			my $key = $self->compile_syntax_spawn_expression($context_type, $action->{key});
 			my $expression = $self->compile_syntax_spawn_expression($context_type, $action->{expression});
-			push @code, "\$context_object->{$key} = $expression;";
+
+			my $var_name = $action->{variable} =~ s/\A\$//r;
+			my $var_ref = $var_name eq '_' ? "\$context_object" : $self->get_variable($var_name);
+			push @code, "${var_ref}->{$key} = $expression;";
 			
 		} elsif ($action->{type} eq 'assign_array_field_statement') {
 			my $key = $self->compile_syntax_spawn_expression($context_type, $action->{key});
 			my $expression = $self->compile_syntax_spawn_expression($context_type, $action->{expression});
-			push @code, "push \@{\$context_object->{$key}}, $expression;";
+
+			my $var_name = $action->{variable} =~ s/\A\$//r;
+			my $var_ref = $var_name eq '_' ? "\$context_object" : $self->get_variable($var_name);
+			push @code, "push \@{${var_ref}->{$key}}, $expression;";
 			
 		} elsif ($action->{type} eq 'assign_object_field_statement') {
 			my $key = $self->compile_syntax_spawn_expression($context_type, $action->{key});
 			my $subkey = $self->compile_syntax_spawn_expression($context_type, $action->{subkey});
 			my $expression = $self->compile_syntax_spawn_expression($context_type, $action->{expression});
-			push @code, "\$context_object->{$key}{$subkey} = $expression;";
+
+			my $var_name = $action->{variable} =~ s/\A\$//r;
+			my $var_ref = $var_name eq '_' ? "\$context_object" : $self->get_variable($var_name);
+			push @code, "${var_ref}->{$key}{$subkey} = $expression;";
 
 		} elsif ($action->{type} eq 'return_statement') {
 			if ($context_type eq 'object_context') {
@@ -443,8 +463,14 @@ sub compile_syntax_action {
 			$self->{context_default_case} //= [ { type => 'die_statement', expression => { type => 'string', string => "'unexpected token'" } } ];
 
 		} elsif ($action->{type} eq 'match_statement') {
-			my $match_description = $self->syntax_match_list_as_string($action->{match_list});
-			push @code, "\$self->confess_at_current_offset('expected $match_description')";
+			my $death_expression;
+			if (defined $action->{death_expression}) {
+				$death_expression = $self->compile_syntax_spawn_expression($context_type, $action->{death_expression});
+			} else {
+				my $match_description = $self->syntax_match_list_as_string($action->{match_list});
+				$death_expression = "'expected $match_description'";
+			}
+			push @code, "\$self->confess_at_current_offset($death_expression)";
 			push @code, "\tunless " . $self->compile_syntax_match_list($context_type, $action->{match_list}) . ";";
 
 			my $count = $self->get_syntax_match_list_tokens_eaten($action->{match_list});
@@ -532,6 +558,7 @@ sub compile_syntax_action {
 sub compile_syntax_spawn_expression {
 	my ($self, $context_type, $expression) = @_;
 
+	# say "debug:", Dumper $expression;
 	if ($expression->{type} eq 'access') {
 		my $left = $self->compile_syntax_spawn_expression($context_type, $expression->{left_expression});
 		my $right = $self->compile_syntax_spawn_expression($context_type, $expression->{right_expression});

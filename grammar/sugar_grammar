@@ -190,39 +190,43 @@ item context match_item {
 }
 
 item context action_block {
-	match '{'
+	match '{' or die '"{" expected for code block'
 	$_ = !match_action->[]
-	match '}'
+	match '}' or die '"}" expected after code block'
 	return
 }
 
 list context match_action {
 	switch {
-		'$_', '=' => {
+		*variable, '=' => {
 			push assign_item_statement:{
+				variable => $0
 				expression => !spawn_expression
 			}
 		}
-		'$_', '{' => {
+		*variable, '{' => {
 			$key_expression = !spawn_expression
-			match '}'
+			match '}' or die '"}" expected after key expression'
 			if '{' => {
 				$subkey_expression = !spawn_expression
-				match '}', '='
+				match '}', '=' or die '"}", "=" expected after sub-key expression'
 				push assign_object_field_statement:{
+					variable => $0
 					expression => !spawn_expression
 					subkey => $subkey_expression
 					key => $key_expression
 				}
 			} elsif '[' => {
-				match ']', '='
+				match ']', '=' or die '"]", "=" expected after array access expression'
 				push assign_array_field_statement:{
+					variable => $0
 					expression => !spawn_expression
 					key => $key_expression
 				}
 			} else {
-				match '='
+				match '=' or die '"=" expected after key expression'
 				push assign_field_statement:{
+					variable => $0
 					expression => !spawn_expression
 					key => $key_expression
 				}
@@ -244,9 +248,16 @@ list context match_action {
 			}
 		}
 		'match' => {
-			push match_statement:{
+			# push match_statement:{
+			# 	match_list => !match_list_specifier
+			# }
+			$statement = match_statement:{
 				match_list => !match_list_specifier
 			}
+			if 'or', 'die' => {
+				$statement{death_expression} = !spawn_expression
+			}
+			push $statement
 		}
 		'if' => {
 			push !if_chain->if_statement:{
@@ -256,7 +267,7 @@ list context match_action {
 		}
 		'switch' => {
 			match '{'
-			push !if_chain->switch_statement:{
+			push switch_statement:{
 				switch_cases => !switch_blocks->[]
 			}
 		}
@@ -276,12 +287,12 @@ list context match_action {
 				expression => !spawn_expression
 			}
 		}
-		*variable, '=' => {
-			push variable_assignment_statement:{
-				variable => $0
-				expression => !spawn_expression
-			}
-		}
+		# *variable, '=' => {
+		# 	push variable_assignment_statement:{
+		# 		variable => $0
+		# 		expression => !spawn_expression
+		# 	}
+		# }
 		default {
 			return
 		}
