@@ -215,8 +215,9 @@ sub compile_syntax_context {
 
 	my $is_linear_context = ($context->[-1]{type} eq 'return_statement' or $context->[-1]{type} eq 'return_expression_statement');
 
-	my $code = '
-sub {';
+	my @code;
+# 	my $code = '
+# sub {';
 	my @args_list = ('$self');
 	if ($context_name ne 'root') {
 		if ($context_type eq 'object_context') {
@@ -228,51 +229,58 @@ sub {';
 		}
 	}
 	my $args_list_string = join ', ', @args_list;
-	$code .= "
-	my ($args_list_string) = \@_;
-";
+	push @code, "my ($args_list_string) = \@_;";
 
 	if ($context_name eq 'root') {
 		if ($context_type eq 'object_context') {
-			$code .= "\tmy \$context_object = {};\n";
+			push @code, "my \$context_object = {};";
 		} elsif ($context_type eq 'list_context') {
-			$code .= "\tmy \$context_list = [];\n";
+			push @code, "my \$context_list = [];";
 		} else {
-			$code .= "\tmy \$context_value;\n";
+			push @code, "my \$context_value;";
 		}
 	}
 
 	unless ($is_linear_context) {
-	# $code .= "\t\tsay 'in context $context_name';\n"; # DEBUG INLINE TREE BUILDER
-	$code .= '
-	while ($self->more_tokens) {
-';
+		# $code .= "\t\tsay 'in context $context_name';\n"; # DEBUG INLINE TREE BUILDER
+		push @code, "while (\$self->more_tokens) {";
 	}
 
-	$code .= "\tmy \@tokens;\n";
+	# $code .= "\tmy \@tokens;\n";
 
-	$code .= $self->compile_syntax_action($context_type, undef, $context);
+	my @action_code;
+	push @action_code, "my \@tokens;";
+	push @action_code, '';
+	push @action_code, $self->compile_syntax_action($context_type, undef, $context);
+	@action_code = map "\t$_", @action_code unless $is_linear_context;
+	push @code, @action_code;
 
 	unless ($is_linear_context) {
-		$code .= "\t}\n";
+
+		push @code, "}";
+		# $code .= "\t}\n";
 
 		if ($context_type eq 'object_context') {
-			$code .= "\treturn \$context_object;\n";
+			push @code, "return \$context_object;";
 		} elsif ($context_type eq 'list_context') {
-			$code .= "\treturn \$context_list;\n";
+			push @code, "return \$context_list;";
 		} else {
-			$code .= "\treturn \$context_value;\n";
+			push @code, "return \$context_value;";
 		}
 	}
 
-	$code .= "}\n";
+	# $code .= "}\n";
 	# say "compiled code: ", $code; # DEBUG INLINE TREE BUILDER
 	# my $compiled = eval $code;
 	# if ($@) {
 	# 	confess "error compiling context type '$context_name': $@";
 	# }
 	# return $compiled
-	return $code
+	# return $code
+
+	@code = map "\t$_", @code;
+
+	return join '', map "$_\n", "sub {", @code, "}";
 }
 
 sub compile_syntax_condition {
@@ -478,23 +486,30 @@ sub compile_syntax_action {
 
 		} elsif ($action->{type} eq 'if_statement') {
 			my $condition_code = $self->compile_syntax_match_list($context_type, $action->{match_list});
-			my $action_code = $self->compile_syntax_action($context_type, $action->{match_list}, $action->{block});
+			my @action_code = $self->compile_syntax_action($context_type, $action->{match_list}, $action->{block});
 
-			push @code, "if ($condition_code) {$action_code\t\t\t}";
+			push @code, "if ($condition_code) {";
+			push @code, map "\t$_", @action_code;
+			# push @code, "}";
 
 			while (exists $action->{branch}) {
 				$action = $action->{branch};
 				if ($action->{type} eq 'elsif_statement') {
 					my $condition_code = $self->compile_syntax_match_list($context_type, $action->{match_list});
-					my $action_code = $self->compile_syntax_action($context_type, $action->{match_list}, $action->{block});
+					my @action_code = $self->compile_syntax_action($context_type, $action->{match_list}, $action->{block});
 
-					push @code, "elsif ($condition_code) {$action_code\t\t\t}";
+					push @code, "} elsif ($condition_code) {";
+					push @code, map "\t$_", @action_code;
+					# push @code, "}";
 				} else {
-					my $action_code = $self->compile_syntax_action($context_type, undef, $action->{block});
+					my @action_code = $self->compile_syntax_action($context_type, $action->{match_list}, $action->{block});
 
-					push @code, "else {$action_code\t\t\t}";
+					push @code, "} else {";
+					push @code, map "\t$_", @action_code;
+					# push @code, "}";
 				}
 			}
+			push @code, "}";
 
 		} elsif ($action->{type} eq 'switch_statement') {
 			my $first = 1;
@@ -502,27 +517,40 @@ sub compile_syntax_action {
 				$self->{current_line} = $case->{line_number};
 				if ($case->{type} eq 'match_case') {
 					my $condition_code = $self->compile_syntax_match_list($context_type, $case->{match_list});
-					my $action_code = $self->compile_syntax_action($context_type, $case->{match_list}, $case->{block});
+					my @action_code = $self->compile_syntax_action($context_type, $case->{match_list}, $case->{block});
 
 					if ($first) {
-						push @code, "if ($condition_code) {$action_code\t\t\t}";
+						# push @code, "if ($condition_code) {$action_code\t\t\t}";
+						push @code, "if ($condition_code) {";
+						push @code, map "\t$_", @action_code;
+						# push @code, "}";
 						$first = 0;
 					} else {
-						push @code, "elsif ($condition_code) {$action_code\t\t\t}";
+						# push @code, "elsif ($condition_code) {$action_code\t\t\t}";
+						push @code, "} elsif ($condition_code) {";
+						push @code, map "\t$_", @action_code;
+						# push @code, "}";
 					}
 				} elsif ($case->{type} eq 'default_case') {
-					my $action_code = $self->compile_syntax_action($context_type, undef, $case->{block});
-					push @code, "else {$action_code\t\t\t}";
+					my @action_code = $self->compile_syntax_action($context_type, undef, $case->{block});
+					# push @code, "else {$action_code\t\t\t}";
+					push @code, "} else {";
+					push @code, map "\t$_", @action_code;
+					# push @code, "}";
 				} else {
 					$self->confess_at_current_line("invalid switch case type: $case->{type}");
 				}
 			}
+			push @code, "}" unless $first;
 
 		} elsif ($action->{type} eq 'while_statement') {
 			my $condition_code = $self->compile_syntax_match_list($context_type, $action->{match_list});
-			my $action_code = $self->compile_syntax_action($context_type, $action->{match_list}, $action->{block});
+			my @action_code = $self->compile_syntax_action($context_type, $action->{match_list}, $action->{block});
 
-			push @code, "while ($condition_code) {$action_code\t\t\t}";
+			# push @code, "while ($condition_code) {$action_code\t\t\t}";
+			push @code, "while ($condition_code) {";
+			push @code, map "\t$_", @action_code;
+			push @code, "}";
 
 
 		} elsif ($action->{type} eq 'warn_statement') {
@@ -552,7 +580,8 @@ sub compile_syntax_action {
 	# unscope
 	$self->{variables_by_name} = $previous_variable_scope;
 
-	return join ("\n\t\t\t", '', @code) . "\n";
+	return @code
+	# return join ("\n\t\t\t", '', @code) . "\n";
 }
 
 sub compile_syntax_spawn_expression {
