@@ -335,9 +335,9 @@ sub compile_syntax_action {
 
 	if (defined $condition and ref $condition eq 'ARRAY') {
 		my $count = @$condition;
-		push @code, "\@tokens = (\@tokens, \$self->step_tokens($count));";
+		push @code, "my \@tokens = (\@tokens, \$self->step_tokens($count));";
 	} elsif (defined $condition) {
-		push @code, "\@tokens = (\@tokens, \$self->next_token->[1]);";
+		push @code, "my \@tokens = (\@tokens, \$self->next_token->[1]);";
 	} else {
 		# push @code, "my \@tokens;";
 	}
@@ -408,7 +408,7 @@ sub compile_syntax_action {
 			my $condition_code = $self->compile_syntax_condition($context_type, $condition);
 			my $action_code = $self->compile_syntax_action($context_type, $condition, $conditional_actions);
 
-			push @code, "if ($condition_code) {\n\t\t\tmy \@tokens_freeze = \@tokens;\n\t\t\tmy \@tokens = \@tokens_freeze;$action_code\t\t\t}";
+			push @code, "if ($condition_code) {$action_code\t\t\t}";
 
 			while (exists $action->{branch}) {
 				$action = $action->{branch};
@@ -419,7 +419,7 @@ sub compile_syntax_action {
 					my $condition_code = $self->compile_syntax_condition($context_type, $condition);
 					my $action_code = $self->compile_syntax_action($context_type, $condition, $conditional_actions);
 
-					push @code, "elsif ($condition_code) {\n\t\t\tmy \@tokens_freeze = \@tokens;\n\t\t\tmy \@tokens = \@tokens_freeze;$action_code\t\t\t}";
+					push @code, "elsif ($condition_code) {$action_code\t\t\t}";
 				} else {
 					my $conditional_actions = $action->{block};
 					my $action_code = $self->compile_syntax_action($context_type, undef, $conditional_actions);
@@ -437,10 +437,10 @@ sub compile_syntax_action {
 					my $action_code = $self->compile_syntax_action($context_type, $case->{match_list}, $case->{block});
 
 					if ($first) {
-						push @code, "if ($condition_code) {\n\t\t\tmy \@tokens_freeze = \@tokens;\n\t\t\tmy \@tokens = \@tokens_freeze;$action_code\t\t\t}";
+						push @code, "if ($condition_code) {$action_code\t\t\t}";
 						$first = 0;
 					} else {
-						push @code, "elsif ($condition_code) {\n\t\t\tmy \@tokens_freeze = \@tokens;\n\t\t\tmy \@tokens = \@tokens_freeze;$action_code\t\t\t}";
+						push @code, "elsif ($condition_code) {$action_code\t\t\t}";
 					}
 				} elsif ($case->{type} eq 'default_case') {
 					my $action_code = $self->compile_syntax_action($context_type, undef, $case->{block});
@@ -457,7 +457,7 @@ sub compile_syntax_action {
 			my $condition_code = $self->compile_syntax_condition($context_type, $condition);
 			my $action_code = $self->compile_syntax_action($context_type, $condition, $conditional_actions);
 
-			push @code, "while ($condition_code) {\n\t\t\tmy \@tokens_freeze = \@tokens;\n\t\t\tmy \@tokens = \@tokens_freeze;$action_code\t\t\t}";
+			push @code, "while ($condition_code) {$action_code\t\t\t}";
 
 
 		} elsif ($action->{type} eq 'warn_statement') {
