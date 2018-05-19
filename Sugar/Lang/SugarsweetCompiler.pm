@@ -454,8 +454,8 @@ sub compile_expression_with_variables {
 sub main {
 	use Data::Dumper;
 	use Sugar::IO::File;
-	use test1;
-	# use Sugar::Lang::SyntaxIntermediateCompiler;
+	# use test1;
+	use Sugar::Lang::SugarsweetParser;
 
 	my $parser = Sugar::Lang::SugarsweetParser->new;
 	my $compiler = __PACKAGE__->new;
