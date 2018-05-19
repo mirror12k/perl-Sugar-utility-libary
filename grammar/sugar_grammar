@@ -45,8 +45,8 @@ ignored_tokens {
 object context root {
 	switch {
 		*identifier, '=' => {
-			$_{variables}[] = $0
-			$_{variables}[] = !def_value
+			$_{global_variable_names}[] = $0
+			$_{global_variable_expressions}{$0} = !def_value
 		}
 		'package', *package_identifier => {
 			$_{package_identifier} = $1
@@ -105,8 +105,10 @@ list context token_definition {
 			return
 		}
 		*identifier, '=>' => {
-			push $0
-			push !def_value
+			push token_definition:{
+				identifier => $0
+				value => !def_value
+			}
 		}
 		default {
 			die 'unexpected token in token_definition'

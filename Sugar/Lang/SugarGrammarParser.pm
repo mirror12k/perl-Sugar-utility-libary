@@ -106,8 +106,8 @@ sub context_root {
 		
 		if ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][0] eq 'identifier' and $self->{tokens}[$self->{tokens_index} + 1][1] eq '=') {
 			my @tokens = (@tokens, $self->step_tokens(2));
-			push @{$context_object->{variables}}, $tokens[0][1];
-			push @{$context_object->{variables}}, $self->context_def_value;
+			push @{$context_object->{global_variable_names}}, $tokens[0][1];
+			$context_object->{global_variable_expressions}{$tokens[0][1]} = $self->context_def_value;
 		} elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] eq 'package' and $self->{tokens}[$self->{tokens_index} + 1][0] eq 'package_identifier') {
 			my @tokens = (@tokens, $self->step_tokens(2));
 			$context_object->{package_identifier} = $tokens[1][1];
@@ -173,8 +173,7 @@ sub context_token_definition {
 			return $context_list;
 		} elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][0] eq 'identifier' and $self->{tokens}[$self->{tokens_index} + 1][1] eq '=>') {
 			my @tokens = (@tokens, $self->step_tokens(2));
-			push @$context_list, $tokens[0][1];
-			push @$context_list, $self->context_def_value;
+			push @$context_list, { type => 'token_definition', line_number => $tokens[0][2], identifier => $tokens[0][1], value => $self->context_def_value, };
 		} else {
 			$self->confess_at_current_offset('unexpected token in token_definition');
 		}

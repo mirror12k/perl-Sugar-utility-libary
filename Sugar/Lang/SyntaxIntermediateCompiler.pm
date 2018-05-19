@@ -16,9 +16,11 @@ sub new {
 	$self->{syntax_definition_intermediate} = $opts{syntax_definition_intermediate}
 			// croak "syntax_definition_intermediate argument required for Sugar::Lang::SyntaxIntermediateCompiler";
 
-	$self->{variables} = $self->{syntax_definition_intermediate}{variables};
-	$self->{variables_by_name} = {};
-	$self->{tokens} = [];
+	# $self->{variables} = $self->{syntax_definition_intermediate}{variables};
+	$self->{global_variable_names} = $self->{syntax_definition_intermediate}{global_variable_names};
+	$self->{global_variable_expressions} = $self->{syntax_definition_intermediate}{global_variable_expressions};
+	$self->{variables_scope} = {};
+	$self->{token_definitions} = [];
 	$self->{ignored_tokens} = $self->{syntax_definition_intermediate}{ignored_tokens};
 	$self->{context_order} = $self->{syntax_definition_intermediate}{context_order};
 	$self->{item_contexts} = $self->{syntax_definition_intermediate}{item_contexts};
@@ -53,20 +55,27 @@ use feature 'say';
 	$code .= "\n\n##############################\n##### variables and settings\n##############################\n\n";
 
 
-	if (@{$self->{variables}}) {
-		foreach my $i (0 .. $#{$self->{variables}} / 2) {
-			my $var_name = $self->{variables}[$i*2];
-			my $var_value = $self->{variables_by_name}{$var_name};
-			$code .= "our \$var_$var_name = $var_value;\n";
+	if (@{$self->{global_variable_names}}) {
+		foreach my $key (@{$self->{global_variable_names}}) {
+			my $value = $self->{global_variable_expressions}{$key};
+			$code .= "our \$var_$key = $value;\n";
 		}
+		# foreach my $i (0 .. $#{$self->{variables}} / 2) {
+		# 	my $var_name = $self->{variables}[$i*2];
+		# 	my $var_value = $self->{variables_by_name}{$var_name};
+		# 	$code .= "our \$var_$var_name = $var_value;\n";
+		# }
 	}
 	$code .= "\n\n";
 
 	$code .= "our \$tokens = [\n";
-	if (@{$self->{tokens}}) {
-		foreach my $i (0 .. $#{$self->{tokens}} / 2) {
-			$code .= "\t'$self->{tokens}[$i*2]' => $self->{tokens}[$i*2+1],\n";
+	if (@{$self->{token_definitions}}) {
+		foreach my $token_definition (@{$self->{token_definitions}}) {
+			$code .= "\t'$token_definition->{key}' => $token_definition->{value},\n";
 		}
+		# foreach my $i (0 .. $#{$self->{tokens}} / 2) {
+		# 	$code .= "\t'$self->{tokens}[$i*2]' => $self->{tokens}[$i*2+1],\n";
+		# }
 	}
 	$code .= "];\n\n";
 
@@ -133,13 +142,13 @@ sub confess_at_current_line {
 
 sub get_variable {
 	my ($self, $identifier) = @_;
-	$self->confess_at_current_line("undefined variable requested: '$identifier'") unless exists $self->{variables_by_name}{$identifier};
-	return $self->{variables_by_name}{$identifier}
+	$self->confess_at_current_line("undefined variable requested: '$identifier'") unless exists $self->{variables_scope}{$identifier};
+	return $self->{variables_scope}{$identifier}
 }
 
 sub exists_variable {
 	my ($self, $identifier) = @_;
-	return exists $self->{variables_by_name}{$identifier}
+	return exists $self->{variables_scope}{$identifier}
 }
 
 sub get_function_by_name {
@@ -167,19 +176,32 @@ sub get_function_by_name {
 sub compile_syntax_intermediate {
 	my ($self) = @_;
 
-	my @variables = @{$self->{syntax_definition_intermediate}{variables}};
-	while (@variables) {
-		my $key = shift @variables;
-		my $value = $self->compile_syntax_token_value(shift @variables);
-		$self->{variables_by_name}{$key} = $value;
+	foreach my $key (@{$self->{global_variable_names}}) {
+		my $value = $self->compile_syntax_token_value($self->{global_variable_expressions}{$key});
+		$self->{global_variable_expressions}{$key} = $value;
+		$self->{variables_scope}{$key} = "\$var_$key";
 	}
+	# my @variables = @{$self->{syntax_definition_intermediate}{variables}};
+	# while (@variables) {
+	# 	my $key = shift @variables;
+	# 	my $value = $self->compile_syntax_token_value(shift @variables);
+	# 	$self->{variables_by_name}{$key} = $value;
+	# }
 
-	my @token_definitions = @{$self->{syntax_definition_intermediate}{tokens}};
-	while (@token_definitions) {
-		my $key = shift @token_definitions;
-		my $value = $self->compile_syntax_token_value(shift @token_definitions);
-		push @{$self->{tokens}}, $key, $value;
+	foreach my $token_definition (@{$self->{syntax_definition_intermediate}{tokens}}) {
+		my $key = $token_definition->{identifier};
+		my $value = $self->compile_syntax_token_value($token_definition->{value});
+		push @{$self->{token_definitions}}, {
+			key => $key,
+			value => $value,
+		};
 	}
+	# my @token_definitions = @{$self->{syntax_definition_intermediate}{tokens}};
+	# while (@token_definitions) {
+	# 	my $key = shift @token_definitions;
+	# 	my $value = $self->compile_syntax_token_value(shift @token_definitions);
+	# 	push @{$self->{tokens}}, $key, $value;
+	# }
 	foreach my $context_name (keys %{$self->{syntax_definition_intermediate}{item_contexts}}) {
 		my $context_definition = $self->{syntax_definition_intermediate}{item_contexts}{$context_name};
 		$self->{code_definitions}{$context_name} = $self->compile_syntax_context('item_context', $context_name, $context_definition);
@@ -382,8 +404,8 @@ sub compile_syntax_action {
 	my @code;
 
 	# create a new variable scope
-	my $previous_variable_scope = $self->{variables_by_name};
-	$self->{variables_by_name} = { %{$self->{variables_by_name}} };
+	my $previous_variables_scope = $self->{variables_scope};
+	$self->{variables_scope} = { %{$self->{variables_scope}} };
 
 	if (defined $condition) {
 		my $count = $self->get_syntax_match_list_tokens_eaten($condition);
@@ -423,7 +445,7 @@ sub compile_syntax_action {
 				if ($self->exists_variable($var_name)) {
 					push @code, "\$var_$var_name = $expression;";
 				} else {
-					$self->{variables_by_name}{$var_name} = "\$var_$var_name";
+					$self->{variables_scope}{$var_name} = "\$var_$var_name";
 					push @code, "my \$var_$var_name = $expression;";
 				}
 			}
@@ -568,7 +590,7 @@ sub compile_syntax_action {
 			if ($self->exists_variable($var_name)) {
 				push @code, "\$var_$var_name = $expression;";
 			} else {
-				$self->{variables_by_name}{$var_name} = "\$var_$var_name";
+				$self->{variables_scope}{$var_name} = "\$var_$var_name";
 				push @code, "my \$var_$var_name = $expression;";
 			}
 
@@ -578,7 +600,7 @@ sub compile_syntax_action {
 	}
 
 	# unscope
-	$self->{variables_by_name} = $previous_variable_scope;
+	$self->{variables_scope} = $previous_variables_scope;
 
 	return @code
 	# return join ("\n\t\t\t", '', @code) . "\n";
