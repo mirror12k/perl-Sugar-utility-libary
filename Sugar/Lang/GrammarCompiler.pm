@@ -458,7 +458,7 @@ sub context_spawn_expression {
 			return { type => 'call_variable', line_number => $tokens[0][2], variable => $tokens[0][1], argument => $self->context_spawn_expression, };
 		} elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][0] eq 'variable') {
 			my @tokens = (@tokens, $self->step_tokens(1));
-			return { type => 'variable_value', line_number => $tokens[0][2], variable => $tokens[0][1], };
+			return $self->context_more_spawn_expression({ type => 'variable_value', line_number => $tokens[0][2], variable => $tokens[0][1], });
 		} elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][0] eq 'string') {
 			my @tokens = (@tokens, $self->step_tokens(1));
 			return { type => 'string', line_number => $tokens[0][2], string => $tokens[0][1], };

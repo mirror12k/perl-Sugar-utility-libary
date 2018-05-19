@@ -432,7 +432,7 @@ item context spawn_expression {
 			}
 		}
 		*variable => {
-			return variable_value:{ variable => $0 }
+			return !more_spawn_expression->variable_value:{ variable => $0 }
 		}
 		*string => {
 			return string:{ string => $0 }
