@@ -196,9 +196,9 @@ sub compile_syntax_intermediate {
 
 sub compile_syntax_token_value {
 	my ($self, $value) = @_;
-	if ($value =~ m#\A$Sugar::Lang::GrammarCompiler::var_regex_regex\Z#s) {
+	if ($value =~ m#\A$Sugar::Lang::SugarGrammarParser::var_regex_regex\Z#s) {
 		return "qr$value"
-	} elsif ($value =~ m#\A$Sugar::Lang::GrammarCompiler::var_substitution_regex_regex\Z#s) {
+	} elsif ($value =~ m#\A$Sugar::Lang::SugarGrammarParser::var_substitution_regex_regex\Z#s) {
 		return "sub { \$_[0] =~ ${value}r }"
 	} elsif ($value =~ /\A\$(\w++)\Z/) {
 		# verify that the variable exists
