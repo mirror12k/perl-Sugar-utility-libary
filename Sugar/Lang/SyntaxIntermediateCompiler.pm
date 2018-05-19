@@ -19,7 +19,7 @@ sub new {
 	# $self->{variables} = $self->{syntax_definition_intermediate}{variables};
 	$self->{global_variable_names} = $self->{syntax_definition_intermediate}{global_variable_names};
 	$self->{global_variable_expressions} = $self->{syntax_definition_intermediate}{global_variable_expressions};
-	$self->{variables_scope} = {};
+	$self->{variables_scope} = { '$_' => '$context_value' };
 	$self->{token_definitions} = [];
 	$self->{ignored_tokens} = $self->{syntax_definition_intermediate}{ignored_tokens};
 	$self->{contexts} = $self->{syntax_definition_intermediate}{contexts};
@@ -145,14 +145,24 @@ sub confess_at_current_line {
 }
 
 sub get_variable {
-	my ($self, $identifier) = @_;
-	$self->confess_at_current_line("undefined variable requested: '$identifier'") unless exists $self->{variables_scope}{$identifier};
-	return $self->{variables_scope}{$identifier}
+	my ($self, $variable) = @_;
+	$self->confess_at_current_line("undefined variable requested: '$variable'") unless exists $self->{variables_scope}{$variable};
+	return $self->{variables_scope}{$variable}
 }
 
 sub exists_variable {
-	my ($self, $identifier) = @_;
-	return exists $self->{variables_scope}{$identifier}
+	my ($self, $variable) = @_;
+	return exists $self->{variables_scope}{$variable}
+}
+
+sub add_variable {
+	my ($self, $variable) = @_;
+	if ($variable =~ /\A\$(\w+)\Z/s) {
+		$self->{variables_scope}{$variable} = "\$var_$1";
+		return $self->{variables_scope}{$variable};
+	} else {
+		$self->confess_at_current_line("invalid variable in add_variable: '$variable'");
+	}
 }
 
 sub get_function_by_name {
@@ -191,7 +201,7 @@ sub compile_syntax_intermediate {
 	foreach my $key (@{$self->{global_variable_names}}) {
 		my $value = $self->compile_syntax_token_value($self->{global_variable_expressions}{$key});
 		$self->{global_variable_expressions}{$key} = $value;
-		$self->{variables_scope}{$key} = "\$var_$key";
+		$self->{variables_scope}{"\$$key"} = "\$var_$key";
 	}
 	# my @variables = @{$self->{syntax_definition_intermediate}{variables}};
 	# while (@variables) {
@@ -237,10 +247,10 @@ sub compile_syntax_token_value {
 		return "qr$value"
 	} elsif ($value =~ m#\A$Sugar::Lang::SugarGrammarParser::var_substitution_regex_regex\Z#s) {
 		return "sub { \$_[0] =~ ${value}r }"
-	} elsif ($value =~ /\A\$(\w++)\Z/) {
+	} elsif ($value =~ /\A\$\w++\Z/) {
 		# verify that the variable exists
-		$self->get_variable($1);
-		return "\$var_$1"
+		return $self->get_variable($value);
+		# return "\$var_$1"
 		# return $self->compile_syntax_token_value($self->get_variable($1))
 	} else {
 		confess "invalid syntax token value: $value";
@@ -345,13 +355,16 @@ sub compile_syntax_condition {
 		}
 
 	} elsif ($condition->{type} eq 'variable_match') {
-		$self->confess_at_current_line("invalid variable condition value: $condition->{variable}") unless $condition->{variable} =~ m#\A\$(\w++)\Z#s;
+		$self->confess_at_current_line("invalid variable condition value: $condition->{variable}")
+				unless $condition->{variable} =~ m#\A\$(\w++)\Z#s;
 		# verify that the variable exists
-		$self->get_variable($1);
-		return "\$self->{tokens}[\$self->{tokens_index} + $offset][1] =~ /\\A(\$var_$1)\\Z/"
+		my $variable = $self->get_variable($1);
+		# $self->get_variable($1);
+		return "\$self->{tokens}[\$self->{tokens_index} + $offset][1] =~ /\\A($variable)\\Z/"
 
 	} elsif ($condition->{type} eq 'regex_match') {
-		$self->confess_at_current_line("invalid regex condition value: $condition->{regex}") unless $condition->{regex} =~ m#\A/(.*)/([msixpodualn]*)\Z#s;
+		$self->confess_at_current_line("invalid regex condition value: $condition->{regex}")
+				unless $condition->{regex} =~ m#\A/(.*)/([msixpodualn]*)\Z#s;
 		return "\$self->{tokens}[\$self->{tokens_index} + $offset][1] =~ /\\A($1)\\Z/$2"
 
 	} elsif ($condition->{type} eq 'string_match') {
@@ -409,7 +422,7 @@ sub syntax_condition_as_string {
 
 	} elsif ($condition->{type} eq 'variable_match') {
 		$self->confess_at_current_line("invalid variable condition value: $condition->{variable}") unless $condition->{variable} =~ m#\A\$(\w++)\Z#s;
-		return $self->get_variable($1)
+		return $self->get_variable($1);
 
 	} elsif ($condition->{type} eq 'regex_match') {
 		return "$condition->{regex}"
@@ -467,13 +480,14 @@ sub compile_syntax_action {
 				# 	push @code, "\$context_value = $expression;";
 				# }
 			} else {
-				my $var_name = $action->{variable} =~ s/\A\$//r;
+				# my $var_name = $action->{variable} =~ s/\A\$//r;
 				# push @code, "\$var_$var_name = $expression;";
-				if ($self->exists_variable($var_name)) {
-					push @code, "\$var_$var_name = $expression;";
+				if ($self->exists_variable($action->{variable})) {
+					my $variable = $self->get_variable($action->{variable});
+					push @code, "$variable = $expression;";
 				} else {
-					$self->{variables_scope}{$var_name} = "\$var_$var_name";
-					push @code, "my \$var_$var_name = $expression;";
+					my $variable = $self->add_variable($action->{variable});
+					push @code, "my $variable = $expression;";
 				}
 			}
 			
@@ -481,26 +495,29 @@ sub compile_syntax_action {
 			my $key = $self->compile_syntax_spawn_expression($context_type, $action->{key});
 			my $expression = $self->compile_syntax_spawn_expression($context_type, $action->{expression});
 
-			my $var_name = $action->{variable} =~ s/\A\$//r;
-			my $var_ref = $var_name eq '_' ? "\$context_value" : $self->get_variable($var_name);
-			push @code, "${var_ref}->{$key} = $expression;";
+			my $variable = $self->get_variable($action->{variable});
+			# my $var_name = $action->{variable} =~ s/\A\$//r;
+			# my $var_ref = $var_name eq '_' ? "\$context_value" : $self->get_variable($var_name);
+			push @code, "$variable\->{$key} = $expression;";
 			
 		} elsif ($action->{type} eq 'assign_array_field_statement') {
 			my $key = $self->compile_syntax_spawn_expression($context_type, $action->{key});
 			my $expression = $self->compile_syntax_spawn_expression($context_type, $action->{expression});
 
-			my $var_name = $action->{variable} =~ s/\A\$//r;
-			my $var_ref = $var_name eq '_' ? "\$context_value" : $self->get_variable($var_name);
-			push @code, "push \@{${var_ref}->{$key}}, $expression;";
+			my $variable = $self->get_variable($action->{variable});
+			# my $var_name = $action->{variable} =~ s/\A\$//r;
+			# my $var_ref = $var_name eq '_' ? "\$context_value" : $self->get_variable($var_name);
+			push @code, "push \@{$variable\->{$key}}, $expression;";
 			
 		} elsif ($action->{type} eq 'assign_object_field_statement') {
 			my $key = $self->compile_syntax_spawn_expression($context_type, $action->{key});
 			my $subkey = $self->compile_syntax_spawn_expression($context_type, $action->{subkey});
 			my $expression = $self->compile_syntax_spawn_expression($context_type, $action->{expression});
 
-			my $var_name = $action->{variable} =~ s/\A\$//r;
-			my $var_ref = $var_name eq '_' ? "\$context_value" : $self->get_variable($var_name);
-			push @code, "${var_ref}->{$key}{$subkey} = $expression;";
+			my $variable = $self->get_variable($action->{variable});
+			# my $var_name = $action->{variable} =~ s/\A\$//r;
+			# my $var_ref = $var_name eq '_' ? "\$context_value" : $self->get_variable($var_name);
+			push @code, "$variable\->{$key}{$subkey} = $expression;";
 
 		} elsif ($action->{type} eq 'return_statement') {
 			push @code, "return \$context_value;";
@@ -610,16 +627,16 @@ sub compile_syntax_action {
 			my $expression = $self->compile_syntax_spawn_expression($context_type, $action->{expression});
 			push @code, "\$self->confess_at_current_offset($expression);";
 
-		} elsif ($action->{type} eq 'variable_assignment_statement') {
-			my $var_name = $action->{variable} =~ s/\A\$//r;
-			my $expression = $self->compile_syntax_spawn_expression($context_type, $action->{expression});
+		# } elsif ($action->{type} eq 'variable_assignment_statement') {
+		# 	my $var_name = $action->{variable} =~ s/\A\$//r;
+		# 	my $expression = $self->compile_syntax_spawn_expression($context_type, $action->{expression});
 
-			if ($self->exists_variable($var_name)) {
-				push @code, "\$var_$var_name = $expression;";
-			} else {
-				$self->{variables_scope}{$var_name} = "\$var_$var_name";
-				push @code, "my \$var_$var_name = $expression;";
-			}
+		# 	if ($self->exists_variable($var_name)) {
+		# 		push @code, "\$var_$var_name = $expression;";
+		# 	} else {
+		# 		$self->{variables_scope}{$var_name} = "\$var_$var_name";
+		# 		push @code, "my \$var_$var_name = $expression;";
+		# 	}
 
 		} else {
 			die "undefined action '$action->{type}'";
@@ -696,15 +713,17 @@ sub compile_syntax_spawn_expression {
 
 	} elsif ($expression->{type} eq 'call_variable') {
 		# warn "got call_variable: $expression->{variable}";
-		my $var_name = $expression->{variable} =~ s/\A\$//r;
-		$self->get_variable($var_name);
+			my $variable = $self->get_variable($expression->{variable});
+		# my $var_name = $expression->{variable} =~ s/\A\$//r;
+		# $self->get_variable($var_name);
 		my $expression_code = $self->compile_syntax_spawn_expression($context_type, $expression->{argument});
-		return "\$var_$var_name->($expression_code)";
+		return "$variable\->($expression_code)";
 
 	} elsif ($expression->{type} eq 'variable_value') {
-		my $var_name = $expression->{variable} =~ s/\A\$//r;
-		$self->get_variable($var_name);
-		return "\$var_$var_name";
+			my $variable = $self->get_variable($expression->{variable});
+		# my $var_name = $expression->{variable} =~ s/\A\$//r;
+		# $self->get_variable($var_name);
+		return "$variable";
 
 	} elsif ($expression->{type} eq 'call_substitution') {
 		# warn "got call_substitution: $expression";
