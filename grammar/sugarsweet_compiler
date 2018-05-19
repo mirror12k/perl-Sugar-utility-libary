@@ -1,0 +1,640 @@
+
+
+class Sugar::Lang::SugarsweetCompiler {
+
+sub _constructor(tree args) {
+	self.type = args.asdf;
+}
+
+string sub compile_file(tree syntax_tree) {
+	# my ($self, $tree) = @_;
+
+	list code = [];
+	# my @code;
+
+	push code, "#!/usr/bin/env perl";
+	push code, "use strict;";
+	push code, "use warnings;";
+	push code, "use feature 'say';";
+	push code, "";
+	# push @code, "use strict;";
+	# push @code, "use warnings;";
+	# push @code, "use feature 'say';";
+	# push @code, "";
+
+	foreach (tree class_tree in syntax_tree.classes) {
+		list push code, self.compile_class(class_tree);
+	}
+	# foreach my $class (@{$tree->{classes}}) {
+	# 	push @code, $self->compile_class($class);
+	# }
+
+	push code, "";
+	# push @code, "";
+
+	return join "\n", code;
+	# return join "\n", @code;
+}
+
+list sub compile_class(tree class_tree) {
+	# my ($self, $class) = @_;
+
+	list code = [];
+	# my @code;
+
+	string class_name = join '::', class_tree.name;
+	push code, "package $class_name;";
+	# push @code, "package $class->{name};";
+
+	list push code, flatten map { self.compile_constructor(_) } class_tree.constructors;
+	list push code, flatten map { self.compile_function(_) } class_tree.functions;
+	# push @code, map $self->compile_function($_), @{$class->{functions}};
+
+	return code;
+	# return @code;
+}
+
+list sub compile_constructor(tree function_tree) {
+	# my ($self, $function) = @_;
+
+	list code = [];
+	push code, "sub new {";
+	# my @code;
+	# push @code, "sub $function->{name} {";
+
+	if (0 < list length function_tree.argument_list) {
+		string argument_list = self.compile_argument_list(function_tree.argument_list);
+		push code, "\tmy ($argument_list) = \@_;";
+	}
+	push code, "\t\$self = bless {}, \$self;";
+
+	# push @code, "\tmy (" . $self->compile_argument_list($function->{argument_list}) . ") = \@_;"
+	# 		if @{$function->{argument_list}} > 0;
+
+	self.variable_scope = {};
+	# $self->{variable_scope} = {};
+	# foreach my $argument (@{$function->{argument_list}}) {
+	# 	$self->{variable_scope}{$argument->{identifier}} = $argument->{variable_type};
+	# }
+	list push code, self.compile_statements_block(function_tree.block, function_tree.argument_list);
+	# push @code, $self->compile_statements_block($function->{block}, $function->{argument_list});
+
+	push code, "\treturn \$self;";
+	push code, "}";
+	push code, "";
+	# push @code, "}";
+	# push @code, "";
+
+	return code;
+	# return @code;
+}
+
+list sub compile_function(tree function_tree) {
+	# my ($self, $function) = @_;
+
+	list code = [];
+	push code, "sub $function_tree.name {";
+	# my @code;
+	# push @code, "sub $function->{name} {";
+
+	if (0 < list length function_tree.argument_list) {
+		string argument_list = self.compile_argument_list(function_tree.argument_list);
+		push code, "\tmy ($argument_list) = \@_;";
+	}
+
+	# push @code, "\tmy (" . $self->compile_argument_list($function->{argument_list}) . ") = \@_;"
+	# 		if @{$function->{argument_list}} > 0;
+
+	self.variable_scope = {};
+	# $self->{variable_scope} = {};
+	# foreach my $argument (@{$function->{argument_list}}) {
+	# 	$self->{variable_scope}{$argument->{identifier}} = $argument->{variable_type};
+	# }
+	list push code, self.compile_statements_block(function_tree.block, function_tree.argument_list);
+	# push @code, $self->compile_statements_block($function->{block}, $function->{argument_list});
+
+	push code, "}";
+	push code, "";
+	# push @code, "}";
+	# push @code, "";
+
+	return code;
+	# return @code;
+}
+
+list sub compile_statements_block(list block, list with_variables) {
+	# my ($self, $block, $with_variables) = @_;
+
+	tree previous_scope = self.variable_scope;
+	self.variable_scope = clone previous_scope;
+	# my $previous_scope = $self->{variable_scope};
+	# $self->{variable_scope} = { %$previous_scope };
+
+	foreach (tree var in with_variables) {
+		self.variable_scope[var.identifier] = var.variable_type;
+	}
+	# foreach my $var (@$with_variables) {
+	# 	$self->{variable_scope}{$var->{identifier}} = $var->{variable_type};
+	# }
+
+	list code = map { "\t$_" } flatten map { self.compile_statement(_) } block;
+	self.variable_scope = previous_scope;
+	# my @code = map "\t$_", map $self->compile_statement($_), @$block;
+	# $self->{variable_scope} = $previous_scope;
+
+	return code;
+	# return @code;
+}
+
+
+list sub compile_statement(tree statement) {
+	# my ($self, $statement) = @_;
+
+	list code = [];
+	# my @code;
+
+	string switch (statement.type) {
+		"foreach_statement": {
+			string expression = self.compile_expression(statement.expression);
+			push code, "foreach my \$$statement.identifier (\@{$expression}) {";
+			list push code, self.compile_statements_block(statement.block, [ statement ]);
+			push code, "}";
+		}
+		"switch_statement": {
+			string expression = self.compile_expression(statement.expression);
+			list string_cases = grep { _.type == 'string_case' } statement.block;
+			list default_cases = grep { _.type == 'default_case' } statement.block;
+
+			if (1 < length default_cases) {
+				die "more than one default case defined";
+			}
+			if (0 >= length string_cases) {
+				die "at least one match case is required";
+			}
+
+			string prefix = '';
+			foreach  (tree case in string_cases) {
+				push code, "${prefix}if ($expression eq $case.value) {";
+				list push code, self.compile_statements_block(case.block, []);
+
+				prefix = "} els";
+			}
+			foreach  (tree case in default_cases) {
+				push code, "} else {";
+				list push code, self.compile_statements_block(case.block, []);
+			}
+			push code, "}";
+		}
+		"if_statement": {
+			string expression = self.compile_expression(statement.expression);
+
+			string prefix = '';
+			push code, "${prefix}if ($expression) {";
+			list push code, self.compile_statements_block(statement.block, []);
+
+			if (contains statement.branch) {
+				tree branch = statement.branch;
+				while (branch) {
+					if (branch.type == 'elsif_statement') {
+						string expression = self.compile_expression(branch.expression);
+						push code, "} elsif ($expression) {";
+						list push code, self.compile_statements_block(branch.block, []);
+					} else {
+						push code, "} else {";
+						list push code, self.compile_statements_block(branch.block, []);
+					}
+					branch = branch.branch;
+				}
+			}
+			push code, "}";
+		}
+		"while_statement": {
+			string expression = self.compile_expression(statement.expression);
+
+			string prefix = '';
+			push code, "while ($expression) {";
+			list push code, self.compile_statements_block(statement.block, []);
+			push code, "}";
+		}
+		'void_return_statement': {
+			push code, "return;";
+		}
+		'return_statement': {
+			string expression = self.compile_expression(statement.expression);
+			push code, "return $expression;";
+		}
+		'list_push_statement': {
+			string left_expression = self.compile_expression(statement.left_expression);
+			string right_expression = self.compile_expression(statement.right_expression);
+			push code, "push \@{$left_expression}, \@{$right_expression};";
+		}
+		'push_statement': {
+			string left_expression = self.compile_expression(statement.left_expression);
+			string right_expression = self.compile_expression(statement.right_expression);
+			push code, "push \@{$left_expression}, $right_expression;";
+		}
+		'die_statement': {
+			string expression = self.compile_expression(statement.expression);
+			push code, "die $expression;";
+		}
+		'variable_declaration_statement': {
+			self.variable_scope[statement.identifier] = statement.variable_type;
+			push code, "my \$$statement.identifier;";
+		}
+		'variable_assignment_statement': {
+			string expression = self.compile_expression(statement.expression);
+			push code, "\$$statement.identifier = $expression;";
+		}
+		'variable_declaration_assignment_statement': {
+			self.variable_scope[statement.identifier] = statement.variable_type;
+			string expression = self.compile_expression(statement.expression);
+			push code, "my \$$statement.identifier = $expression;";
+		}
+		'expression_statement': {
+			string expression = self.compile_expression(statement.expression);
+			push code, "$expression;";
+		}
+		default: {
+			die "invalid statement type: $statement.type";
+		}
+	}
+
+	return code;
+}
+
+
+
+
+string sub compile_expression (tree expression) {
+
+	string switch (expression.type) {
+		'string_expression': {
+			return self.compile_string_expression(expression.value);
+		}
+		'integer_expression': {
+			return expression.value;
+		}
+		'variable_expression': {
+			if (contains self.variable_scope[expression.identifier]) {
+			} else {
+				die "undefined variable referenced: $expression.identifier";
+			}
+			return "\$$expression.identifier";
+		}
+		'match_index_expression': {
+			if (expression.index < 0) {
+				die "match index cannot be negative";
+			}
+			return "\$$expression.index";
+		}
+		'match_position_expression': {
+			return "\$+[0]";
+		}
+		'empty_list_expression': {
+			return "[]";
+		}
+		'empty_tree_expression': {
+			return "{}";
+		}
+		'list_constructor_expression': {
+			string expression_list = self.compile_expression_list(expression.expression_list);
+			return "[ $expression_list ]";
+		}
+		'tree_constructor_expression': {
+			string expression_list = self.compile_tree_constructor(expression.expression_list);
+			return "{ $expression_list }";
+		}
+		'join_expression': {
+			string left_expression = self.compile_expression(expression.left_expression);
+			string right_expression = self.compile_expression(expression.right_expression);
+			return "join($left_expression, \@{$right_expression})";
+		}
+		'split_expression': {
+			string left_expression = self.compile_expression(expression.left_expression);
+			string right_expression = self.compile_expression(expression.right_expression);
+			return "[ split($left_expression, $right_expression) ]";
+		}
+		'flatten_expression': {
+			string sub_expression = self.compile_expression(expression.expression);
+			return "[ map \@\$_, \@{$sub_expression} ]";
+		}
+		'map_expression': {
+			string left_expression = self.compile_expression_with_variables(expression.left_expression, [{
+					variable_type => '*',
+					identifier => '_',
+				}]);
+			string right_expression = self.compile_expression(expression.right_expression);
+			return "[ map { $left_expression } \@{$right_expression} ]";
+		}
+		'grep_expression': {
+			string left_expression = self.compile_expression_with_variables(expression.left_expression, [{
+					variable_type => '*',
+					identifier => '_',
+				}]);
+			string right_expression = self.compile_expression(expression.right_expression);
+			return "[ grep { $left_expression } \@{$right_expression} ]";
+		}
+		'length_expression': {
+			string expression_type;
+			if (contains expression.static_type) {
+				expression_type = expression.static_type;
+			} else {
+				expression_type = self.get_expression_type(expression.expression);
+			}
+			if (expression_type) {
+			} else {
+				die "ambiguous type length expression";
+			}
+			string sub_expression = self.compile_expression(expression.expression);
+			if (expression_type == 'string') {
+				return "length($sub_expression)";
+			} elsif (expression_type == 'list') {
+				return "scalar(\@{$sub_expression})";
+			} else {
+				die "invalid value type for length expression: '$expression_type'";
+			}
+		}
+		'pop_expression': {
+			string sub_expression = self.compile_expression(expression.expression);
+			return "pop(\@{$sub_expression})";
+		}
+		'shift_expression': {
+			string sub_expression = self.compile_expression(expression.expression);
+			return "shift(\@{$sub_expression})";
+		}
+		'contains_expression': {
+			string switch (expression.expression.type) {
+				'access_expression': {}
+				'expression_access_expression': {}
+				default: {
+					die "invalid expression for contains expression: $expression.expression.type";
+				}
+			}
+			string sub_expression = self.compile_expression(expression.expression);
+			return "exists($sub_expression)";
+		}
+		'clone_expression': {
+			string expression_type = self.get_expression_type(expression.expression);
+			if (expression_type) {
+			} else {
+				die "ambiguous type clone expression";
+			}
+			string sub_expression = self.compile_expression(expression.expression);
+			if (expression_type == 'tree') {
+				return "{ \%{$sub_expression} }";
+			} elsif (expression_type == 'list') {
+				return "[ \@{$sub_expression} ]";
+			} else {
+				die "invalid value type for clone expression: '$expression_type'";
+			}
+		}
+		'assignment_expression': {
+			string left_expression = self.compile_expression(expression.left_expression);
+			string right_expression = self.compile_expression(expression.right_expression);
+			return "$left_expression = $right_expression";
+		}
+		'addition_assignment_expression': {
+			string expression_type = self.infer_expression_type(expression);
+			if (expression_type) {
+			} else {
+				die "ambiguous type addition assignment expression";
+			}
+
+			string left_expression = self.compile_expression(expression.left_expression);
+			string right_expression = self.compile_expression(expression.right_expression);
+
+			if (expression_type == 'string') {
+				return "$left_expression .= $right_expression";
+			} elsif (expression_type == 'int') {
+				return "$left_expression += $right_expression";
+			} else {
+				die "invalid expression type for addition assignment: $expression_type";
+			}
+		}
+		'access_expression': {
+			string sub_expression = self.compile_expression(expression.expression);
+			return "$sub_expression\->{$expression.identifier}";
+		}
+		'expression_access_expression': {
+			string left_expression = self.compile_expression(expression.left_expression);
+			string right_expression = self.compile_expression(expression.right_expression);
+			return "$left_expression\->{$right_expression}";
+		}
+		'access_call_expression': {
+			string sub_expression = self.compile_expression(expression.expression);
+			string expression_list = self.compile_expression_list(expression.expression_list);
+			return "$sub_expression\->$expression.identifier\($expression_list)";
+		}
+		'call_expression': {
+			string sub_expression = self.compile_expression(expression.expression);
+			string expression_list = self.compile_expression_list(expression.expression_list);
+			return "$sub_expression\->($expression_list)";
+		}
+		'object_assignment_expression': {
+			string left_expression = self.compile_expression(expression.left_expression);
+			string right_expression = self.compile_expression(expression.right_expression);
+			return "$left_expression\->{$expression.identifier} = $right_expression";
+		}
+		'numeric_comparison_expression': {
+			string left_expression = self.compile_expression(expression.left_expression);
+			string right_expression = self.compile_expression(expression.right_expression);
+			return "($left_expression $expression.operator $right_expression)";
+		}
+		'comparison_expression': {
+			string expression_type = self.infer_expression_type(expression);
+
+			string left_expression = self.compile_expression(expression.left_expression);
+			string right_expression = self.compile_expression(expression.right_expression);
+			if (expression_type == 'string') {
+				string operator;
+				if (expression.operator == '==') {
+					operator = 'eq';
+				} else {
+					operator = 'ne';
+				}
+				return "($left_expression $operator $right_expression)";
+			} else {
+				return "($left_expression $expression.operator $right_expression)";
+			}
+		}
+		'regex_match_expression': {
+			string sub_expression = self.compile_expression(expression.expression);
+			return "($sub_expression $expression.operator $expression.regex)";
+		}
+		default: {
+			die "invalid expression type: $expression.type";
+		}
+	}
+}
+
+string sub compile_string_expression (string string_token) {
+	# my ($self, $string) = @_;
+
+	if (string_token =~ /\A'/s) {
+		return string_token;
+		# return $string;
+	} elsif (string_token =~ /\A"(.*)"\Z/s) {
+	# } elsif ($string =~ /\A"(.*)"\Z/s) {
+		if (string_token == '""') {
+			return string_token;
+		}
+		# return $string if $string eq '""';
+		# my $string_content = $1;
+		# my $compiled_string = '';
+
+		string string_content = match[1];
+		string compiled_string = '';
+
+		int last_match_position = 0;
+		while (string_content =~ /\G(?:((?:[^\$\\]|\\.)+)|\$(\w+)(?:\.(\w+(?:\.\w+)*))?|\$\{(\w+)(?:\.(\w+(?:\.\w+)*))?\})/gsc) {
+			# my ($text_match, $variable_match, $variable_access, $protected_variable_match,
+			# 		$protected_variable_access) = ($1, $2, $3, $4, $5);
+			string text_match = match[1];
+			string variable_match = match[2];
+			string variable_access = match[3];
+			string protected_variable_match = match[4];
+			string protected_variable_access = match[5];
+			last_match_position = match.pos;
+
+			if (text_match) {
+				compiled_string += text_match;
+			} elsif	(variable_match) {
+				if (contains self.variable_scope[variable_match]) {
+				} else {
+					die "undefined variable in string interpolation: $variable_match";
+				}
+
+				if (variable_access) {
+					compiled_string += "\$$variable_match\->";
+					compiled_string += join '', map { "{$_}" } split "\\.", variable_access;
+				} else {
+					compiled_string += "\$$variable_match";
+				}
+			} else {
+				if (contains self.variable_scope[protected_variable_match]) {
+				} else {
+					die "undefined variable in string interpolation: $protected_variable_match";
+				}
+				if (protected_variable_access) {
+					compiled_string += "\$$protected_variable_match\->";
+					compiled_string += join '', map { "{$_}" } split "\\.", protected_variable_access;
+				} else {
+					compiled_string += "\${$protected_variable_match}";
+				}
+			}
+
+			# if (defined $text_match) {
+			# 	$compiled_string .= $text_match;
+			# } elsif (defined $variable_match) {
+			# 	die "undefined variable in string interpolation: $variable_match"
+			# 			unless exists $self->{variable_scope}{$variable_match};
+			# 	if (defined $variable_access) {
+			# 		$compiled_string .= "\$$variable_match\->";
+			# 		$compiled_string .= join '', map "{$_}", split "\\.", $variable_access;
+					
+			# 	} else {
+			# 		$compiled_string .= "\$$variable_match";
+			# 	}
+			# } else {
+			# 	die "undefined variable in string interpolation: $variable_match"
+			# 			unless exists $self->{variable_scope}{$protected_variable_match};
+			# 	if (defined $protected_variable_access) {
+			# 		$compiled_string .= "\${$protected_variable_match}\->";
+			# 		$compiled_string .= join '', map "{$_}", split "\\.", $protected_variable_access;
+					
+			# 	} else {
+			# 		$compiled_string .= "\${$protected_variable_match}";
+			# 	}
+			# }
+		}
+
+		if (last_match_position < length string_content) {
+			die "failed to compile string expression: $string_token";
+		}
+		# warn "debug string content for $string: ", pos($string_content) if defined pos ($string_content);
+		# die "failed to compile string expression: $string" if not defined pos ($string_content);
+
+		return "\"$compiled_string\"";
+	}
+}
+
+string sub compile_argument_list (list argument_list) {
+	return join ', ', map { "\$$_.identifier" } argument_list;
+}
+
+string sub compile_expression_list (list expression_list) {
+	return join ', ', map { self.compile_expression(_) } expression_list;
+}
+
+string sub compile_tree_constructor (list tree_constructor_list) {
+	# my ($self, $tree_constructor) = @_;
+	list pairs = [];
+	list items = clone tree_constructor_list;
+	while (0 < length items) {
+		string key = shift items;
+		string expression = self.compile_expression(shift items);
+		push pairs, "$key => ($expression)";
+	}
+	return join ', ', pairs;
+}
+
+string sub infer_expression_type (tree expression) {
+
+	if (contains expression.static_type) {
+		return expression.static_type;
+	}
+	if (contains expression.left_expression) {
+		string expression_type = self.get_expression_type(expression.left_expression);
+		if (expression_type) {
+			return expression_type;
+		}
+	}
+	if (contains expression.right_expression) {
+		string expression_type = self.get_expression_type(expression.right_expression);
+		if (expression_type) {
+			return expression_type;
+		}
+	}
+	return;
+}
+
+string sub get_expression_type (tree expression) {
+	if (contains expression.expression_type) {
+		return expression.expression_type;
+	} elsif (expression.type == 'variable_expression') {
+		if (contains self.variable_scope[expression.identifier]) {
+		} else {
+			die "undefined variable referenced: $expression.identifier";
+		}
+		return self.variable_scope[expression.identifier];
+	}
+	return;
+}
+
+string sub compile_expression_with_variables(tree expression, list with_variables) {
+	# my ($self, $expression, $with_variables) = @_;
+
+	tree previous_scope = self.variable_scope;
+	self.variable_scope = clone previous_scope;
+	# my $previous_scope = $self->{variable_scope};
+	# $self->{variable_scope} = { %$previous_scope };
+
+	foreach (tree var in with_variables) {
+		self.variable_scope[var.identifier] = var.variable_type;
+	}
+	string code = self.compile_expression(expression);
+	self.variable_scope = previous_scope;
+
+	return code;
+	# foreach my $var (@$with_variables) {
+	# 	$self->{variable_scope}{$var->{identifier}} = $var->{variable_type};
+	# }
+
+	# my $code = $self->compile_expression($expression);
+	# $self->{variable_scope} = $previous_scope;
+
+	# return $code;
+}
+
+}
+

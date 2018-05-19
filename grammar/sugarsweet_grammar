@@ -1,0 +1,602 @@
+# Sugarsweet language parser
+package Sugar::Lang::SugarsweetParser
+
+# regex definitions
+# code_block_regex = /\{\{.*?\}\}/s
+symbol_regex = /\(|\)|\{|\}|\[|\]|<=|>=|<|>|->|=>|==|=~|\+=|!~|!=|=|,|\.|\+|\-|\*|\/|::|:|;/
+
+identifier_regex = /[a-zA-Z_][a-zA-Z0-9_]*+/
+string_regex = /'([^\\']|\\.)*+'|"([^\\"]|\\.)*+"/s
+integer_regex = /-?\d++/
+regex_regex = /\/([^\\\/]|\\.)*+\/[msixgcpodualn]*+/s
+# substitution_regex_regex = /s\/([^\\\/]|\\.)*+\/([^\\\/]|\\.)*+\/[msixpodualngcer]*+/s
+# variable_regex = /\$\w++/
+# context_reference_regex = /!\w++/
+# function_reference_regex = /\&\w++/
+
+comment_regex = /\#[^\n]*+\n/s
+whitespace_regex = /\s++/s
+
+# tokens specified to the token parser
+tokens {
+	# code_block => $code_block_regex
+	regex => $regex_regex
+	symbol => $symbol_regex
+	# substitution_regex => $substitution_regex_regex
+
+	# package_identifier => $package_identifier_regex
+	identifier => $identifier_regex
+	string => $string_regex
+	integer => $integer_regex
+	# variable => $variable_regex
+	# context_reference => $context_reference_regex
+	# function_reference => $function_reference_regex
+
+	comment => $comment_regex
+	whitespace => $whitespace_regex
+}
+
+# tokens that will get filtered off
+ignored_tokens {
+	comment
+	whitespace
+}
+
+# context definitions
+object context root {
+	switch {
+		'class' => {
+			$_{classes}[] = !class_definition->class_declaration:{
+				# name => $1
+				name => !class_identifier
+			}
+		}
+		default {
+			die 'expected class definition'
+		}
+	}
+}
+
+list context class_identifier {
+	match *identifier
+	push $0
+	while '::' => {
+		match *identifier
+			or die 'expected identifier after "::" token'
+		push $2
+	}
+
+	return
+}
+
+object context class_definition {
+	match '{' or die '"{" expected before code block'
+	$_ = !class_definition_block->$_
+	match '}' or die '"}" expected after code block'
+	return
+}
+
+object context class_definition_block {
+	switch {
+		'sub', '_constructor', '(' => {
+			$argument_list = !method_argument_list
+			match ')' or die 'expected ")" after argument list'
+			$_{constructors}[] = function_declaration:{
+				return_type => $0
+				name => $1
+				argument_list => $argument_list
+				block => !statements_block
+			}
+		}
+		*identifier, 'sub', *identifier, '(' => {
+			$argument_list = !method_argument_list
+			match ')' or die 'expected ")" after argument list'
+			$_{functions}[] = function_declaration:{
+				return_type => $0
+				name => $2
+				argument_list => $argument_list
+				block => !statements_block
+			}
+		}
+		default {
+			return
+		}
+	}
+}
+
+list context statements_block {
+	match '{' or die '"{" expected before code block'
+	$_ = !statements_block_list->[]
+	match '}' or die '"}" expected after code block'
+	return
+}
+
+list context statements_block_list {
+	switch {
+		'foreach', '(', *identifier, *identifier, 'in' => {
+			$expression = !expression
+			match ')' or die 'expected ")" after expression'
+
+			push foreach_statement:{
+				variable_type => $2
+				identifier => $3
+				expression => $expression
+				block => !statements_block
+			}
+		}
+		'string', 'switch', '(' => {
+			$expression = !expression
+			match ')' or die 'expected ")" after expression'
+
+			push switch_statement:{
+				expression_type => $0
+				expression => $expression
+				block => !switch_statements_block
+			}
+		}
+		'if', '(' => {
+			$expression = !expression
+			match ')' or die 'expected ")" after expression'
+
+			$statement = if_statement:{
+				expression => $expression
+				block => !statements_block
+			}
+			$branch_statement = $statement
+
+			while 'elsif', '(' => {
+				$expression = !expression
+				match ')' or die 'expected ")" after expression'
+				$branch_statement{branch} = elsif_statement:{
+					expression => $expression
+					block => !statements_block
+				}
+				$branch_statement = $branch_statement{branch}
+			}
+			if 'else' => {
+				$branch_statement{branch} = else_statement:{
+					block => !statements_block
+				}
+			}
+
+			push $statement
+		}
+		'while', '(' => {
+			$expression = !expression
+			match ')' or die 'expected ")" after expression'
+
+			push while_statement:{
+				expression => $expression
+				block => !statements_block
+			}
+		}
+		'return', ';' => {
+			push void_return_statement:{}
+		}
+		'return' => {
+			push return_statement:{
+				expression => !expression
+			}
+			match ';' or die 'expected ";" after expression'
+		}
+		'list', 'push' => {
+			$left_expression = !expression
+			match ','
+			$right_expression = !expression
+			push list_push_statement:{
+				left_expression => $left_expression
+				right_expression => $right_expression
+			}
+			match ';' or die 'expected ";" after expression'
+		}
+		'push' => {
+			$left_expression = !expression
+			match ','
+			$right_expression = !expression
+			push push_statement:{
+				left_expression => $left_expression
+				right_expression => $right_expression
+			}
+			match ';' or die 'expected ";" after expression'
+		}
+		'die' => {
+			push die_statement:{
+				expression => !expression
+			}
+			match ';' or die 'expected ";" after expression'
+		}
+		*identifier, *identifier, ';' => {
+			push variable_declaration_statement:{
+				variable_type => $0
+				identifier => $1
+			}
+		}
+		*identifier, *identifier, '=' => {
+			push variable_declaration_assignment_statement:{
+				variable_type => $0
+				identifier => $1
+				expression => !expression
+			}
+			match ';' or die 'expected ";" after expression'
+		}
+		*identifier, '=' => {
+			push variable_assignment_statement:{
+				identifier => $0
+				expression => !expression
+			}
+			match ';' or die 'expected ";" after expression'
+		}
+		('}') => {
+			return
+		}
+		default {
+			push expression_statement:{
+				expression => !expression
+			}
+			match ';' or die 'expected ";" after expression'
+		}
+	}
+}
+
+list context switch_statements_block {
+	match '{' or die '"{" expected before code block'
+	$_ = !switch_block_list->[]
+	match '}' or die '"}" expected after code block'
+	return
+}
+
+list context switch_block_list {
+	switch {
+		*integer, ':' => {
+			push integer_case:{
+				value => $0
+				block => !statements_block
+			}
+		}
+		*string, ':' => {
+			push string_case:{
+				value => $0
+				block => !statements_block
+			}
+		}
+		'default', ':' => {
+			push default_case:{
+				block => !statements_block
+			}
+		}
+		default {
+			return
+		}
+	}
+}
+
+item context expression {
+	switch {
+		*integer => {
+			return !more_expression->integer_expression:{
+				value => $0
+				expression_type => 'int'
+			}
+		}
+		*string => {
+			return !more_expression->string_expression:{
+				value => $0
+				expression_type => 'string'
+			}
+		}
+		'[', ']' => {
+			return !more_expression->empty_list_expression:{
+				expression_type => 'list'
+			}
+		}
+		'[' => {
+			$expression = list_constructor_expression:{
+				expression_type => 'list'
+				expression_list => !expression_list->[]
+			}
+			match ']' or die 'expected "]" after expression list'
+			return !more_expression->$expression
+		}
+		'{', '}' => {
+			return !more_expression->empty_tree_expression:{
+				expression_type => 'tree'
+			}
+		}
+		'{' => {
+			$expression = tree_constructor_expression:{
+				expression_type => 'tree'
+				expression_list => !tree_constructor->[]
+			}
+			match '}' or die 'expected "}" after expression list'
+			return !more_expression->$expression
+		}
+		'join' => {
+			$left_expression = !expression
+			match ','
+			$right_expression = !expression
+			return join_expression:{
+				left_expression => $left_expression
+				right_expression => $right_expression
+				expression_type => 'string'
+			}
+		}
+		'split' => {
+			$left_expression = !expression
+			match ','
+			$right_expression = !expression
+			return split_expression:{
+				left_expression => $left_expression
+				right_expression => $right_expression
+				expression_type => 'list'
+			}
+		}
+		'list', 'length' => {
+			$expression = !expression
+			return length_expression:{
+				expression => $expression
+				expression_type => 'int'
+				static_type => $0
+			}
+		}
+		'length' => {
+			$expression = !expression
+			return length_expression:{
+				expression => $expression
+				expression_type => 'int'
+			}
+		}
+		'clone' => {
+			$expression = !expression
+			return clone_expression:{
+				expression => $expression
+				expression_type => $expression{expression_type}
+			}
+		}
+		'pop' => {
+			$expression = !expression
+			return pop_expression:{
+				expression => $expression
+			}
+		}
+		'shift' => {
+			$expression = !expression
+			return shift_expression:{
+				expression => $expression
+			}
+		}
+		'contains' => {
+			$expression = !expression
+			return contains_expression:{
+				expression => $expression
+				expression_type => 'bool'
+			}
+		}
+		'flatten' => {
+			$expression = !expression
+			return flatten_expression:{
+				expression => $expression
+				expression_type => 'list'
+			}
+		}
+		'map', '{' => {
+			$left_expression = !expression
+			match '}'
+			$right_expression = !expression
+			return map_expression:{
+				left_expression => $left_expression
+				right_expression => $right_expression
+				expression_type => 'list'
+			}
+		}
+		'grep', '{' => {
+			$left_expression = !expression
+			match '}'
+			$right_expression = !expression
+			return grep_expression:{
+				left_expression => $left_expression
+				right_expression => $right_expression
+				expression_type => 'list'
+			}
+		}
+		'match', '[', *integer, ']' => {
+			return !more_expression->match_index_expression:{
+				index => $2
+			}
+		}
+		'match', '.', 'pos' => {
+			return !more_expression->match_position_expression:{}
+		}
+		*identifier => {
+			return !more_expression->variable_expression:{
+				identifier => $0
+			}
+		}
+		default {
+			die 'expected expression'
+		}
+	}
+}
+
+item context more_expression {
+	switch {
+		'.', *identifier, '(' => {
+			$_ = access_call_expression:{
+				expression => $_
+				identifier => $1
+				expression_list => !expression_list->[]
+			}
+			match ')' or die 'expected ")" after expression list'
+		}
+		'.', *identifier, '=' => {
+			return object_assignment_expression:{
+				left_expression => $_
+				right_expression => !expression
+				identifier => $1
+			}
+		}
+		'=' => {
+			return assignment_expression:{
+				left_expression => $_
+				right_expression => !expression
+			}
+		}
+		'+=' => {
+			return addition_assignment_expression:{
+				operator => $0
+				left_expression => $_
+				right_expression => !expression
+			}
+		}
+		'.', *identifier => {
+			$_ = access_expression:{
+				expression => $_
+				identifier => $1
+			}
+		}
+		'[' => {
+			$_ = expression_access_expression:{
+				left_expression => $_
+				right_expression => !expression
+			}
+			match ']' or die 'expected "]" after expression'
+		}
+		'(' => {
+			$_ = call_expression:{
+				expression => $_
+				expression_list => !expression_list->[]
+			}
+			match ')' or die 'expected ")" after expression list'
+		}
+		/<=|>=|<|>/ => {
+			$_ = numeric_comparison_expression:{
+				operator => $0
+				left_expression => $_
+				right_expression => !expression
+				expression_type => 'bool'
+			}
+		}
+		/==|!=/ => {
+			$_ = comparison_expression:{
+				operator => $0
+				left_expression => $_
+				right_expression => !expression
+				expression_type => 'bool'
+			}
+		}
+		/=~|!~/, *regex => {
+			$_ = regex_match_expression:{
+				expression => $_
+				operator => $0
+				regex => $1
+				expression_type => 'bool'
+			}
+		}
+		# '=' => {
+		# 	$right_expression = 
+		# 	push push_statement:{
+		# 		left_expression => $_
+		# 		right_expression => !expression
+		# 	}
+		# }
+		default {
+			return
+		}
+	}
+}
+
+list context method_argument_list {
+	return !argument_list->[{ variable_type => 'self' identifier => 'self' }]
+}
+
+list context argument_list {
+	if (')') => {
+		return $_
+	}
+
+	match *identifier
+		or die 'expected variable type in argument list'
+	match *identifier
+		or die 'expected variable identifier in argument list'
+	push {
+		variable_type => $0
+		identifier => $1
+	}
+	while ',' => {
+		match *identifier
+			or die 'expected variable type in argument list'
+		match *identifier
+			or die 'expected variable identifier in argument list'
+		push {
+			variable_type => $3
+			identifier => $4
+		}
+	}
+
+	return $_
+}
+
+list context expression_list {
+	if (')') => {
+		return $_
+	} elsif (']') => {
+		return $_
+	}
+
+	push !expression
+	while ',' => {
+		push !expression
+	}
+
+	return
+}
+
+list context tree_constructor {
+	if ('}') => {
+		return $_
+	}
+
+	if *identifier => {
+		push $0
+	} elsif *string => {
+		push $0
+	} else {
+		return
+	}
+	match '=>'
+	push !expression
+
+	while ',' => {
+		if *identifier => {
+			push $2
+		} elsif *string => {
+			push $2
+		} else {
+			return
+		}
+		match '=>'
+		push !expression
+	}
+
+	return
+}
+
+
+
+sub main {{
+	use Data::Dumper;
+	use Sugar::IO::File;
+	# use Sugar::Lang::SyntaxIntermediateCompiler;
+
+	my $parser = __PACKAGE__->new;
+	foreach my $file (@_) {
+		$parser->{filepath} = Sugar::IO::File->new($file);
+		my $tree = $parser->parse;
+		say Dumper $tree;
+
+		# my $compiler = Sugar::Lang::SyntaxIntermediateCompiler->new(syntax_definition_intermediate => $tree);
+		# say $compiler->to_package;
+	}
+}}
+
+
+
