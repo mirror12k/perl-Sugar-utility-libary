@@ -1,5 +1,5 @@
 # Sugar grammar language parser
-package Sugar::Lang::GrammarCompiler
+package Sugar::Lang::SugarGrammarParser
 
 # regex definitions
 code_block_regex = /\{\{.*?\}\}/s
