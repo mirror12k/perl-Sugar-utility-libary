@@ -61,20 +61,41 @@ object context root {
 			$_{ignored_tokens} = !ignored_tokens_list->[]
 		}
 		'item', 'context', *identifier => {
-			$_{context_order}[] = $2
-			$_{item_contexts}{$2} = !action_block
+			$context = item_context:{
+				identifier => $2
+				block => !action_block
+			}
+			$_{contexts}[] = $context
+			$_{contexts_by_name}{$2} = $context
+			# $_{context_order}[] = $2
+			# $_{item_contexts}{$2} = !action_block
 		}
 		'list', 'context', *identifier => {
-			$_{context_order}[] = $2
-			$_{list_contexts}{$2} = !action_block
+			$context = list_context:{
+				identifier => $2
+				block => !action_block
+			}
+			$_{contexts}[] = $context
+			$_{contexts_by_name}{$2} = $context
+			# $_{context_order}[] = $2
+			# $_{list_contexts}{$2} = !action_block
 		}
 		'object', 'context', *identifier => {
-			$_{context_order}[] = $2
-			$_{object_contexts}{$2} = !action_block
+			$context = object_context:{
+				identifier => $2
+				block => !action_block
+			}
+			$_{contexts}[] = $context
+			$_{contexts_by_name}{$2} = $context
+			# $_{context_order}[] = $2
+			# $_{object_contexts}{$2} = !action_block
 		}
 		'sub', *identifier, *code_block => {
-			$_{subroutine_order}[] = $1
-			$_{subroutines}{$1} = $2
+			# $_{subroutine_order}[] = $1
+			$_{subroutines}[] = subroutine:{
+				identifier => $1
+				code_block => $2
+			}
 		}
 	}
 }

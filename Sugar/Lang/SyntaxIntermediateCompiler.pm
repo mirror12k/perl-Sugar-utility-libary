@@ -22,11 +22,13 @@ sub new {
 	$self->{variables_scope} = {};
 	$self->{token_definitions} = [];
 	$self->{ignored_tokens} = $self->{syntax_definition_intermediate}{ignored_tokens};
-	$self->{context_order} = $self->{syntax_definition_intermediate}{context_order};
-	$self->{item_contexts} = $self->{syntax_definition_intermediate}{item_contexts};
-	$self->{list_contexts} = $self->{syntax_definition_intermediate}{list_contexts};
-	$self->{object_contexts} = $self->{syntax_definition_intermediate}{object_contexts};
-	$self->{subroutine_order} = $self->{syntax_definition_intermediate}{subroutine_order};
+	$self->{contexts} = $self->{syntax_definition_intermediate}{contexts};
+	$self->{contexts_by_name} = $self->{syntax_definition_intermediate}{contexts_by_name};
+	# $self->{context_order} = $self->{syntax_definition_intermediate}{context_order};
+	# $self->{item_contexts} = $self->{syntax_definition_intermediate}{item_contexts};
+	# $self->{list_contexts} = $self->{syntax_definition_intermediate}{list_contexts};
+	# $self->{object_contexts} = $self->{syntax_definition_intermediate}{object_contexts};
+	# $self->{subroutine_order} = $self->{syntax_definition_intermediate}{subroutine_order};
 	$self->{subroutines} = $self->{syntax_definition_intermediate}{subroutines};
 	$self->{code_definitions} = {};
 	$self->{package_identifier} = $self->{syntax_definition_intermediate}{package_identifier} // 'PACKAGE_NAME';
@@ -116,21 +118,23 @@ sub parse {
 
 	$code .= "\n\n##############################\n##### sugar contexts functions\n##############################\n\n";
 
-	foreach my $context_type (@{$self->{context_order}}) {
-		$code .= $self->{code_definitions}{$context_type} =~ s/\A(\s*)sub \{/$1sub context_$context_type {/r;
+	foreach my $context (@{$self->{contexts}}) {
+		$code .= $self->{code_definitions}{$context->{identifier}};
+		# my $identifier = $context->{identifier};
+		# $code .= $self->{code_definitions}{$identifier} =~ s/\A(\s*)sub \{/$1sub context_$identifier {/r;
 	}
 
 	$code .= "\n\n##############################\n##### native perl functions\n##############################\n\n";
 
-	foreach my $subroutine (@{$self->{subroutine_order}}) {
-		my $subroutine_code = $self->{subroutines}{$subroutine};
+	foreach my $subroutine (@{$self->{subroutines}}) {
+		my $subroutine_code = $subroutine->{code_block};
 		$subroutine_code =~ s/\A\{\{(.*)\}\}\Z/{$1}/s;
-		$code .= "sub $subroutine $subroutine_code\n\n";
+		$code .= "sub $subroutine->{identifier} $subroutine_code\n\n";
 
-		$code .= "caller or main(\@ARGV);\n\n" if $subroutine eq 'main';
+		$code .= "caller or main(\@ARGV);\n\n" if $subroutine->{identifier} eq 'main';
 	}
 
-	$code .= "\n\n1;\n\n" unless exists $self->{subroutines}{main};
+	$code .= "\n\n1;\n\n";
 
 	return $code
 }
@@ -154,16 +158,24 @@ sub exists_variable {
 sub get_function_by_name {
 	my ($self, $value) = @_;
 	if ($value =~ /\A\!(\w++)\Z/) {
-		my $context_type = $1;
-		if (defined $self->{object_contexts}{$context_type}) {
-			return "context_$context_type"
-		} elsif (defined $self->{list_contexts}{$context_type}) {
-			return "context_$context_type"
-		} elsif (defined $self->{item_contexts}{$context_type}) {
-			return "context_$context_type"
-		} else {
-			$self->confess_at_current_line("undefined context requested: '$context_type'");
+		my $context_identifier = $1;
+		if (exists $self->{contexts_by_name}{$context_identifier}) {
+			return "context_$context_identifier";
 		}
+		# foreach my $context (@{$self->{contexts}}) {
+		# 	if ($context->{identifier} eq $context_identifier) {
+		# 		return "context_$context_identifier";
+		# 	}
+		# }
+		# if (defined $self->{object_contexts}{$context_type}) {
+		# 	return "context_$context_type"
+		# } elsif (defined $self->{list_contexts}{$context_type}) {
+		# 	return "context_$context_type"
+		# } elsif (defined $self->{item_contexts}{$context_type}) {
+		# 	return "context_$context_type"
+		# } else {
+			$self->confess_at_current_line("undefined context requested: '$context_identifier'");
+		# }
 
 	} elsif ($value =~ /\A\&(\w++)\Z/) {
 		return "$1"
@@ -202,18 +214,21 @@ sub compile_syntax_intermediate {
 	# 	my $value = $self->compile_syntax_token_value(shift @token_definitions);
 	# 	push @{$self->{tokens}}, $key, $value;
 	# }
-	foreach my $context_name (keys %{$self->{syntax_definition_intermediate}{item_contexts}}) {
-		my $context_definition = $self->{syntax_definition_intermediate}{item_contexts}{$context_name};
-		$self->{code_definitions}{$context_name} = $self->compile_syntax_context('item_context', $context_name, $context_definition);
+	foreach my $context (@{$self->{syntax_definition_intermediate}{contexts}}) {
+		$self->{code_definitions}{$context->{identifier}} = $self->compile_syntax_context($context);
 	}
-	foreach my $context_name (keys %{$self->{syntax_definition_intermediate}{list_contexts}}) {
-		my $context_definition = $self->{syntax_definition_intermediate}{list_contexts}{$context_name};
-		$self->{code_definitions}{$context_name} = $self->compile_syntax_context('list_context', $context_name, $context_definition);
-	}
-	foreach my $context_name (keys %{$self->{syntax_definition_intermediate}{object_contexts}}) {
-		my $context_definition = $self->{syntax_definition_intermediate}{object_contexts}{$context_name};
-		$self->{code_definitions}{$context_name} = $self->compile_syntax_context('object_context', $context_name, $context_definition);
-	}
+	# foreach my $context_name (keys %{$self->{syntax_definition_intermediate}{item_contexts}}) {
+	# 	my $context_definition = $self->{syntax_definition_intermediate}{item_contexts}{$context_name};
+	# 	$self->{code_definitions}{$context_name} = $self->compile_syntax_context('item_context', $context_name, $context_definition);
+	# }
+	# foreach my $context_name (keys %{$self->{syntax_definition_intermediate}{list_contexts}}) {
+	# 	my $context_definition = $self->{syntax_definition_intermediate}{list_contexts}{$context_name};
+	# 	$self->{code_definitions}{$context_name} = $self->compile_syntax_context('list_context', $context_name, $context_definition);
+	# }
+	# foreach my $context_name (keys %{$self->{syntax_definition_intermediate}{object_contexts}}) {
+	# 	my $context_definition = $self->{syntax_definition_intermediate}{object_contexts}{$context_name};
+	# 	$self->{code_definitions}{$context_name} = $self->compile_syntax_context('object_context', $context_name, $context_definition);
+	# }
 }
 
 sub compile_syntax_token_value {
@@ -233,31 +248,33 @@ sub compile_syntax_token_value {
 }
 
 sub compile_syntax_context {
-	my ($self, $context_type, $context_name, $context) = @_;
+	my ($self, $context) = @_;
+	# my ($self, $context_type, $context_name, $context) = @_;
 
-	my $is_linear_context = ($context->[-1]{type} eq 'return_statement' or $context->[-1]{type} eq 'return_expression_statement');
+	my $is_linear_context = ($context->{block}[-1]{type} eq 'return_statement'
+			or $context->{block}[-1]{type} eq 'return_expression_statement');
 
 	my @code;
 # 	my $code = '
 # sub {';
 	my @args_list = ('$self');
-	if ($context_name ne 'root') {
-		if ($context_type eq 'object_context') {
-			push @args_list, '$context_object';
-		} elsif ($context_type eq 'list_context') {
-			push @args_list, '$context_list';
-		} else {
-			push @args_list, '$context_value';
-		}
+	if ($context->{identifier} ne 'root') {
+		push @args_list, '$context_value';
+		# if ($context->{type} eq 'object_context') {
+		# } elsif ($context->{type} eq 'list_context') {
+		# 	push @args_list, '$context_value';
+		# } else {
+		# 	push @args_list, '$context_value';
+		# }
 	}
 	my $args_list_string = join ', ', @args_list;
 	push @code, "my ($args_list_string) = \@_;";
 
-	if ($context_name eq 'root') {
-		if ($context_type eq 'object_context') {
-			push @code, "my \$context_object = {};";
-		} elsif ($context_type eq 'list_context') {
-			push @code, "my \$context_list = [];";
+	if ($context->{identifier} eq 'root') {
+		if ($context->{type} eq 'object_context') {
+			push @code, "my \$context_value = {};";
+		} elsif ($context->{type} eq 'list_context') {
+			push @code, "my \$context_value = [];";
 		} else {
 			push @code, "my \$context_value;";
 		}
@@ -266,30 +283,40 @@ sub compile_syntax_context {
 	unless ($is_linear_context) {
 		# $code .= "\t\tsay 'in context $context_name';\n"; # DEBUG INLINE TREE BUILDER
 		push @code, "while (\$self->more_tokens) {";
-	}
 
-	# $code .= "\tmy \@tokens;\n";
-
-	my @action_code;
-	push @action_code, "my \@tokens;";
-	push @action_code, '';
-	push @action_code, $self->compile_syntax_action($context_type, undef, $context);
-	@action_code = map "\t$_", @action_code unless $is_linear_context;
-	push @code, @action_code;
-
-	unless ($is_linear_context) {
+		push @code, "\tmy \@tokens;";
+		push @code, '';
+		push @code, $self->compile_syntax_action($context->{type}, undef, $context->{block});
 
 		push @code, "}";
 		# $code .= "\t}\n";
 
-		if ($context_type eq 'object_context') {
-			push @code, "return \$context_object;";
-		} elsif ($context_type eq 'list_context') {
-			push @code, "return \$context_list;";
-		} else {
-			push @code, "return \$context_value;";
-		}
+		push @code, "return \$context_value;";
+		# if ($context->{type} eq 'object_context') {
+		# 	push @code, "return \$context_value;";
+		# } elsif ($context->{type} eq 'list_context') {
+		# 	push @code, "return \$context_value;";
+		# } else {
+		# 	push @code, "return \$context_value;";
+		# }
+
+		@code = map "\t$_", @code;
+	} else {
+		push @code, "my \@tokens;";
+		@code = map "\t$_", @code;
+
+		push @code, '';
+		push @code, $self->compile_syntax_action($context->{type}, undef, $context->{block});
 	}
+
+	# $code .= "\tmy \@tokens;\n";
+
+	# @action_code = map "\t$_", @action_code unless $is_linear_context;
+	# push @code, @action_code;
+
+	# unless ($is_linear_context) {
+
+	# }
 
 	# $code .= "}\n";
 	# say "compiled code: ", $code; # DEBUG INLINE TREE BUILDER
@@ -300,9 +327,9 @@ sub compile_syntax_context {
 	# return $compiled
 	# return $code
 
-	@code = map "\t$_", @code;
+	# @code = map "\t$_", @code;
 
-	return join '', map "$_\n", "sub {", @code, "}";
+	return join '', map "$_\n", "sub context_$context->{identifier} {", @code, "}";
 }
 
 sub compile_syntax_condition {
@@ -425,20 +452,20 @@ sub compile_syntax_action {
 		if ($action->{type} eq 'push_statement') {
 			my $expression = $self->compile_syntax_spawn_expression($context_type, $action->{expression});
 			if ($context_type eq 'list_context') {
-				push @code, "push \@\$context_list, $expression;";
+				push @code, "push \@\$context_value, $expression;";
 			} else {
 				$self->confess_at_current_line("use of push in $context_type");
 			}
 		} elsif ($action->{type} eq 'assign_item_statement') {
 			my $expression = $self->compile_syntax_spawn_expression($context_type, $action->{expression});
 			if ($action->{variable} eq '$_') {
-				if ($context_type eq 'object_context') {
-					push @code, "\$context_object = $expression;";
-				} elsif ($context_type eq 'list_context') {
-					push @code, "\$context_list = $expression;";
-				} else {
-					push @code, "\$context_value = $expression;";
-				}
+				push @code, "\$context_value = $expression;";
+				# if ($context_type eq 'object_context') {
+				# } elsif ($context_type eq 'list_context') {
+				# 	push @code, "\$context_value = $expression;";
+				# } else {
+				# 	push @code, "\$context_value = $expression;";
+				# }
 			} else {
 				my $var_name = $action->{variable} =~ s/\A\$//r;
 				# push @code, "\$var_$var_name = $expression;";
@@ -455,7 +482,7 @@ sub compile_syntax_action {
 			my $expression = $self->compile_syntax_spawn_expression($context_type, $action->{expression});
 
 			my $var_name = $action->{variable} =~ s/\A\$//r;
-			my $var_ref = $var_name eq '_' ? "\$context_object" : $self->get_variable($var_name);
+			my $var_ref = $var_name eq '_' ? "\$context_value" : $self->get_variable($var_name);
 			push @code, "${var_ref}->{$key} = $expression;";
 			
 		} elsif ($action->{type} eq 'assign_array_field_statement') {
@@ -463,7 +490,7 @@ sub compile_syntax_action {
 			my $expression = $self->compile_syntax_spawn_expression($context_type, $action->{expression});
 
 			my $var_name = $action->{variable} =~ s/\A\$//r;
-			my $var_ref = $var_name eq '_' ? "\$context_object" : $self->get_variable($var_name);
+			my $var_ref = $var_name eq '_' ? "\$context_value" : $self->get_variable($var_name);
 			push @code, "push \@{${var_ref}->{$key}}, $expression;";
 			
 		} elsif ($action->{type} eq 'assign_object_field_statement') {
@@ -472,17 +499,17 @@ sub compile_syntax_action {
 			my $expression = $self->compile_syntax_spawn_expression($context_type, $action->{expression});
 
 			my $var_name = $action->{variable} =~ s/\A\$//r;
-			my $var_ref = $var_name eq '_' ? "\$context_object" : $self->get_variable($var_name);
+			my $var_ref = $var_name eq '_' ? "\$context_value" : $self->get_variable($var_name);
 			push @code, "${var_ref}->{$key}{$subkey} = $expression;";
 
 		} elsif ($action->{type} eq 'return_statement') {
-			if ($context_type eq 'object_context') {
-				push @code, "return \$context_object;";
-			} elsif ($context_type eq 'list_context') {
-				push @code, "return \$context_list;";
-			} else {
-				push @code, "return \$context_value;";
-			}
+			push @code, "return \$context_value;";
+			# if ($context_type eq 'object_context') {
+			# } elsif ($context_type eq 'list_context') {
+			# 	push @code, "return \$context_value;";
+			# } else {
+			# 	push @code, "return \$context_value;";
+			# }
 
 			$self->{context_default_case} //= [ { type => 'die_statement', expression => { type => 'string', string => "'unexpected token'" } } ];
 
@@ -511,7 +538,7 @@ sub compile_syntax_action {
 			my @action_code = $self->compile_syntax_action($context_type, $action->{match_list}, $action->{block});
 
 			push @code, "if ($condition_code) {";
-			push @code, map "\t$_", @action_code;
+			push @code, @action_code;
 			# push @code, "}";
 
 			while (exists $action->{branch}) {
@@ -521,13 +548,13 @@ sub compile_syntax_action {
 					my @action_code = $self->compile_syntax_action($context_type, $action->{match_list}, $action->{block});
 
 					push @code, "} elsif ($condition_code) {";
-					push @code, map "\t$_", @action_code;
+					push @code, @action_code;
 					# push @code, "}";
 				} else {
 					my @action_code = $self->compile_syntax_action($context_type, $action->{match_list}, $action->{block});
 
 					push @code, "} else {";
-					push @code, map "\t$_", @action_code;
+					push @code, @action_code;
 					# push @code, "}";
 				}
 			}
@@ -544,20 +571,20 @@ sub compile_syntax_action {
 					if ($first) {
 						# push @code, "if ($condition_code) {$action_code\t\t\t}";
 						push @code, "if ($condition_code) {";
-						push @code, map "\t$_", @action_code;
+						push @code, @action_code;
 						# push @code, "}";
 						$first = 0;
 					} else {
 						# push @code, "elsif ($condition_code) {$action_code\t\t\t}";
 						push @code, "} elsif ($condition_code) {";
-						push @code, map "\t$_", @action_code;
+						push @code, @action_code;
 						# push @code, "}";
 					}
 				} elsif ($case->{type} eq 'default_case') {
 					my @action_code = $self->compile_syntax_action($context_type, undef, $case->{block});
 					# push @code, "else {$action_code\t\t\t}";
 					push @code, "} else {";
-					push @code, map "\t$_", @action_code;
+					push @code, @action_code;
 					# push @code, "}";
 				} else {
 					$self->confess_at_current_line("invalid switch case type: $case->{type}");
@@ -571,7 +598,7 @@ sub compile_syntax_action {
 
 			# push @code, "while ($condition_code) {$action_code\t\t\t}";
 			push @code, "while ($condition_code) {";
-			push @code, map "\t$_", @action_code;
+			push @code, @action_code;
 			push @code, "}";
 
 
@@ -602,7 +629,7 @@ sub compile_syntax_action {
 	# unscope
 	$self->{variables_scope} = $previous_variables_scope;
 
-	return @code
+	return map "\t$_", @code;
 	# return join ("\n\t\t\t", '', @code) . "\n";
 }
 
@@ -632,17 +659,17 @@ sub compile_syntax_spawn_expression {
 		return "\$tokens[$1][1]";
 
 	} elsif ($expression->{type} eq 'get_context') {
-		if ($context_type eq 'object_context') {
-			return "\$context_object"
-		} elsif ($context_type eq 'list_context') {
-			return "\$context_list"
-		} else {
-			return "\$context_value"
-		}
+		return "\$context_value"
+		# if ($context_type eq 'object_context') {
+		# } elsif ($context_type eq 'list_context') {
+		# 	return "\$context_value"
+		# } else {
+		# 	return "\$context_value"
+		# }
 
 	} elsif ($expression->{type} eq 'pop_list') {
 		if ($context_type eq 'list_context') {
-			return "pop \@\$context_list";
+			return "pop \@\$context_value";
 		} else {
 			$self->confess_at_current_line("use of pop in $context_type");
 		}
