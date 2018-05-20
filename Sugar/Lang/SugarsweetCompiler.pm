@@ -33,6 +33,7 @@ sub compile_class {
 	push @{$code}, "package $class_name;";
 	push @{$code}, @{[ map @$_, @{[ map { $self->compile_constructor($_) } @{$class_tree->{constructors}} ]} ]};
 	push @{$code}, @{[ map @$_, @{[ map { $self->compile_function($_) } @{$class_tree->{functions}} ]} ]};
+	push @{$code}, @{[ map @$_, @{[ map { $self->compile_native_function($_) } @{[ grep { ($_->{native_type} eq 'perl5') } @{$class_tree->{native_functions}} ]} ]} ]};
 	return $code;
 }
 
@@ -65,6 +66,28 @@ sub compile_function {
 	push @{$code}, @{$self->compile_statements_block($function_tree->{block}, $function_tree->{argument_list})};
 	push @{$code}, "}";
 	push @{$code}, "";
+	return $code;
+}
+
+sub compile_native_function {
+	my ($self, $function_tree) = @_;
+	my $code = [];
+	push @{$code}, "sub $function_tree->{name} {";
+	if ((0 < scalar(@{$function_tree->{argument_list}}))) {
+		my $argument_list = $self->compile_argument_list($function_tree->{argument_list});
+		push @{$code}, "\tmy ($argument_list) = \@_;";
+	}
+	if (($function_tree->{block} =~ /\A\{\{(.*?)\}\}\Z/s)) {
+		push @{$code}, $1;
+	} else {
+		die "failed to compile native block: $function_tree->{block}";
+	}
+	push @{$code}, "}";
+	push @{$code}, "";
+	if (($function_tree->{name} eq 'main')) {
+		push @{$code}, 'caller or main(\@ARGV);';
+		push @{$code}, '';
+	}
 	return $code;
 }
 
@@ -475,9 +498,11 @@ sub compile_expression_with_variables {
 	return $code;
 }
 
-
-
 sub main {
+	my ($self) = @_;
+
+	my ($files_list) = @_;
+
 	use Data::Dumper;
 	use Sugar::IO::File;
 	# use test1;
@@ -485,7 +510,7 @@ sub main {
 
 	my $parser = Sugar::Lang::SugarsweetParser->new;
 	my $compiler = __PACKAGE__->new;
-	foreach my $file (@_) {
+	foreach my $file (@$files_list) {
 		$parser->{filepath} = Sugar::IO::File->new($file);
 		my $tree = $parser->parse;
 		# say Dumper $tree;
@@ -496,8 +521,9 @@ sub main {
 		# my $compiler = Sugar::Lang::SyntaxIntermediateCompiler->new(syntax_definition_intermediate => $tree);
 		# say $compiler->to_package;
 	}
+
 }
 
-caller or main(@ARGV);
+caller or main(\@ARGV);
 
 

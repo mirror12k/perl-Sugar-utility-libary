@@ -14,6 +14,7 @@ use feature 'say';
 ##### variables and settings
 ##############################
 
+our $var_code_block_regex = qr/\{\{.*?\}\}/s;
 our $var_symbol_regex = qr/\(|\)|\{|\}|\[|\]|<=|>=|<|>|->|=>|==|=~|\+=|!~|!=|=|,|\.|\+|\-|\*|\/|::|:|;/;
 our $var_identifier_regex = qr/[a-zA-Z_][a-zA-Z0-9_]*+/;
 our $var_string_regex = qr/'([^\\']|\\.)*+'|"([^\\"]|\\.)*+"/s;
@@ -25,6 +26,7 @@ our $var_whitespace_regex = qr/\s++/s;
 
 
 our $tokens = [
+	'code_block' => $var_code_block_regex,
 	'regex' => $var_regex_regex,
 	'symbol' => $var_symbol_regex,
 	'substitution_regex' => $var_substitution_regex_regex,
@@ -41,20 +43,20 @@ our $ignored_tokens = [
 ];
 
 our $contexts = {
-	argument_list => 'context_argument_list',
+	root => 'context_root',
+	class_identifier => 'context_class_identifier',
 	class_definition => 'context_class_definition',
 	class_definition_block => 'context_class_definition_block',
-	class_identifier => 'context_class_identifier',
-	expression => 'context_expression',
-	expression_list => 'context_expression_list',
-	method_argument_list => 'context_method_argument_list',
-	more_expression => 'context_more_expression',
-	more_statement => 'context_more_statement',
-	root => 'context_root',
 	statements_block => 'context_statements_block',
 	statements_block_list => 'context_statements_block_list',
-	switch_block_list => 'context_switch_block_list',
+	more_statement => 'context_more_statement',
 	switch_statements_block => 'context_switch_statements_block',
+	switch_block_list => 'context_switch_block_list',
+	expression => 'context_expression',
+	more_expression => 'context_more_expression',
+	method_argument_list => 'context_method_argument_list',
+	argument_list => 'context_argument_list',
+	expression_list => 'context_expression_list',
 	tree_constructor => 'context_tree_constructor',
 };
 
@@ -152,7 +154,12 @@ sub context_class_definition_block {
 			$self->confess_at_current_offset('expected ")" after argument list')
 				unless $self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] eq ')';
 			@tokens = (@tokens, $self->step_tokens(1));
-			push @{$context_value->{functions}}, { type => 'function_declaration', line_number => $tokens[0][2], return_type => $tokens[0][1], name => $tokens[2][1], argument_list => $var_argument_list, block => $self->context_statements_block, };
+			if ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] eq 'native' and $self->{tokens}[$self->{tokens_index} + 1][1] eq ':' and $self->{tokens}[$self->{tokens_index} + 2][0] eq 'identifier' and $self->{tokens}[$self->{tokens_index} + 3][0] eq 'code_block') {
+				my @tokens = (@tokens, $self->step_tokens(4));
+				push @{$context_value->{native_functions}}, { type => 'native_function_declaration', line_number => $tokens[0][2], return_type => $tokens[0][1], name => $tokens[2][1], argument_list => $var_argument_list, native_type => $tokens[7][1], block => $tokens[8][1], };
+			} else {
+				push @{$context_value->{functions}}, { type => 'function_declaration', line_number => $tokens[0][2], return_type => $tokens[0][1], name => $tokens[2][1], argument_list => $var_argument_list, block => $self->context_statements_block, };
+			}
 		} else {
 			return $context_value;
 		}

@@ -48,6 +48,7 @@ list sub compile_class(tree class_tree) {
 
 	list push code, flatten map { self.compile_constructor(_) } class_tree.constructors;
 	list push code, flatten map { self.compile_function(_) } class_tree.functions;
+	list push code, flatten map { self.compile_native_function(_) } grep { _.native_type == 'perl5' } class_tree.native_functions;
 	# push @code, map $self->compile_function($_), @{$class->{functions}};
 
 	return code;
@@ -120,6 +121,34 @@ list sub compile_function(tree function_tree) {
 
 	return code;
 	# return @code;
+}
+
+list sub compile_native_function(tree function_tree) {
+	# my ($self, $function) = @_;
+
+	list code = [];
+	push code, "sub $function_tree.name {";
+
+	if (0 < list length function_tree.argument_list) {
+		string argument_list = self.compile_argument_list(function_tree.argument_list);
+		push code, "\tmy ($argument_list) = \@_;";
+	}
+
+	if (function_tree.block =~ /\A\{\{(.*?)\}\}\Z/s) {
+		push code, match[1];
+	} else {
+		die "failed to compile native block: $function_tree.block";
+	}
+
+	push code, "}";
+	push code, "";
+
+	if (function_tree.name == 'main') {
+		push code, 'caller or main(\@ARGV);';
+		push code, '';
+	}
+
+	return code;
 }
 
 list sub compile_statements_block(list block, list with_variables) {
@@ -642,6 +671,30 @@ string sub compile_expression_with_variables(tree expression, list with_variable
 
 	# return $code;
 }
+
+
+void sub main () native:perl5 {{
+	my ($files_list) = @_;
+
+	use Data::Dumper;
+	use Sugar::IO::File;
+	# use test1;
+	use Sugar::Lang::SugarsweetParser;
+
+	my $parser = Sugar::Lang::SugarsweetParser->new;
+	my $compiler = __PACKAGE__->new;
+	foreach my $file (@$files_list) {
+		$parser->{filepath} = Sugar::IO::File->new($file);
+		my $tree = $parser->parse;
+		# say Dumper $tree;
+
+		say $compiler->compile_file($tree);
+
+
+		# my $compiler = Sugar::Lang::SyntaxIntermediateCompiler->new(syntax_definition_intermediate => $tree);
+		# say $compiler->to_package;
+	}
+}}
 
 }
 
