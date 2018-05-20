@@ -335,7 +335,7 @@ sub compile_expression {
 
 sub compile_substitution_expression {
 	my ($self, $regex_token) = @_;
-	if (($regex_token =~ /\As\/([^\\\/]|\\.)*+\/([^\\\/]|\\.)*+\/([msixpodualngc]*+)\Z/s)) {
+	if (($regex_token =~ /\As\/((?:[^\\\/]|\\.)*+)\/((?:[^\\\/]|\\.)*+)\/([msixpodualngc]*+)\Z/s)) {
 		my $regex = $1;
 		my $substitution_string = $2;
 		my $flags = $3;
@@ -349,27 +349,33 @@ sub compile_substitution_expression {
 sub compile_string_expression {
 	my ($self, $string_token) = @_;
 	my $string_content;
+	my $is_quoted;
 	if (($string_token =~ /\A'/s)) {
 		return $string_token;
 	} elsif (($string_token =~ /\A"(.*)"\Z/s)) {
 		$string_content = $1;
+		$is_quoted = 1;
 	} else {
 		$string_content = $string_token;
+		$is_quoted = 0;
 	}
 	if (($string_content eq '')) {
 		return $string_token;
 	}
 	my $compiled_string = '';
 	my $last_match_position = 0;
-	while (($string_content =~ /\G(?:((?:[^\$\\]|\\.)+)|\$(\w+)(?:\.(\w+(?:\.\w+)*))?|\$\{(\w+)(?:\.(\w+(?:\.\w+)*))?\})/gsc)) {
+	while (($string_content =~ /\G(?:((?:[^\$\\]|\\.)+)|\$(\d+)|\$(\w+)(?:\.(\w+(?:\.\w+)*))?|\$\{(\w+)(?:\.(\w+(?:\.\w+)*))?\})/gsc)) {
 		my $text_match = $1;
-		my $variable_match = $2;
-		my $variable_access = $3;
-		my $protected_variable_match = $4;
-		my $protected_variable_access = $5;
+		my $match_variable_match = $2;
+		my $variable_match = $3;
+		my $variable_access = $4;
+		my $protected_variable_match = $5;
+		my $protected_variable_access = $6;
 		$last_match_position = $+[0];
 		if ($text_match) {
 			$compiled_string .= $text_match;
+		} elsif ($match_variable_match) {
+			$compiled_string .= "\$$match_variable_match";
 		} elsif ($variable_match) {
 			if (not (exists($self->{variable_scope}->{$variable_match}))) {
 				die "undefined variable in string interpolation: $variable_match";
@@ -395,7 +401,11 @@ sub compile_string_expression {
 	if (($last_match_position < length($string_content))) {
 		die "failed to compile string expression: $string_token";
 	}
-	return "\"$compiled_string\"";
+	if ($is_quoted) {
+		return "\"$compiled_string\"";
+	} else {
+		return $compiled_string;
+	}
 }
 
 sub compile_argument_list {

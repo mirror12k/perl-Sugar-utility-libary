@@ -475,7 +475,7 @@ string sub compile_expression (tree expression) {
 string sub compile_substitution_expression (string regex_token) {
 	# my ($self, $string) = @_;
 
-	if (regex_token =~ /\As\/([^\\\/]|\\.)*+\/([^\\\/]|\\.)*+\/([msixpodualngc]*+)\Z/s) {
+	if (regex_token =~ /\As\/((?:[^\\\/]|\\.)*+)\/((?:[^\\\/]|\\.)*+)\/([msixpodualngc]*+)\Z/s) {
 		string regex = match[1];
 		string substitution_string = match[2];
 		string flags = match[3];
@@ -492,13 +492,16 @@ string sub compile_string_expression (string string_token) {
 	# my ($self, $string) = @_;
 
 	string string_content;
+	bool is_quoted;
 	if (string_token =~ /\A'/s) {
 		return string_token;
 		# return $string;
 	} elsif (string_token =~ /\A"(.*)"\Z/s) {
 		string_content = match[1];
+		is_quoted = 1;
 	} else {
 		string_content = string_token;
+		is_quoted = 0;
 	}
 	
 	if (string_content == '') {
@@ -511,18 +514,21 @@ string sub compile_string_expression (string string_token) {
 	string compiled_string = '';
 
 	int last_match_position = 0;
-	while (string_content =~ /\G(?:((?:[^\$\\]|\\.)+)|\$(\w+)(?:\.(\w+(?:\.\w+)*))?|\$\{(\w+)(?:\.(\w+(?:\.\w+)*))?\})/gsc) {
+	while (string_content =~ /\G(?:((?:[^\$\\]|\\.)+)|\$(\d+)|\$(\w+)(?:\.(\w+(?:\.\w+)*))?|\$\{(\w+)(?:\.(\w+(?:\.\w+)*))?\})/gsc) {
 		# my ($text_match, $variable_match, $variable_access, $protected_variable_match,
 		# 		$protected_variable_access) = ($1, $2, $3, $4, $5);
 		string text_match = match[1];
-		string variable_match = match[2];
-		string variable_access = match[3];
-		string protected_variable_match = match[4];
-		string protected_variable_access = match[5];
+		string match_variable_match = match[2];
+		string variable_match = match[3];
+		string variable_access = match[4];
+		string protected_variable_match = match[5];
+		string protected_variable_access = match[6];
 		last_match_position = match.pos;
 
 		if (text_match) {
 			compiled_string += text_match;
+		} elsif	(match_variable_match) {
+			compiled_string += "\$$match_variable_match";
 		} elsif	(variable_match) {
 			unless (contains self.variable_scope[variable_match]) {
 				die "undefined variable in string interpolation: $variable_match";
@@ -553,7 +559,11 @@ string sub compile_string_expression (string string_token) {
 	# warn "debug string content for $string: ", pos($string_content) if defined pos ($string_content);
 	# die "failed to compile string expression: $string" if not defined pos ($string_content);
 
-	return "\"$compiled_string\"";
+	if (is_quoted) {
+		return "\"$compiled_string\"";
+	} else {
+		return compiled_string;
+	}
 }
 
 string sub compile_argument_list (list argument_list) {

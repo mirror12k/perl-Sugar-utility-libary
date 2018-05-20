@@ -88,8 +88,8 @@ use feature 'say';
 	$code .= "];\n\n";
 
 	$code .= "our \$contexts = {\n";
-	foreach my $context_type (sort keys %{$self->{code_definitions}}) {
-		$code .= "\t$context_type => 'context_$context_type',\n";
+	foreach my $context (@{$self->{contexts}}) {
+		$code .= "\t$context->{identifier} => 'context_$context->{identifier}',\n";
 	}
 	$code .= "};\n\n";
 
