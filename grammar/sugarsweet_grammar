@@ -9,7 +9,9 @@ identifier_regex = /[a-zA-Z_][a-zA-Z0-9_]*+/
 string_regex = /'([^\\']|\\.)*+'|"([^\\"]|\\.)*+"/s
 integer_regex = /-?\d++/
 regex_regex = /\/([^\\\/]|\\.)*+\/[msixgcpodualn]*+/s
-# substitution_regex_regex = /s\/([^\\\/]|\\.)*+\/([^\\\/]|\\.)*+\/[msixpodualngcer]*+/s
+# no e flag in substitution because no eval
+# no r flag in substitution because all substitutions return
+substitution_regex_regex = /s\/([^\\\/]|\\.)*+\/([^\\\/]|\\.)*+\/[msixpodualngc]*+/s
 # variable_regex = /\$\w++/
 # context_reference_regex = /!\w++/
 # function_reference_regex = /\&\w++/
@@ -22,7 +24,7 @@ tokens {
 	# code_block => $code_block_regex
 	regex => $regex_regex
 	symbol => $symbol_regex
-	# substitution_regex => $substitution_regex_regex
+	substitution_regex => $substitution_regex_regex
 
 	# package_identifier => $package_identifier_regex
 	identifier => $identifier_regex
@@ -161,6 +163,24 @@ list context statements_block_list {
 
 			push $statement
 		}
+		'unless', '(' => {
+			$expression = !expression
+			match ')' or die 'expected ")" after expression'
+
+			$statement = if_statement:{
+				expression => not_expression:{ expression => $expression }
+				block => !statements_block
+			}
+			$branch_statement = $statement
+
+			if 'else' => {
+				$branch_statement{branch} = else_statement:{
+					block => !statements_block
+				}
+			}
+
+			push $statement
+		}
 		'while', '(' => {
 			$expression = !expression
 			match ')' or die 'expected ")" after expression'
@@ -170,11 +190,12 @@ list context statements_block_list {
 				block => !statements_block
 			}
 		}
-		'return', ';' => {
-			push void_return_statement:{}
+		'return' (/;|if|unless/) => {
+			push !more_statement->void_return_statement:{}
+			match ';' or die 'expected ";" after expression'
 		}
 		'return' => {
-			push return_statement:{
+			push !more_statement->return_statement:{
 				expression => !expression
 			}
 			match ';' or die 'expected ";" after expression'
@@ -183,7 +204,7 @@ list context statements_block_list {
 			$left_expression = !expression
 			match ','
 			$right_expression = !expression
-			push list_push_statement:{
+			push !more_statement->list_push_statement:{
 				left_expression => $left_expression
 				right_expression => $right_expression
 			}
@@ -193,14 +214,14 @@ list context statements_block_list {
 			$left_expression = !expression
 			match ','
 			$right_expression = !expression
-			push push_statement:{
+			push !more_statement->push_statement:{
 				left_expression => $left_expression
 				right_expression => $right_expression
 			}
 			match ';' or die 'expected ";" after expression'
 		}
 		'die' => {
-			push die_statement:{
+			push !more_statement->die_statement:{
 				expression => !expression
 			}
 			match ';' or die 'expected ";" after expression'
@@ -220,7 +241,7 @@ list context statements_block_list {
 			match ';' or die 'expected ";" after expression'
 		}
 		*identifier, '=' => {
-			push variable_assignment_statement:{
+			push !more_statement->variable_assignment_statement:{
 				identifier => $0
 				expression => !expression
 			}
@@ -230,10 +251,30 @@ list context statements_block_list {
 			return
 		}
 		default {
-			push expression_statement:{
+			push !more_statement->expression_statement:{
 				expression => !expression
 			}
 			match ';' or die 'expected ";" after expression'
+		}
+	}
+}
+
+object context more_statement {
+	switch {
+		'unless' => {
+			return if_statement:{
+				expression => not_expression:{ expression => !expression }
+				block => [ $_ ]
+			}
+		}
+		'if' => {
+			return if_statement:{
+				expression => !expression
+				block => [ $_ ]
+			}
+		}
+		default {
+			return
 		}
 	}
 }
@@ -406,6 +447,11 @@ item context expression {
 		'match', '.', 'pos' => {
 			return !more_expression->match_position_expression:{}
 		}
+		'not' => {
+			return not_expression:{
+				expression => !expression
+			}
+		}
 		*identifier => {
 			return !more_expression->variable_expression:{
 				identifier => $0
@@ -489,6 +535,13 @@ item context more_expression {
 				operator => $0
 				regex => $1
 				expression_type => 'bool'
+			}
+		}
+		'=~', *substitution_regex => {
+			$_ = regex_substitution_expression:{
+				expression => $_
+				regex => $1
+				expression_type => 'string'
 			}
 		}
 		# '=' => {

@@ -275,8 +275,7 @@ string sub compile_expression (tree expression) {
 			return expression.value;
 		}
 		'variable_expression': {
-			if (contains self.variable_scope[expression.identifier]) {
-			} else {
+			unless (contains self.variable_scope[expression.identifier]) {
 				die "undefined variable referenced: $expression.identifier";
 			}
 			return "\$$expression.identifier";
@@ -303,6 +302,10 @@ string sub compile_expression (tree expression) {
 		'tree_constructor_expression': {
 			string expression_list = self.compile_tree_constructor(expression.expression_list);
 			return "{ $expression_list }";
+		}
+		'not_expression': {
+			string sub_expression = self.compile_expression(expression.expression);
+			return "not ($sub_expression)";
 		}
 		'join_expression': {
 			string left_expression = self.compile_expression(expression.left_expression);
@@ -341,8 +344,7 @@ string sub compile_expression (tree expression) {
 			} else {
 				expression_type = self.get_expression_type(expression.expression);
 			}
-			if (expression_type) {
-			} else {
+			unless (expression_type) {
 				die "ambiguous type length expression";
 			}
 			string sub_expression = self.compile_expression(expression.expression);
@@ -375,8 +377,7 @@ string sub compile_expression (tree expression) {
 		}
 		'clone_expression': {
 			string expression_type = self.get_expression_type(expression.expression);
-			if (expression_type) {
-			} else {
+			unless (expression_type) {
 				die "ambiguous type clone expression";
 			}
 			string sub_expression = self.compile_expression(expression.expression);
@@ -395,8 +396,7 @@ string sub compile_expression (tree expression) {
 		}
 		'addition_assignment_expression': {
 			string expression_type = self.infer_expression_type(expression);
-			if (expression_type) {
-			} else {
+			unless (expression_type) {
 				die "ambiguous type addition assignment expression";
 			}
 
@@ -461,101 +461,99 @@ string sub compile_expression (tree expression) {
 			string sub_expression = self.compile_expression(expression.expression);
 			return "($sub_expression $expression.operator $expression.regex)";
 		}
+		'regex_substitution_expression': {
+			string sub_expression = self.compile_expression(expression.expression);
+			string regex_expression = self.compile_substitution_expression(expression.regex);
+			return "($sub_expression =~ $regex_expression)";
+		}
 		default: {
 			die "invalid expression type: $expression.type";
 		}
 	}
 }
 
+string sub compile_substitution_expression (string regex_token) {
+	# my ($self, $string) = @_;
+
+	if (regex_token =~ /\As\/([^\\\/]|\\.)*+\/([^\\\/]|\\.)*+\/([msixpodualngc]*+)\Z/s) {
+		string regex = match[1];
+		string substitution_string = match[2];
+		string flags = match[3];
+
+		substitution_string = self.compile_string_expression(substitution_string);
+
+		return "s/$regex/$substitution_string/${flags}r";
+	} else {
+		die "failed to compile substitution expression: $regex_token";
+	}
+}
+
 string sub compile_string_expression (string string_token) {
 	# my ($self, $string) = @_;
 
+	string string_content;
 	if (string_token =~ /\A'/s) {
 		return string_token;
 		# return $string;
 	} elsif (string_token =~ /\A"(.*)"\Z/s) {
-	# } elsif ($string =~ /\A"(.*)"\Z/s) {
-		if (string_token == '""') {
-			return string_token;
-		}
-		# return $string if $string eq '""';
-		# my $string_content = $1;
-		# my $compiled_string = '';
+		string_content = match[1];
+	} else {
+		string_content = string_token;
+	}
+	
+	if (string_content == '') {
+		return string_token;
+	}
+	# return $string if $string eq '""';
+	# my $string_content = $1;
+	# my $compiled_string = '';
 
-		string string_content = match[1];
-		string compiled_string = '';
+	string compiled_string = '';
 
-		int last_match_position = 0;
-		while (string_content =~ /\G(?:((?:[^\$\\]|\\.)+)|\$(\w+)(?:\.(\w+(?:\.\w+)*))?|\$\{(\w+)(?:\.(\w+(?:\.\w+)*))?\})/gsc) {
-			# my ($text_match, $variable_match, $variable_access, $protected_variable_match,
-			# 		$protected_variable_access) = ($1, $2, $3, $4, $5);
-			string text_match = match[1];
-			string variable_match = match[2];
-			string variable_access = match[3];
-			string protected_variable_match = match[4];
-			string protected_variable_access = match[5];
-			last_match_position = match.pos;
+	int last_match_position = 0;
+	while (string_content =~ /\G(?:((?:[^\$\\]|\\.)+)|\$(\w+)(?:\.(\w+(?:\.\w+)*))?|\$\{(\w+)(?:\.(\w+(?:\.\w+)*))?\})/gsc) {
+		# my ($text_match, $variable_match, $variable_access, $protected_variable_match,
+		# 		$protected_variable_access) = ($1, $2, $3, $4, $5);
+		string text_match = match[1];
+		string variable_match = match[2];
+		string variable_access = match[3];
+		string protected_variable_match = match[4];
+		string protected_variable_access = match[5];
+		last_match_position = match.pos;
 
-			if (text_match) {
-				compiled_string += text_match;
-			} elsif	(variable_match) {
-				if (contains self.variable_scope[variable_match]) {
-				} else {
-					die "undefined variable in string interpolation: $variable_match";
-				}
-
-				if (variable_access) {
-					compiled_string += "\$$variable_match\->";
-					compiled_string += join '', map { "{$_}" } split "\\.", variable_access;
-				} else {
-					compiled_string += "\$$variable_match";
-				}
-			} else {
-				if (contains self.variable_scope[protected_variable_match]) {
-				} else {
-					die "undefined variable in string interpolation: $protected_variable_match";
-				}
-				if (protected_variable_access) {
-					compiled_string += "\$$protected_variable_match\->";
-					compiled_string += join '', map { "{$_}" } split "\\.", protected_variable_access;
-				} else {
-					compiled_string += "\${$protected_variable_match}";
-				}
+		if (text_match) {
+			compiled_string += text_match;
+		} elsif	(variable_match) {
+			unless (contains self.variable_scope[variable_match]) {
+				die "undefined variable in string interpolation: $variable_match";
 			}
 
-			# if (defined $text_match) {
-			# 	$compiled_string .= $text_match;
-			# } elsif (defined $variable_match) {
-			# 	die "undefined variable in string interpolation: $variable_match"
-			# 			unless exists $self->{variable_scope}{$variable_match};
-			# 	if (defined $variable_access) {
-			# 		$compiled_string .= "\$$variable_match\->";
-			# 		$compiled_string .= join '', map "{$_}", split "\\.", $variable_access;
-					
-			# 	} else {
-			# 		$compiled_string .= "\$$variable_match";
-			# 	}
-			# } else {
-			# 	die "undefined variable in string interpolation: $variable_match"
-			# 			unless exists $self->{variable_scope}{$protected_variable_match};
-			# 	if (defined $protected_variable_access) {
-			# 		$compiled_string .= "\${$protected_variable_match}\->";
-			# 		$compiled_string .= join '', map "{$_}", split "\\.", $protected_variable_access;
-					
-			# 	} else {
-			# 		$compiled_string .= "\${$protected_variable_match}";
-			# 	}
-			# }
+			if (variable_access) {
+				compiled_string += "\$$variable_match\->";
+				compiled_string += join '', map { "{$_}" } split "\\.", variable_access;
+			} else {
+				compiled_string += "\$$variable_match";
+			}
+		} else {
+			unless (contains self.variable_scope[protected_variable_match]) {
+				die "undefined variable in string interpolation: $protected_variable_match";
+			}
+			if (protected_variable_access) {
+				compiled_string += "\$$protected_variable_match\->";
+				compiled_string += join '', map { "{$_}" } split "\\.", protected_variable_access;
+			} else {
+				compiled_string += "\${$protected_variable_match}";
+			}
 		}
-
-		if (last_match_position < length string_content) {
-			die "failed to compile string expression: $string_token";
-		}
-		# warn "debug string content for $string: ", pos($string_content) if defined pos ($string_content);
-		# die "failed to compile string expression: $string" if not defined pos ($string_content);
-
-		return "\"$compiled_string\"";
 	}
+
+	if (last_match_position < length string_content) {
+		die "failed to compile string expression: $string_token";
+	}
+	# warn "debug string content for $string: ", pos($string_content) if defined pos ($string_content);
+	# die "failed to compile string expression: $string" if not defined pos ($string_content);
+
+	return "\"$compiled_string\"";
 }
 
 string sub compile_argument_list (list argument_list) {
@@ -602,8 +600,7 @@ string sub get_expression_type (tree expression) {
 	if (contains expression.expression_type) {
 		return expression.expression_type;
 	} elsif (expression.type == 'variable_expression') {
-		if (contains self.variable_scope[expression.identifier]) {
-		} else {
+		unless (contains self.variable_scope[expression.identifier]) {
 			die "undefined variable referenced: $expression.identifier";
 		}
 		return self.variable_scope[expression.identifier];
