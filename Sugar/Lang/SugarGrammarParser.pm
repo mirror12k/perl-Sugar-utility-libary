@@ -538,16 +538,16 @@ sub context_spawn_expression_hash {
 sub main {
 	use Data::Dumper;
 	use Sugar::IO::File;
-	use Sugar::Lang::SyntaxIntermediateCompiler;
+	# use Sugar::Lang::SyntaxIntermediateCompiler;
 
 	my $parser = __PACKAGE__->new;
 	foreach my $file (@_) {
 		$parser->{filepath} = Sugar::IO::File->new($file);
 		my $tree = $parser->parse;
-		# say Dumper $tree;
+		say Dumper $tree;
 
-		my $compiler = Sugar::Lang::SyntaxIntermediateCompiler->new(syntax_definition_intermediate => $tree);
-		say $compiler->to_package;
+		# my $compiler = Sugar::Lang::SyntaxIntermediateCompiler->new(syntax_definition_intermediate => $tree);
+		# say $compiler->to_package;
 	}
 }
 

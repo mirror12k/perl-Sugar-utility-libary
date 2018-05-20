@@ -1,0 +1,738 @@
+
+class Sugar::Lang::SugarGrammarCompiler {
+
+sub _constructor (tree args) {
+	# my ($class, %opts) = @_;
+	# my $self = bless {}, $class;
+
+	if (contains args.syntax_definition_intermediate) {
+		self.load_syntax_definition_intermediate(args.syntax_definition_intermediate);
+	} else {
+		# TODO: croak
+		die "syntax_definition_intermediate argument required for Sugar::Lang::SugarGrammarCompiler";
+	}
+
+	# $self->{syntax_definition_intermediate} = $opts{syntax_definition_intermediate}
+	# 		// croak "syntax_definition_intermediate argument required for Sugar::Lang::SyntaxIntermediateCompiler";
+
+	# $self->{variables} = $self->{syntax_definition_intermediate}{variables};
+	# $self->{variables_by_name} = {};
+	# $self->{tokens} = [];
+	# $self->{ignored_tokens} = $self->{syntax_definition_intermediate}{ignored_tokens};
+	# $self->{context_order} = $self->{syntax_definition_intermediate}{context_order};
+	# $self->{item_contexts} = $self->{syntax_definition_intermediate}{item_contexts};
+	# $self->{list_contexts} = $self->{syntax_definition_intermediate}{list_contexts};
+	# $self->{object_contexts} = $self->{syntax_definition_intermediate}{object_contexts};
+	# $self->{subroutine_order} = $self->{syntax_definition_intermediate}{subroutine_order};
+	# $self->{subroutines} = $self->{syntax_definition_intermediate}{subroutines};
+	# $self->{code_definitions} = {};
+	# $self->{package_identifier} = $self->{syntax_definition_intermediate}{package_identifier} // 'PACKAGE_NAME';
+	# $self->compile_syntax_intermediate;
+
+	# return self;
+}
+
+void sub load_syntax_definition_intermediate (tree intermediate) {
+	self.syntax_definition_intermediate = intermediate;
+
+	self.global_variable_names = self.syntax_definition_intermediate.global_variable_names;
+	self.global_variable_expressions = self.syntax_definition_intermediate.global_variable_expressions;
+	self.variables_scope = { '$_' => '$context_value' };
+	self.token_definitions = [];
+	self.ignored_tokens = self.syntax_definition_intermediate.ignored_tokens;
+	self.contexts = self.syntax_definition_intermediate.contexts;
+	self.contexts_by_name = self.syntax_definition_intermediate.contexts_by_name;
+	self.subroutines = self.syntax_definition_intermediate.subroutines;
+	self.code_definitions = {};
+
+	# TODO: // expression
+	if (contains self.syntax_definition_intermediate.package_identifier) {
+		self.package_identifier = self.syntax_definition_intermediate.package_identifier;
+	} else {
+		self.package_identifier = 'PACKAGE_NAME';
+	}
+}
+
+string sub to_package () {
+
+	string code = '';
+	# my $code = '';
+
+	code += "#!/usr/bin/env perl
+package $self.package_identifier;
+use parent 'Sugar::Lang::BaseSyntaxParser';
+use strict;
+use warnings;
+
+use feature 'say';
+
+
+
+";
+
+	code += "\n\n##############################\n##### variables and settings\n##############################\n\n";
+
+
+	if (0 < list length self.global_variable_names) {
+		foreach (string key in self.global_variable_names) {
+			string value = self.global_variable_expressions[key];
+			code += "our \$var_$key = $value;\n";
+		}
+	}
+	code += "\n\n";
+
+	code += "our \$tokens = [\n";
+	if (0 < list length self.token_definitions) {
+		foreach (tree token_definition in self.token_definitions) {
+			code += "\t'$token_definition.key' => $token_definition.value,\n";
+		}
+	}
+	code += "];\n\n";
+
+	code += "our \$ignored_tokens = [\n";
+	foreach (string token in self.ignored_tokens) {
+		code += "\t'$token',\n";
+	}
+	code += "];\n\n";
+
+	code += "our \$contexts = {\n";
+	foreach (tree context in self.contexts) {
+		code += "\t$context.identifier => 'context_$context.identifier',\n";
+	}
+	code += "};\n\n";
+
+	code += "\n\n##############################\n##### api\n##############################\n\n";
+
+	code += '
+
+sub new {
+	my ($class, %opts) = @_;
+
+	$opts{token_regexes} = $tokens;
+	$opts{ignored_tokens} = $ignored_tokens;
+	$opts{contexts} = $contexts;
+
+	my $self = $class->SUPER::new(%opts);
+
+	return $self
+}
+
+sub parse {
+	my ($self, @args) = @_;
+	return $self->SUPER::parse(@args)
+}
+
+';
+
+	code += "\n\n##############################\n##### sugar contexts functions\n##############################\n\n";
+
+	foreach (tree context in self.contexts) {
+		code += self.code_definitions[context.identifier];
+		# my $identifier = $context->{identifier};
+		# code += $self->{code_definitions}{$identifier} =~ s/\A(\s*)sub \{/$1sub context_$identifier {/r;
+	}
+
+	code += "\n\n##############################\n##### native perl functions\n##############################\n\n";
+
+	foreach (tree subroutine in self.subroutines) {
+		string subroutine_code = subroutine.code_block;
+		# todo: match index variables in string substitution
+		subroutine_code = subroutine_code =~ s/\A\{\{(.*)\}\}\Z/{$1}/s;
+		code += "sub $subroutine.identifier $subroutine_code\n\n";
+
+		code += "caller or main(\@ARGV);\n\n" if subroutine.identifier == 'main';
+	}
+
+	code += "\n\n1;\n\n";
+
+	return code;
+}
+
+void sub confess_at_current_line (string msg) {
+	die "syntax error on line $self.current_line: $msg";
+}
+
+string sub get_variable (string variable) {
+	self.confess_at_current_line("undefined variable requested: '$variable'")
+			unless contains self.variables_scope[variable];
+	return self.variables_scope[variable];
+}
+
+bool sub exists_variable (string variable) {
+	# my ($self, $variable) = @_;
+	return contains self.variables_scope[variable];
+}
+
+string sub add_variable (string variable) {
+	if (variable =~ /\A\$(\w+)\Z/s) {
+		self.variables_scope[variable] = "\$var_$1";
+		return self.variables_scope[variable];
+	} else {
+		self.confess_at_current_line("invalid variable in add_variable: '$variable'");
+	}
+}
+
+string sub get_function_by_name (string name) {
+	if (name =~ /\A\!(\w++)\Z/) {
+		string context_identifier = match[1];
+		if (contains self.contexts_by_name[context_identifier]) {
+			return "context_$context_identifier";
+		} else {
+			self.confess_at_current_line("undefined context requested: '$context_identifier'");
+		}
+
+	} elsif (name =~ /\A\&(\w++)\Z/) {
+		return "$1";
+
+	} else {
+		self.confess_at_current_line("unknown context type requested: '$name'");
+	}
+}
+
+void sub compile_syntax_intermediate () {
+	foreach (string key in self.global_variable_names) {
+		string value = self.compile_syntax_token_value(self.global_variable_expressions[key]);
+		self.global_variable_expressions[key] = value;
+		self.variables_scope["\$$key"] = "\$var_$key";
+	}
+
+	foreach (tree token_definition in self.syntax_definition_intermediate.tokens) {
+		string key = token_definition.identifier;
+		string value = self.compile_syntax_token_value(token_definition.value);
+		push self.token_definitions, {
+			key => key,
+			value => value,
+		};
+	}
+	
+	foreach (tree context in self.syntax_definition_intermediate.contexts) {
+		self.code_definitions[context.identifier] = self.compile_syntax_context(context);
+	}
+	
+	# foreach my $key (@{$self->{global_variable_names}}) {
+	# 	my $value = $self->compile_syntax_token_value($self->{global_variable_expressions}{$key});
+	# 	$self->{global_variable_expressions}{$key} = $value;
+	# 	$self->{variables_scope}{"\$$key"} = "\$var_$key";
+	# }
+
+	# foreach my $token_definition (@{$self->{syntax_definition_intermediate}{tokens}}) {
+	# 	my $key = $token_definition->{identifier};
+	# 	my $value = $self->compile_syntax_token_value($token_definition->{value});
+	# 	push @{$self->{token_definitions}}, {
+	# 		key => $key,
+	# 		value => $value,
+	# 	};
+	# }
+	# foreach my $context (@{$self->{syntax_definition_intermediate}{contexts}}) {
+	# 	$self->{code_definitions}{$context->{identifier}} = $self->compile_syntax_context($context);
+	# }
+}
+
+string sub compile_syntax_token_value(tree value) {
+	string switch (value.type) {
+		'regex_value': {
+			return "qr$value.value";
+		}
+		'substitution_regex': {
+			return "sub { \$_[0] =~ ${value.value}r }";
+		}
+		'variable_value': {
+			return self.get_variable(value.value);
+		}
+		'string_value': {
+			return value.value;
+		}
+		default: {
+			self.confess_at_current_line("invalid syntax token value: $value.type");
+		}
+	}
+}
+
+string sub compile_syntax_context (tree context) {
+	# my ($self, $context_type, $context_name, $context) = @_;
+
+	# my $is_linear_context = ($context->{block}[-1]{type} eq 'return_statement'
+	# 		or $context->{block}[-1]{type} eq 'return_expression_statement');
+
+
+	self.current_context = context;
+
+	bool is_linear_context = 0;
+	tree last_action;
+	foreach (tree action in context.block) {
+		last_action = action;
+	}
+
+	if (last_action) {
+		if (last_action.type == 'return_statement') {
+			is_linear_context = 1;
+		} elsif (last_action.type == 'return_expression_statement') {
+			is_linear_context = 1;
+		}
+	}
+
+	list code = [];
+
+	list args_list = [];
+	push args_list, '$self';
+	# my @args_list = ('$self');
+	if (context.identifier != 'root') {
+		push args_list, '$context_value';
+	}
+	string args_list_string = join ', ', args_list;
+	push code, "my ($args_list_string) = \@_;";
+
+	if (context.identifier == 'root') {
+		if (context.type == 'object_context') {
+			push code, "my \$context_value = {};";
+		} elsif (context.type == 'list_context') {
+			push code, "my \$context_value = [];";
+		} else {
+			push code, "my \$context_value;";
+		}
+	}
+
+	# $code .= "\t\tsay 'in context $context_name';\n"; # DEBUG INLINE TREE BUILDER
+	if (is_linear_context) {
+		push code, "my \@tokens;";
+		code = map { "\t$_" } code;
+
+		push code, '';
+		list push code, self.compile_syntax_action(0, context.block);
+	} else {
+		push code, "while (\$self->more_tokens) {";
+
+		push code, "\tmy \@tokens;";
+		push code, '';
+		list push code, self.compile_syntax_action(0, context.block);
+		push code, "}";
+
+		push code, "return \$context_value;";
+
+		code = map { "\t$_" } code;
+	}
+
+	list all_code = [];
+	push all_code, "sub context_$context.identifier {";
+	list push all_code, code;
+	push all_code, "}";
+
+	return join '', map { "$_\n" } all_code;
+}
+
+string sub compile_syntax_condition (tree condition, int offset) {
+	# my ($self, $context_type, $condition, $offset) = @_;
+	offset = 0 unless offset;
+	string switch (condition.type) {
+		'function_match': {
+			string function = self.get_function_by_name(condition.function);
+			if (contains condition.argument) {
+				string expression_code = self.compile_syntax_spawn_expression(condition.argument);
+				return "\$self->$function(\$self->{tokens_index} + $offset, $expression_code)";
+			} else {
+				return "\$self->$function(\$self->{tokens_index} + $offset)";
+			}
+		}
+		'variable_match': {
+			if (condition.variable =~ /\A\$(\w++)\Z/s) {
+				string variable = self.get_variable(match[1]);
+				return "\$self->{tokens}[\$self->{tokens_index} + $offset][1] =~ /\\A($variable)\\Z/";
+			} else {
+				self.confess_at_current_line("invalid variable condition value: $condition.variable");
+			}
+		}
+		'regex_match': {
+			if (condition.regex =~ /\A\/(.*)\/([msixpodualn]*)\Z/s) {
+				return "\$self->{tokens}[\$self->{tokens_index} + $offset][1] =~ /\\A($1)\\Z/$2";
+			} else {
+				self.confess_at_current_line("invalid regex condition value: $condition.regex");
+			}
+		}
+		'string_match': {
+			return "\$self->{tokens}[\$self->{tokens_index} + $offset][1] eq $condition.string";
+		}
+		'token_type_match': {
+			return "\$self->{tokens}[\$self->{tokens_index} + $offset][0] eq '$condition.value'";
+		}
+		default: {
+			self.confess_at_current_line("invalid syntax condition '$condition.type'");
+		}
+	}
+}
+
+string sub compile_syntax_match_list (tree match_list) {
+
+	list conditions = [];
+	list push conditions, match_list.match_conditions;
+	list push conditions, match_list.look_ahead_conditons;
+
+	list compiled_conditions = [];
+	push compiled_conditions, '$self->more_tokens';
+
+	int i = 0;
+	foreach (tree condition in conditions) {
+		push compiled_conditions, self.compile_syntax_condition(condition, i);
+		i += 1;
+	}
+	return join ' and ', compiled_conditions;
+}
+
+int sub get_syntax_match_list_tokens_eaten (tree match_list) {
+	return list length match_list.match_conditions;
+}
+
+string sub syntax_match_list_as_string (tree match_list) {
+	string conditions_string = join ', ', map { self.syntax_condition_as_string(_) } match_list.match_conditions;
+
+	if (0 < list length match_list.look_ahead_conditons) {
+		string look_ahead_string = join ', ', map { self.syntax_condition_as_string(_) } match_list.look_ahead_conditons;
+		if (0 < length conditions_string) {
+			conditions_string = "$conditions_string, (look-ahead: $look_ahead_string)";
+		} else {
+			conditions_string = "(look-ahead: $look_ahead_string)";
+		}
+	}
+
+	conditions_string = conditions_string =~ s/([\\'])/\\$1/g;
+
+	return conditions_string;
+}
+
+string sub syntax_condition_as_string (tree condition) {
+	string switch (condition.type) {
+		'function_match': {
+			return "$condition.function";
+		}
+		'variable_match': {
+			return self.get_variable(condition.variable);
+		}
+		'regex_match': {
+			return "$condition.regex";
+		}
+		'string_match': {
+			return "$condition.string";
+		}
+		'token_type_match': {
+			return "$condition.value token";
+		}
+		default: {
+			self.confess_at_current_line("invalid syntax condition '$condition.type'");
+		}
+	}
+}
+
+list sub compile_syntax_action (tree match_list, list actions_list) {
+	# my ($self, $context_type, $condition, $actions_list) = @_;
+
+	list code = [];
+
+	# create a new variable scope
+	tree previous_variables_scope = self.variables_scope;
+	self.variables_scope = clone previous_variables_scope;
+
+	if (match_list) {
+		int count = self.get_syntax_match_list_tokens_eaten(match_list);
+		if (count > 0) {
+			push code, "my \@tokens = (\@tokens, \$self->step_tokens($count));";
+			
+		}
+	}
+	
+	foreach (tree action in actions_list) {
+		self.current_line = action.line_number;
+
+		string switch (action.type) {
+			'push_statement': {
+				string expression = self.compile_syntax_spawn_expression(action.expression);
+				if (self.current_context.type == 'list_context') {
+					push code, "push \@\$context_value, $expression;";
+				} else {
+					self.confess_at_current_line("use of push in $self.current_context.type");
+				}
+			}
+			'assign_item_statement': {
+				string expression = self.compile_syntax_spawn_expression(action.expression);
+				if (self.exists_variable(action.variable)) {
+					string variable = self.get_variable(action.variable);
+					push code, "$variable = $expression;";
+				} else {
+					string variable = self.add_variable(action.variable);
+					push code, "my $variable = $expression;";
+				}
+			}
+			'assign_field_statement': {
+				string key = self.compile_syntax_spawn_expression(action.key);
+				string expression = self.compile_syntax_spawn_expression(action.expression);
+
+				string variable = self.get_variable(action.variable);
+				push code, "$variable\->{$key} = $expression;";
+			}
+			'assign_array_field_statement': {
+				string key = self.compile_syntax_spawn_expression(action.key);
+				string expression = self.compile_syntax_spawn_expression(action.expression);
+
+				string variable = self.get_variable(action.variable);
+				push code, "push \@{$variable\->{$key}}, $expression;";
+			}
+			'assign_object_field_statement': {
+				string key = self.compile_syntax_spawn_expression(action.key);
+				string subkey = self.compile_syntax_spawn_expression(action.subkey);
+				string expression = self.compile_syntax_spawn_expression(action.expression);
+
+				string variable = self.get_variable(action.variable);
+				push code, "$variable\->{$key}{$subkey} = $expression;";
+			}
+			'return_statement': {
+				push code, "return \$context_value;";
+				unless (self.context_default_case) {
+					self.context_default_case = [ { type => 'die_statement',
+						expression => { type => 'string', string => "'unexpected token'" } } ];
+				}
+			}
+			'return_expression_statement': {
+				string expression = self.compile_syntax_spawn_expression(action.expression);
+				push code, "return $expression;";
+
+				unless (self.context_default_case) {
+					self.context_default_case = [ { type => 'die_statement',
+						expression => { type => 'string', string => "'unexpected token'" } } ];
+				}
+			}
+			'match_statement': {
+				string death_expression;
+				if (action.death_expression) {
+					death_expression = self.compile_syntax_spawn_expression(action.death_expression);
+				} else {
+					string match_description = self.syntax_match_list_as_string(action.match_list);
+					death_expression = "'expected $match_description'";
+				}
+
+				string match_expression = self.compile_syntax_match_list(action.match_list);
+
+				push code, "\$self->confess_at_current_offset($death_expression)";
+				push code, "\tunless $match_expression;";
+
+				int count = self.get_syntax_match_list_tokens_eaten(action.match_list);
+				if (count > 0) {
+					push code, "\@tokens = (\@tokens, \$self->step_tokens($count));";
+				}
+			}
+			'if_statement': {
+				string condition_code = self.compile_syntax_match_list(action.match_list);
+				list action_code = self.compile_syntax_action(action.match_list, action.block);
+
+				push code, "if ($condition_code) {";
+				list push code, action_code;
+
+				tree branch = action;
+				while (contains branch.branch) {
+					branch = branch.branch;
+					if (branch.type == 'elsif_statement') {
+						string condition_code = self.compile_syntax_match_list(branch.match_list);
+						list action_code = self.compile_syntax_action(branch.match_list, branch.block);
+
+						push code, "} elsif ($condition_code) {";
+						list push code, action_code;
+					} else {
+						list action_code = self.compile_syntax_action(branch.match_list, branch.block);
+
+						push code, "} else {";
+						list push code, action_code;
+					}
+				}
+				push code, "}";
+			}
+			'switch_statement': {
+				int first = 1;
+				foreach (tree case in action.switch_cases) {
+					self.current_line = case.line_number;
+					if (case.type == 'match_case') {
+						string condition_code = self.compile_syntax_match_list(case.match_list);
+						list action_code = self.compile_syntax_action(case.match_list, case.block);
+
+						if (first) {
+							push code, "if ($condition_code) {";
+							list push code, action_code;
+							first = 0;
+						} else {
+							push code, "} elsif ($condition_code) {";
+							list push code, action_code;
+						}
+					} elsif (case.type == 'default_case') {
+						list action_code = self.compile_syntax_action(0, case.block);
+						push code, "} else {";
+						list push code, action_code;
+					} else {
+						self.confess_at_current_line("invalid switch case type: $case.type");
+					}
+				}
+				push code, "}" unless first;
+			}
+			'while_statement': {
+				string condition_code = self.compile_syntax_match_list(action.match_list);
+				list action_code = self.compile_syntax_action(action.match_list, action.block);
+
+				push code, "while ($condition_code) {";
+				list push code, action_code;
+				push code, "}";
+			}
+			'warn_statement': {
+				string expression = self.compile_syntax_spawn_expression(action.expression);
+				push code, "warn ($expression);";
+			}
+			'die_statement': {
+				string expression = self.compile_syntax_spawn_expression(action.expression);
+				push code, "\$self->confess_at_current_offset($expression);";
+			}
+			default: {
+				die "undefined action '$action.type'";
+			}
+		}
+	}
+
+	# unscope
+	self.variables_scope = previous_variables_scope;
+
+	return map { "\t$_" } code;
+}
+
+string sub compile_syntax_spawn_expression (tree expression) {
+	# my ($self, $context_type, $expression) = @_;
+
+	# say "debug:", Dumper $expression;
+	string switch (expression.type) {
+		'access': {
+			string left = self.compile_syntax_spawn_expression(expression.left_expression);
+			string right = self.compile_syntax_spawn_expression(expression.right_expression);
+			return "${left}->{$right}";
+		}
+		'undef': {
+			return 'undef';
+		}
+		'get_token_line_number': {
+			if (expression.token =~ /\A\$(\d+)\Z/s) {
+				return "\$tokens[$1][2]";
+			} else {
+				self.confess_at_current_line("invalid spawn expression token: '$expression.token'");
+			}
+		}
+		'get_token_line_offset': {
+			if (expression.token =~ /\A\$(\d+)\Z/s) {
+				return "\$tokens[$1][3]";
+			} else {
+				self.confess_at_current_line("invalid spawn expression token: '$expression.token'");
+			}
+		}
+		'get_token_text': {
+			if (expression.token =~ /\A\$(\d+)\Z/s) {
+				return "\$tokens[$1][1]";
+			} else {
+				self.confess_at_current_line("invalid spawn expression token: '$expression.token'");
+			}
+		}
+		'get_context': {
+			return "\$context_value";
+		}
+		'pop_list': {
+			if (self.current_context.type == 'list_context') {
+				return "pop \@\$context_value";
+			} else {
+				self.confess_at_current_line("use of pop in $self.current_context.type");
+			}
+		}
+		'call_context': {
+			string context = self.get_function_by_name(expression.context);
+			if (contains expression.argument) {
+				string expression_code = self.compile_syntax_spawn_expression(expression.argument);
+				return "\$self->$context($expression_code)";
+			} else {
+				return "\$self->$context";
+			}
+		}
+		'call_function': {
+			string function = self.get_function_by_name(expression.function);
+			if (contains expression.argument) {
+				string expression_code = self.compile_syntax_spawn_expression(expression.argument);
+				return "\$self->$function($expression_code)";
+			} else {
+				return "\$self->$function";
+			}
+		}
+		'call_variable': {
+			string variable = self.get_variable(expression.variable);
+			string expression_code = self.compile_syntax_spawn_expression(expression.argument);
+			return "$variable\->($expression_code)";
+		}
+		'variable_value': {
+			string variable = self.get_variable(expression.variable);
+			return "$variable";
+		}
+		'call_substitution': {
+			string expression_code = self.compile_syntax_spawn_expression(expression.argument);
+			return "$expression_code =~ ${expression.regex}r";
+		}
+		'string': {
+			return "$expression.string";
+		}
+		'bareword_string': {
+			return "'$expression.value'";
+		}
+		'bareword': {
+			return "$expression.value";
+		}
+		'empty_list': {
+			return '[]';
+		}
+		'empty_hash': {
+			return '{}';
+		}
+		'list_constructor': {
+			string code = "[ ";
+			foreach (tree field in expression.arguments) {
+				string field_expression_code = self.compile_syntax_spawn_expression(field);
+				code += "$field_expression_code, ";
+			}
+			code += "]";
+			return code;
+		}
+		'hash_constructor': {
+			string code = "{ ";
+			list arguments = expression.arguments;
+			list items = clone arguments;
+			while (0 < length items) {
+				tree field = shift items;
+				tree value = shift items;
+				string field_expression_code = self.compile_syntax_spawn_expression(field);
+				string value_expression_code = self.compile_syntax_spawn_expression(value);
+				code += "$field_expression_code => $value_expression_code, ";
+			}
+			code += "}";
+			return code;
+		}
+		default: {
+			self.confess_at_current_line("invalid spawn expression: '$expression.type'");
+		}
+	}
+}
+
+void sub main () native:perl5 {{
+	my ($files_list) = @_;
+
+	use Data::Dumper;
+	use Sugar::IO::File;
+	use Sugar::Lang::SugarGrammarParser;
+	# use Sugar::Lang::SugarGrammarCompiler;
+
+	my $parser = Sugar::Lang::SugarGrammarParser->new;
+	foreach my $file (@$files_list) {
+		$parser->{filepath} = Sugar::IO::File->new($file);
+		my $tree = $parser->parse;
+		# say Dumper $tree;
+
+		my $compiler = Sugar::Lang::SugarGrammarCompiler->new({syntax_definition_intermediate => $tree});
+		$compiler->compile_syntax_intermediate;
+		say $compiler->to_package;
+	}
+}}
+
+}
