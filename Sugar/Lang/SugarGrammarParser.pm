@@ -49,22 +49,22 @@ our $ignored_tokens = [
 ];
 
 our $contexts = {
-	action_block => 'context_action_block',
-	def_value => 'context_def_value',
-	if_chain => 'context_if_chain',
-	ignored_tokens_list => 'context_ignored_tokens_list',
-	match_action => 'context_match_action',
-	match_conditions_list => 'context_match_conditions_list',
-	match_item => 'context_match_item',
-	match_list_arrow => 'context_match_list_arrow',
-	match_list_specifier => 'context_match_list_specifier',
-	more_spawn_expression => 'context_more_spawn_expression',
 	root => 'context_root',
-	spawn_expression => 'context_spawn_expression',
-	spawn_expression_hash => 'context_spawn_expression_hash',
-	spawn_expression_list => 'context_spawn_expression_list',
-	switch_blocks => 'context_switch_blocks',
+	def_value => 'context_def_value',
 	token_definition => 'context_token_definition',
+	ignored_tokens_list => 'context_ignored_tokens_list',
+	match_list_specifier => 'context_match_list_specifier',
+	match_conditions_list => 'context_match_conditions_list',
+	match_list_arrow => 'context_match_list_arrow',
+	match_item => 'context_match_item',
+	action_block => 'context_action_block',
+	match_action => 'context_match_action',
+	switch_blocks => 'context_switch_blocks',
+	if_chain => 'context_if_chain',
+	spawn_expression => 'context_spawn_expression',
+	more_spawn_expression => 'context_more_spawn_expression',
+	spawn_expression_list => 'context_spawn_expression_list',
+	spawn_expression_hash => 'context_spawn_expression_hash',
 };
 
 
@@ -149,16 +149,16 @@ sub context_def_value {
 	
 		if ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][0] eq 'string') {
 			my @tokens = (@tokens, $self->step_tokens(1));
-			return $tokens[0][1];
+			return { type => 'string_value', line_number => $tokens[0][2], value => $tokens[0][1], };
 		} elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][0] eq 'substitution_regex') {
 			my @tokens = (@tokens, $self->step_tokens(1));
-			return $tokens[0][1];
+			return { type => 'substitution_regex_value', line_number => $tokens[0][2], value => $tokens[0][1], };
 		} elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][0] eq 'regex') {
 			my @tokens = (@tokens, $self->step_tokens(1));
-			return $tokens[0][1];
+			return { type => 'regex_value', line_number => $tokens[0][2], value => $tokens[0][1], };
 		} elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][0] eq 'variable') {
 			my @tokens = (@tokens, $self->step_tokens(1));
-			return $tokens[0][1];
+			return { type => 'variable_value', line_number => $tokens[0][2], value => $tokens[0][1], };
 		} else {
 			$self->confess_at_current_offset('unexpected token in def_value');
 		}

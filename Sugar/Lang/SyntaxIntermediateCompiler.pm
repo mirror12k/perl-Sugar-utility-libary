@@ -243,18 +243,30 @@ sub compile_syntax_intermediate {
 
 sub compile_syntax_token_value {
 	my ($self, $value) = @_;
-	if ($value =~ m#\A$Sugar::Lang::SugarGrammarParser::var_regex_regex\Z#s) {
-		return "qr$value"
-	} elsif ($value =~ m#\A$Sugar::Lang::SugarGrammarParser::var_substitution_regex_regex\Z#s) {
-		return "sub { \$_[0] =~ ${value}r }"
-	} elsif ($value =~ /\A\$\w++\Z/) {
-		# verify that the variable exists
-		return $self->get_variable($value);
-		# return "\$var_$1"
-		# return $self->compile_syntax_token_value($self->get_variable($1))
+	if ($value->{type} eq 'regex_value') {
+		return "qr$value->{value}"
+	} elsif ($value->{type} eq 'substitution_regex') {
+		return "sub { \$_[0] =~ $value->{value}r }"
+	} elsif ($value->{type} eq 'variable_value') {
+		return $self->get_variable($value->{value});
+	} elsif ($value->{type} eq 'string_value') {
+		return $value->{value};
 	} else {
-		confess "invalid syntax token value: $value";
+		$self->confess_at_current_line("invalid syntax token value: $value");
 	}
+
+	# if ($value =~ m#\A$Sugar::Lang::SugarGrammarParser::var_regex_regex\Z#s) {
+	# 	return "qr$value"
+	# } elsif ($value =~ m#\A$Sugar::Lang::SugarGrammarParser::var_substitution_regex_regex\Z#s) {
+	# 	return "sub { \$_[0] =~ ${value}r }"
+	# } elsif ($value =~ /\A\$\w++\Z/) {
+	# 	# verify that the variable exists
+	# 	return $self->get_variable($value);
+	# 	# return "\$var_$1"
+	# 	# return $self->compile_syntax_token_value($self->get_variable($1))
+	# } else {
+	# 	confess "invalid syntax token value: $value";
+	# }
 }
 
 sub compile_syntax_context {

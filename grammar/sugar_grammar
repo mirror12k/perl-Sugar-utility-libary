@@ -103,16 +103,16 @@ object context root {
 item context def_value {
 	switch {
 		*string => {
-			return $0
+			return string_value:{ value => $0 }
 		}
 		*substitution_regex => {
-			return $0
+			return substitution_regex_value:{ value => $0 }
 		}
 		*regex => {
-			return $0
+			return regex_value:{ value => $0 }
 		}
 		*variable => {
-			return $0
+			return variable_value:{ value => $0 }
 		}
 		default {
 			die 'unexpected token in def_value'
