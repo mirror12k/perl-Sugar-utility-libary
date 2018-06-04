@@ -344,7 +344,7 @@ string sub compile_expression (tree expression) {
 		'split_expression': {
 			string left_expression = self.compile_expression(expression.left_expression);
 			string right_expression = self.compile_expression(expression.right_expression);
-			return "[ split($left_expression, $right_expression) ]";
+			return "[ split(quotemeta($left_expression), $right_expression) ]";
 		}
 		'flatten_expression': {
 			string sub_expression = self.compile_expression(expression.expression);

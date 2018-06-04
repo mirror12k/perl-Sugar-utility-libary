@@ -231,7 +231,7 @@ sub compile_expression {
 	} elsif ($expression->{type} eq 'split_expression') {
 		my $left_expression = $self->compile_expression($expression->{left_expression});
 		my $right_expression = $self->compile_expression($expression->{right_expression});
-		return "[ split($left_expression, $right_expression) ]";
+		return "[ split(quotemeta($left_expression), $right_expression) ]";
 	} elsif ($expression->{type} eq 'flatten_expression') {
 		my $sub_expression = $self->compile_expression($expression->{expression});
 		return "[ map \@\$_, \@{$sub_expression} ]";

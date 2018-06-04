@@ -22,14 +22,17 @@ whitespace_regex = /\s++/s
 # tokens specified to the token parser
 tokens {
 	code_block => $code_block_regex
+	
 	regex => $regex_regex
-	symbol => $symbol_regex
 	substitution_regex => $substitution_regex_regex
-
-	# package_identifier => $package_identifier_regex
+	
 	identifier => $identifier_regex
 	string => $string_regex
 	integer => $integer_regex
+	
+	symbol => $symbol_regex
+
+	# package_identifier => $package_identifier_regex
 	# variable => $variable_regex
 	# context_reference => $context_reference_regex
 	# function_reference => $function_reference_regex

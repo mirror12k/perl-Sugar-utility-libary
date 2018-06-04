@@ -28,11 +28,11 @@ our $var_whitespace_regex = qr/\s++/s;
 our $tokens = [
 	'code_block' => $var_code_block_regex,
 	'regex' => $var_regex_regex,
-	'symbol' => $var_symbol_regex,
 	'substitution_regex' => $var_substitution_regex_regex,
 	'identifier' => $var_identifier_regex,
 	'string' => $var_string_regex,
 	'integer' => $var_integer_regex,
+	'symbol' => $var_symbol_regex,
 	'comment' => $var_comment_regex,
 	'whitespace' => $var_whitespace_regex,
 ];

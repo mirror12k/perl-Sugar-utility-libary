@@ -10,15 +10,15 @@ use Data::Dumper;
 
 
 
-sub new {
-	my ($class, %opts) = @_;
-	my $self = $class->SUPER::new(%opts);
+# sub new {
+# 	my ($class, %opts) = @_;
+# 	my $self = $class->SUPER::new(%opts);
 
-	$self->{contexts} = $opts{contexts}
-			// croak "contexts argument required for Sugar::Lang::BaseSyntaxParser";
+# 	# $self->{contexts} = $opts{contexts}
+# 	# 		// croak "contexts argument required for Sugar::Lang::BaseSyntaxParser";
 
-	return $self
-}
+# 	return $self
+# }
 
 sub parse {
 	my ($self) = @_;
