@@ -301,21 +301,33 @@ list context switch_statements_block {
 
 list context switch_block_list {
 	switch {
+		('}') => {
+			return
+		}
+		'default', ':' => {
+			push default_switch_block:{
+				block => !statements_block
+			}
+		}
+		default {
+			push match_switch_block:{
+				case_list => !switch_case_list->[]
+				block => !statements_block
+			}
+		}
+	}
+}
+
+list context switch_case_list {
+	switch {
 		*integer, ':' => {
 			push integer_case:{
 				value => $0
-				block => !statements_block
 			}
 		}
 		*string, ':' => {
 			push string_case:{
 				value => $0
-				block => !statements_block
-			}
-		}
-		'default', ':' => {
-			push default_case:{
-				block => !statements_block
 			}
 		}
 		default {

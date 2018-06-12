@@ -1,4 +1,6 @@
 
+all: sugar_grammar sugar_compiler sugarsweet_grammar sugarsweet_compiler
+
 sugar_grammar:
 	./Sugar/Lang/SugarGrammarCompiler.pm grammar/sugar_grammar > temp_compiled_file
 	chmod +x temp_compiled_file

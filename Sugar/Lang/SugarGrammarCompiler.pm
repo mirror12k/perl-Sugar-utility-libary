@@ -174,13 +174,13 @@ sub compile_syntax_intermediate {
 
 sub compile_syntax_token_value {
 	my ($self, $value) = @_;
-	if ($value->{type} eq 'regex_value') {
+	if (($value->{type} eq 'regex_value')) {
 		return "qr$value->{value}";
-	} elsif ($value->{type} eq 'substitution_regex') {
+	} elsif (($value->{type} eq 'substitution_regex')) {
 		return "sub { \$_[0] =~ $value->{value}r }";
-	} elsif ($value->{type} eq 'variable_value') {
+	} elsif (($value->{type} eq 'variable_value')) {
 		return $self->get_variable($value->{value});
-	} elsif ($value->{type} eq 'string_value') {
+	} elsif (($value->{type} eq 'string_value')) {
 		return $value->{value};
 	} else {
 		$self->confess_at_current_line("invalid syntax token value: $value->{type}");
@@ -245,7 +245,7 @@ sub compile_syntax_condition {
 	if (not ($offset)) {
 		$offset = 0;
 	}
-	if ($condition->{type} eq 'function_match') {
+	if (($condition->{type} eq 'function_match')) {
 		my $function = $self->get_function_by_name($condition->{function});
 		if (exists($condition->{argument})) {
 			my $expression_code = $self->compile_syntax_spawn_expression($condition->{argument});
@@ -253,22 +253,22 @@ sub compile_syntax_condition {
 		} else {
 			return "\$self->$function(\$self->{tokens_index} + $offset)";
 		}
-	} elsif ($condition->{type} eq 'variable_match') {
+	} elsif (($condition->{type} eq 'variable_match')) {
 		if (($condition->{variable} =~ /\A\$(\w++)\Z/s)) {
 			my $variable = $self->get_variable($1);
 			return "\$self->{tokens}[\$self->{tokens_index} + $offset][1] =~ /\\A($variable)\\Z/";
 		} else {
 			$self->confess_at_current_line("invalid variable condition value: $condition->{variable}");
 		}
-	} elsif ($condition->{type} eq 'regex_match') {
+	} elsif (($condition->{type} eq 'regex_match')) {
 		if (($condition->{regex} =~ /\A\/(.*)\/([msixpodualn]*)\Z/s)) {
 			return "\$self->{tokens}[\$self->{tokens_index} + $offset][1] =~ /\\A($1)\\Z/$2";
 		} else {
 			$self->confess_at_current_line("invalid regex condition value: $condition->{regex}");
 		}
-	} elsif ($condition->{type} eq 'string_match') {
+	} elsif (($condition->{type} eq 'string_match')) {
 		return "\$self->{tokens}[\$self->{tokens_index} + $offset][1] eq $condition->{string}";
-	} elsif ($condition->{type} eq 'token_type_match') {
+	} elsif (($condition->{type} eq 'token_type_match')) {
 		return "\$self->{tokens}[\$self->{tokens_index} + $offset][0] eq '$condition->{value}'";
 	} else {
 		$self->confess_at_current_line("invalid syntax condition '$condition->{type}'");
@@ -312,15 +312,15 @@ sub syntax_match_list_as_string {
 
 sub syntax_condition_as_string {
 	my ($self, $condition) = @_;
-	if ($condition->{type} eq 'function_match') {
+	if (($condition->{type} eq 'function_match')) {
 		return "$condition->{function}";
-	} elsif ($condition->{type} eq 'variable_match') {
+	} elsif (($condition->{type} eq 'variable_match')) {
 		return $self->get_variable($condition->{variable});
-	} elsif ($condition->{type} eq 'regex_match') {
+	} elsif (($condition->{type} eq 'regex_match')) {
 		return "$condition->{regex}";
-	} elsif ($condition->{type} eq 'string_match') {
+	} elsif (($condition->{type} eq 'string_match')) {
 		return "$condition->{string}";
-	} elsif ($condition->{type} eq 'token_type_match') {
+	} elsif (($condition->{type} eq 'token_type_match')) {
 		return "$condition->{value} token";
 	} else {
 		$self->confess_at_current_line("invalid syntax condition '$condition->{type}'");
@@ -340,14 +340,14 @@ sub compile_syntax_action {
 	}
 	foreach my $action (@{$actions_list}) {
 		$self->{current_line} = $action->{line_number};
-		if ($action->{type} eq 'push_statement') {
+		if (($action->{type} eq 'push_statement')) {
 			my $expression = $self->compile_syntax_spawn_expression($action->{expression});
 			if (($self->{current_context}->{type} eq 'list_context')) {
 				push @{$code}, "push \@\$context_value, $expression;";
 			} else {
 				$self->confess_at_current_line("use of push in $self->{current_context}{type}");
 			}
-		} elsif ($action->{type} eq 'assign_item_statement') {
+		} elsif (($action->{type} eq 'assign_item_statement')) {
 			my $expression = $self->compile_syntax_spawn_expression($action->{expression});
 			if ($self->exists_variable($action->{variable})) {
 				my $variable = $self->get_variable($action->{variable});
@@ -356,34 +356,34 @@ sub compile_syntax_action {
 				my $variable = $self->add_variable($action->{variable});
 				push @{$code}, "my $variable = $expression;";
 			}
-		} elsif ($action->{type} eq 'assign_field_statement') {
+		} elsif (($action->{type} eq 'assign_field_statement')) {
 			my $key = $self->compile_syntax_spawn_expression($action->{key});
 			my $expression = $self->compile_syntax_spawn_expression($action->{expression});
 			my $variable = $self->get_variable($action->{variable});
 			push @{$code}, "$variable\->{$key} = $expression;";
-		} elsif ($action->{type} eq 'assign_array_field_statement') {
+		} elsif (($action->{type} eq 'assign_array_field_statement')) {
 			my $key = $self->compile_syntax_spawn_expression($action->{key});
 			my $expression = $self->compile_syntax_spawn_expression($action->{expression});
 			my $variable = $self->get_variable($action->{variable});
 			push @{$code}, "push \@{$variable\->{$key}}, $expression;";
-		} elsif ($action->{type} eq 'assign_object_field_statement') {
+		} elsif (($action->{type} eq 'assign_object_field_statement')) {
 			my $key = $self->compile_syntax_spawn_expression($action->{key});
 			my $subkey = $self->compile_syntax_spawn_expression($action->{subkey});
 			my $expression = $self->compile_syntax_spawn_expression($action->{expression});
 			my $variable = $self->get_variable($action->{variable});
 			push @{$code}, "$variable\->{$key}{$subkey} = $expression;";
-		} elsif ($action->{type} eq 'return_statement') {
+		} elsif (($action->{type} eq 'return_statement')) {
 			push @{$code}, "return \$context_value;";
 			if (not ($self->{context_default_case})) {
 				$self->{context_default_case} = [ { type => ('die_statement'), expression => ({ type => ('string'), string => ("'unexpected token'") }) } ];
 			}
-		} elsif ($action->{type} eq 'return_expression_statement') {
+		} elsif (($action->{type} eq 'return_expression_statement')) {
 			my $expression = $self->compile_syntax_spawn_expression($action->{expression});
 			push @{$code}, "return $expression;";
 			if (not ($self->{context_default_case})) {
 				$self->{context_default_case} = [ { type => ('die_statement'), expression => ({ type => ('string'), string => ("'unexpected token'") }) } ];
 			}
-		} elsif ($action->{type} eq 'match_statement') {
+		} elsif (($action->{type} eq 'match_statement')) {
 			my $death_expression;
 			if ($action->{death_expression}) {
 				$death_expression = $self->compile_syntax_spawn_expression($action->{death_expression});
@@ -398,7 +398,7 @@ sub compile_syntax_action {
 			if (($count > 0)) {
 				push @{$code}, "\@tokens = (\@tokens, \$self->step_tokens($count));";
 			}
-		} elsif ($action->{type} eq 'if_statement') {
+		} elsif (($action->{type} eq 'if_statement')) {
 			my $condition_code = $self->compile_syntax_match_list($action->{match_list});
 			my $action_code = $self->compile_syntax_action($action->{match_list}, $action->{block});
 			push @{$code}, "if ($condition_code) {";
@@ -418,7 +418,7 @@ sub compile_syntax_action {
 				}
 			}
 			push @{$code}, "}";
-		} elsif ($action->{type} eq 'switch_statement') {
+		} elsif (($action->{type} eq 'switch_statement')) {
 			my $first = 1;
 			foreach my $case (@{$action->{switch_cases}}) {
 				$self->{current_line} = $case->{line_number};
@@ -444,16 +444,16 @@ sub compile_syntax_action {
 			if (not ($first)) {
 				push @{$code}, "}";
 			}
-		} elsif ($action->{type} eq 'while_statement') {
+		} elsif (($action->{type} eq 'while_statement')) {
 			my $condition_code = $self->compile_syntax_match_list($action->{match_list});
 			my $action_code = $self->compile_syntax_action($action->{match_list}, $action->{block});
 			push @{$code}, "while ($condition_code) {";
 			push @{$code}, @{$action_code};
 			push @{$code}, "}";
-		} elsif ($action->{type} eq 'warn_statement') {
+		} elsif (($action->{type} eq 'warn_statement')) {
 			my $expression = $self->compile_syntax_spawn_expression($action->{expression});
 			push @{$code}, "warn ($expression);";
-		} elsif ($action->{type} eq 'die_statement') {
+		} elsif (($action->{type} eq 'die_statement')) {
 			my $expression = $self->compile_syntax_spawn_expression($action->{expression});
 			push @{$code}, "\$self->confess_at_current_offset($expression);";
 		} else {
@@ -466,39 +466,39 @@ sub compile_syntax_action {
 
 sub compile_syntax_spawn_expression {
 	my ($self, $expression) = @_;
-	if ($expression->{type} eq 'access') {
+	if (($expression->{type} eq 'access')) {
 		my $left = $self->compile_syntax_spawn_expression($expression->{left_expression});
 		my $right = $self->compile_syntax_spawn_expression($expression->{right_expression});
 		return "${left}->{$right}";
-	} elsif ($expression->{type} eq 'undef') {
+	} elsif (($expression->{type} eq 'undef')) {
 		return 'undef';
-	} elsif ($expression->{type} eq 'get_token_line_number') {
+	} elsif (($expression->{type} eq 'get_token_line_number')) {
 		if (($expression->{token} =~ /\A\$(\d+)\Z/s)) {
 			return "\$tokens[$1][2]";
 		} else {
 			$self->confess_at_current_line("invalid spawn expression token: '$expression->{token}'");
 		}
-	} elsif ($expression->{type} eq 'get_token_line_offset') {
+	} elsif (($expression->{type} eq 'get_token_line_offset')) {
 		if (($expression->{token} =~ /\A\$(\d+)\Z/s)) {
 			return "\$tokens[$1][3]";
 		} else {
 			$self->confess_at_current_line("invalid spawn expression token: '$expression->{token}'");
 		}
-	} elsif ($expression->{type} eq 'get_token_text') {
+	} elsif (($expression->{type} eq 'get_token_text')) {
 		if (($expression->{token} =~ /\A\$(\d+)\Z/s)) {
 			return "\$tokens[$1][1]";
 		} else {
 			$self->confess_at_current_line("invalid spawn expression token: '$expression->{token}'");
 		}
-	} elsif ($expression->{type} eq 'get_context') {
+	} elsif (($expression->{type} eq 'get_context')) {
 		return "\$context_value";
-	} elsif ($expression->{type} eq 'pop_list') {
+	} elsif (($expression->{type} eq 'pop_list')) {
 		if (($self->{current_context}->{type} eq 'list_context')) {
 			return "pop \@\$context_value";
 		} else {
 			$self->confess_at_current_line("use of pop in $self->{current_context}{type}");
 		}
-	} elsif ($expression->{type} eq 'call_context') {
+	} elsif (($expression->{type} eq 'call_context')) {
 		my $context = $self->get_function_by_name($expression->{context});
 		if (exists($expression->{argument})) {
 			my $expression_code = $self->compile_syntax_spawn_expression($expression->{argument});
@@ -506,7 +506,7 @@ sub compile_syntax_spawn_expression {
 		} else {
 			return "\$self->$context";
 		}
-	} elsif ($expression->{type} eq 'call_function') {
+	} elsif (($expression->{type} eq 'call_function')) {
 		my $function = $self->get_function_by_name($expression->{function});
 		if (exists($expression->{argument})) {
 			my $expression_code = $self->compile_syntax_spawn_expression($expression->{argument});
@@ -514,27 +514,27 @@ sub compile_syntax_spawn_expression {
 		} else {
 			return "\$self->$function";
 		}
-	} elsif ($expression->{type} eq 'call_variable') {
+	} elsif (($expression->{type} eq 'call_variable')) {
 		my $variable = $self->get_variable($expression->{variable});
 		my $expression_code = $self->compile_syntax_spawn_expression($expression->{argument});
 		return "$variable\->($expression_code)";
-	} elsif ($expression->{type} eq 'variable_value') {
+	} elsif (($expression->{type} eq 'variable_value')) {
 		my $variable = $self->get_variable($expression->{variable});
 		return "$variable";
-	} elsif ($expression->{type} eq 'call_substitution') {
+	} elsif (($expression->{type} eq 'call_substitution')) {
 		my $expression_code = $self->compile_syntax_spawn_expression($expression->{argument});
 		return "$expression_code =~ $expression->{regex}r";
-	} elsif ($expression->{type} eq 'string') {
+	} elsif (($expression->{type} eq 'string')) {
 		return "$expression->{string}";
-	} elsif ($expression->{type} eq 'bareword_string') {
+	} elsif (($expression->{type} eq 'bareword_string')) {
 		return "'$expression->{value}'";
-	} elsif ($expression->{type} eq 'bareword') {
+	} elsif (($expression->{type} eq 'bareword')) {
 		return "$expression->{value}";
-	} elsif ($expression->{type} eq 'empty_list') {
+	} elsif (($expression->{type} eq 'empty_list')) {
 		return '[]';
-	} elsif ($expression->{type} eq 'empty_hash') {
+	} elsif (($expression->{type} eq 'empty_hash')) {
 		return '{}';
-	} elsif ($expression->{type} eq 'list_constructor') {
+	} elsif (($expression->{type} eq 'list_constructor')) {
 		my $code = "[ ";
 		foreach my $field (@{$expression->{arguments}}) {
 			my $field_expression_code = $self->compile_syntax_spawn_expression($field);
@@ -542,7 +542,7 @@ sub compile_syntax_spawn_expression {
 		}
 		$code .= "]";
 		return $code;
-	} elsif ($expression->{type} eq 'hash_constructor') {
+	} elsif (($expression->{type} eq 'hash_constructor')) {
 		my $code = "{ ";
 		my $arguments = $expression->{arguments};
 		my $items = [ @{$arguments} ];

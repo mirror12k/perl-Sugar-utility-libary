@@ -52,6 +52,7 @@ our $contexts = {
 	more_statement => 'context_more_statement',
 	switch_statements_block => 'context_switch_statements_block',
 	switch_block_list => 'context_switch_block_list',
+	switch_case_list => 'context_switch_case_list',
 	expression => 'context_expression',
 	more_expression => 'context_more_expression',
 	method_argument_list => 'context_method_argument_list',
@@ -341,15 +342,28 @@ sub context_switch_block_list {
 	while ($self->more_tokens) {
 		my @tokens;
 	
-		if ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][0] eq 'integer' and $self->{tokens}[$self->{tokens_index} + 1][1] eq ':') {
-			my @tokens = (@tokens, $self->step_tokens(2));
-			push @$context_value, { type => 'integer_case', line_number => $tokens[0][2], value => $tokens[0][1], block => $self->context_statements_block, };
-		} elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][0] eq 'string' and $self->{tokens}[$self->{tokens_index} + 1][1] eq ':') {
-			my @tokens = (@tokens, $self->step_tokens(2));
-			push @$context_value, { type => 'string_case', line_number => $tokens[0][2], value => $tokens[0][1], block => $self->context_statements_block, };
+		if ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] eq '}') {
+			return $context_value;
 		} elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] eq 'default' and $self->{tokens}[$self->{tokens_index} + 1][1] eq ':') {
 			my @tokens = (@tokens, $self->step_tokens(2));
-			push @$context_value, { type => 'default_case', line_number => $tokens[0][2], block => $self->context_statements_block, };
+			push @$context_value, { type => 'default_switch_block', line_number => $tokens[0][2], block => $self->context_statements_block, };
+		} else {
+			push @$context_value, { type => 'match_switch_block', line_number => $tokens[0][2], case_list => $self->context_switch_case_list([]), block => $self->context_statements_block, };
+		}
+	}
+	return $context_value;
+}
+sub context_switch_case_list {
+	my ($self, $context_value) = @_;
+	while ($self->more_tokens) {
+		my @tokens;
+	
+		if ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][0] eq 'integer' and $self->{tokens}[$self->{tokens_index} + 1][1] eq ':') {
+			my @tokens = (@tokens, $self->step_tokens(2));
+			push @$context_value, { type => 'integer_case', line_number => $tokens[0][2], value => $tokens[0][1], };
+		} elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][0] eq 'string' and $self->{tokens}[$self->{tokens_index} + 1][1] eq ':') {
+			my @tokens = (@tokens, $self->step_tokens(2));
+			push @$context_value, { type => 'string_case', line_number => $tokens[0][2], value => $tokens[0][1], };
 		} else {
 			return $context_value;
 		}

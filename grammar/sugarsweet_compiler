@@ -191,24 +191,40 @@ list sub compile_statement(tree statement) {
 		}
 		"switch_statement": {
 			string expression = self.compile_expression(statement.expression);
-			list string_cases = grep { _.type == 'string_case' } statement.block;
-			list default_cases = grep { _.type == 'default_case' } statement.block;
+			list match_blocks = grep { _.type == 'match_switch_block' } statement.block;
+			list default_blocks = grep { _.type == 'default_switch_block' } statement.block;
 
-			if (1 < length default_cases) {
+			if (1 < length default_blocks) {
 				die "more than one default case defined";
 			}
-			if (0 >= length string_cases) {
+			if (0 >= length match_blocks) {
 				die "at least one match case is required";
 			}
 
 			string prefix = '';
-			foreach  (tree case in string_cases) {
-				push code, "${prefix}if ($expression eq $case.value) {";
+			foreach  (tree case in match_blocks) {
+				list expression_list_strings;
+				foreach  (tree match_case in case.case_list) {
+					string switch (match_case.type) {
+						"integer_case": {
+							push expression_list_strings, "($expression == $match_case.value)";
+						}
+						"string_case": {
+							push expression_list_strings, "($expression eq $match_case.value)";
+						}
+						default: {
+							die "unimplemented: $match_case.type";
+						}
+					}
+				}
+				string expression_list = join ' or ', expression_list_strings;
+				push code, "${prefix}if ($expression_list) {";
+				# push code, "${prefix}if ($expression eq $case.value) {";
 				list push code, self.compile_statements_block(case.block, []);
 
 				prefix = "} els";
 			}
-			foreach  (tree case in default_cases) {
+			foreach  (tree case in default_blocks) {
 				push code, "} else {";
 				list push code, self.compile_statements_block(case.block, []);
 			}
@@ -565,7 +581,7 @@ string sub compile_string_expression (string string_token) {
 
 			if (variable_access) {
 				compiled_string += "\$$variable_match\->";
-				compiled_string += join '', map { "{$_}" } split "\\.", variable_access;
+				compiled_string += join '', map { "{$_}" } split ".", variable_access;
 			} else {
 				compiled_string += "\$$variable_match";
 			}
@@ -575,7 +591,7 @@ string sub compile_string_expression (string string_token) {
 			}
 			if (protected_variable_access) {
 				compiled_string += "\$$protected_variable_match\->";
-				compiled_string += join '', map { "{$_}" } split "\\.", protected_variable_access;
+				compiled_string += join '', map { "{$_}" } split ".", protected_variable_access;
 			} else {
 				compiled_string += "\${$protected_variable_match}";
 			}

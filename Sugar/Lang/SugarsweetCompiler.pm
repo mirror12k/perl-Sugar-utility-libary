@@ -106,33 +106,44 @@ sub compile_statements_block {
 sub compile_statement {
 	my ($self, $statement) = @_;
 	my $code = [];
-	if ($statement->{type} eq "foreach_statement") {
+	if (($statement->{type} eq "foreach_statement")) {
 		my $expression = $self->compile_expression($statement->{expression});
 		push @{$code}, "foreach my \$$statement->{identifier} (\@{$expression}) {";
 		push @{$code}, @{$self->compile_statements_block($statement->{block}, [ $statement ])};
 		push @{$code}, "}";
-	} elsif ($statement->{type} eq "switch_statement") {
+	} elsif (($statement->{type} eq "switch_statement")) {
 		my $expression = $self->compile_expression($statement->{expression});
-		my $string_cases = [ grep { ($_->{type} eq 'string_case') } @{$statement->{block}} ];
-		my $default_cases = [ grep { ($_->{type} eq 'default_case') } @{$statement->{block}} ];
-		if ((1 < scalar(@{$default_cases}))) {
+		my $match_blocks = [ grep { ($_->{type} eq 'match_switch_block') } @{$statement->{block}} ];
+		my $default_blocks = [ grep { ($_->{type} eq 'default_switch_block') } @{$statement->{block}} ];
+		if ((1 < scalar(@{$default_blocks}))) {
 			die "more than one default case defined";
 		}
-		if ((0 >= scalar(@{$string_cases}))) {
+		if ((0 >= scalar(@{$match_blocks}))) {
 			die "at least one match case is required";
 		}
 		my $prefix = '';
-		foreach my $case (@{$string_cases}) {
-			push @{$code}, "${prefix}if ($expression eq $case->{value}) {";
+		foreach my $case (@{$match_blocks}) {
+			my $expression_list_strings;
+			foreach my $match_case (@{$case->{case_list}}) {
+				if (($match_case->{type} eq "integer_case")) {
+					push @{$expression_list_strings}, "($expression == $match_case->{value})";
+				} elsif (($match_case->{type} eq "string_case")) {
+					push @{$expression_list_strings}, "($expression eq $match_case->{value})";
+				} else {
+					die "unimplemented: $match_case->{type}";
+				}
+			}
+			my $expression_list = join(' or ', @{$expression_list_strings});
+			push @{$code}, "${prefix}if ($expression_list) {";
 			push @{$code}, @{$self->compile_statements_block($case->{block}, [])};
 			$prefix = "} els";
 		}
-		foreach my $case (@{$default_cases}) {
+		foreach my $case (@{$default_blocks}) {
 			push @{$code}, "} else {";
 			push @{$code}, @{$self->compile_statements_block($case->{block}, [])};
 		}
 		push @{$code}, "}";
-	} elsif ($statement->{type} eq "if_statement") {
+	} elsif (($statement->{type} eq "if_statement")) {
 		my $expression = $self->compile_expression($statement->{expression});
 		my $prefix = '';
 		push @{$code}, "${prefix}if ($expression) {";
@@ -152,39 +163,39 @@ sub compile_statement {
 			}
 		}
 		push @{$code}, "}";
-	} elsif ($statement->{type} eq "while_statement") {
+	} elsif (($statement->{type} eq "while_statement")) {
 		my $expression = $self->compile_expression($statement->{expression});
 		my $prefix = '';
 		push @{$code}, "while ($expression) {";
 		push @{$code}, @{$self->compile_statements_block($statement->{block}, [])};
 		push @{$code}, "}";
-	} elsif ($statement->{type} eq 'void_return_statement') {
+	} elsif (($statement->{type} eq 'void_return_statement')) {
 		push @{$code}, "return;";
-	} elsif ($statement->{type} eq 'return_statement') {
+	} elsif (($statement->{type} eq 'return_statement')) {
 		my $expression = $self->compile_expression($statement->{expression});
 		push @{$code}, "return $expression;";
-	} elsif ($statement->{type} eq 'list_push_statement') {
+	} elsif (($statement->{type} eq 'list_push_statement')) {
 		my $left_expression = $self->compile_expression($statement->{left_expression});
 		my $right_expression = $self->compile_expression($statement->{right_expression});
 		push @{$code}, "push \@{$left_expression}, \@{$right_expression};";
-	} elsif ($statement->{type} eq 'push_statement') {
+	} elsif (($statement->{type} eq 'push_statement')) {
 		my $left_expression = $self->compile_expression($statement->{left_expression});
 		my $right_expression = $self->compile_expression($statement->{right_expression});
 		push @{$code}, "push \@{$left_expression}, $right_expression;";
-	} elsif ($statement->{type} eq 'die_statement') {
+	} elsif (($statement->{type} eq 'die_statement')) {
 		my $expression = $self->compile_expression($statement->{expression});
 		push @{$code}, "die $expression;";
-	} elsif ($statement->{type} eq 'variable_declaration_statement') {
+	} elsif (($statement->{type} eq 'variable_declaration_statement')) {
 		$self->{variable_scope}->{$statement->{identifier}} = $statement->{variable_type};
 		push @{$code}, "my \$$statement->{identifier};";
-	} elsif ($statement->{type} eq 'variable_assignment_statement') {
+	} elsif (($statement->{type} eq 'variable_assignment_statement')) {
 		my $expression = $self->compile_expression($statement->{expression});
 		push @{$code}, "\$$statement->{identifier} = $expression;";
-	} elsif ($statement->{type} eq 'variable_declaration_assignment_statement') {
+	} elsif (($statement->{type} eq 'variable_declaration_assignment_statement')) {
 		$self->{variable_scope}->{$statement->{identifier}} = $statement->{variable_type};
 		my $expression = $self->compile_expression($statement->{expression});
 		push @{$code}, "my \$$statement->{identifier} = $expression;";
-	} elsif ($statement->{type} eq 'expression_statement') {
+	} elsif (($statement->{type} eq 'expression_statement')) {
 		my $expression = $self->compile_expression($statement->{expression});
 		push @{$code}, "$expression;";
 	} else {
@@ -195,55 +206,55 @@ sub compile_statement {
 
 sub compile_expression {
 	my ($self, $expression) = @_;
-	if ($expression->{type} eq 'string_expression') {
+	if (($expression->{type} eq 'string_expression')) {
 		return $self->compile_string_expression($expression->{value});
-	} elsif ($expression->{type} eq 'integer_expression') {
+	} elsif (($expression->{type} eq 'integer_expression')) {
 		return $expression->{value};
-	} elsif ($expression->{type} eq 'variable_expression') {
+	} elsif (($expression->{type} eq 'variable_expression')) {
 		if (not (exists($self->{variable_scope}->{$expression->{identifier}}))) {
 			die "undefined variable referenced: $expression->{identifier}";
 		}
 		return "\$$expression->{identifier}";
-	} elsif ($expression->{type} eq 'match_index_expression') {
+	} elsif (($expression->{type} eq 'match_index_expression')) {
 		if (($expression->{index} < 0)) {
 			die "match index cannot be negative";
 		}
 		return "\$$expression->{index}";
-	} elsif ($expression->{type} eq 'match_position_expression') {
+	} elsif (($expression->{type} eq 'match_position_expression')) {
 		return "\$+[0]";
-	} elsif ($expression->{type} eq 'empty_list_expression') {
+	} elsif (($expression->{type} eq 'empty_list_expression')) {
 		return "[]";
-	} elsif ($expression->{type} eq 'empty_tree_expression') {
+	} elsif (($expression->{type} eq 'empty_tree_expression')) {
 		return "{}";
-	} elsif ($expression->{type} eq 'list_constructor_expression') {
+	} elsif (($expression->{type} eq 'list_constructor_expression')) {
 		my $expression_list = $self->compile_expression_list($expression->{expression_list});
 		return "[ $expression_list ]";
-	} elsif ($expression->{type} eq 'tree_constructor_expression') {
+	} elsif (($expression->{type} eq 'tree_constructor_expression')) {
 		my $expression_list = $self->compile_tree_constructor($expression->{expression_list});
 		return "{ $expression_list }";
-	} elsif ($expression->{type} eq 'not_expression') {
+	} elsif (($expression->{type} eq 'not_expression')) {
 		my $sub_expression = $self->compile_expression($expression->{expression});
 		return "not ($sub_expression)";
-	} elsif ($expression->{type} eq 'join_expression') {
+	} elsif (($expression->{type} eq 'join_expression')) {
 		my $left_expression = $self->compile_expression($expression->{left_expression});
 		my $right_expression = $self->compile_expression($expression->{right_expression});
 		return "join($left_expression, \@{$right_expression})";
-	} elsif ($expression->{type} eq 'split_expression') {
+	} elsif (($expression->{type} eq 'split_expression')) {
 		my $left_expression = $self->compile_expression($expression->{left_expression});
 		my $right_expression = $self->compile_expression($expression->{right_expression});
 		return "[ split(quotemeta($left_expression), $right_expression) ]";
-	} elsif ($expression->{type} eq 'flatten_expression') {
+	} elsif (($expression->{type} eq 'flatten_expression')) {
 		my $sub_expression = $self->compile_expression($expression->{expression});
 		return "[ map \@\$_, \@{$sub_expression} ]";
-	} elsif ($expression->{type} eq 'map_expression') {
+	} elsif (($expression->{type} eq 'map_expression')) {
 		my $left_expression = $self->compile_expression_with_variables($expression->{left_expression}, [ { variable_type => ('*'), identifier => ('_') } ]);
 		my $right_expression = $self->compile_expression($expression->{right_expression});
 		return "[ map { $left_expression } \@{$right_expression} ]";
-	} elsif ($expression->{type} eq 'grep_expression') {
+	} elsif (($expression->{type} eq 'grep_expression')) {
 		my $left_expression = $self->compile_expression_with_variables($expression->{left_expression}, [ { variable_type => ('*'), identifier => ('_') } ]);
 		my $right_expression = $self->compile_expression($expression->{right_expression});
 		return "[ grep { $left_expression } \@{$right_expression} ]";
-	} elsif ($expression->{type} eq 'length_expression') {
+	} elsif (($expression->{type} eq 'length_expression')) {
 		my $expression_type;
 		if (exists($expression->{static_type})) {
 			$expression_type = $expression->{static_type};
@@ -261,21 +272,21 @@ sub compile_expression {
 		} else {
 			die "invalid value type for length expression: '$expression_type'";
 		}
-	} elsif ($expression->{type} eq 'pop_expression') {
+	} elsif (($expression->{type} eq 'pop_expression')) {
 		my $sub_expression = $self->compile_expression($expression->{expression});
 		return "pop(\@{$sub_expression})";
-	} elsif ($expression->{type} eq 'shift_expression') {
+	} elsif (($expression->{type} eq 'shift_expression')) {
 		my $sub_expression = $self->compile_expression($expression->{expression});
 		return "shift(\@{$sub_expression})";
-	} elsif ($expression->{type} eq 'contains_expression') {
-		if ($expression->{expression}->{type} eq 'access_expression') {
-		} elsif ($expression->{expression}->{type} eq 'expression_access_expression') {
+	} elsif (($expression->{type} eq 'contains_expression')) {
+		if (($expression->{expression}->{type} eq 'access_expression')) {
+		} elsif (($expression->{expression}->{type} eq 'expression_access_expression')) {
 		} else {
 			die "invalid expression for contains expression: $expression->{expression}{type}";
 		}
 		my $sub_expression = $self->compile_expression($expression->{expression});
 		return "exists($sub_expression)";
-	} elsif ($expression->{type} eq 'clone_expression') {
+	} elsif (($expression->{type} eq 'clone_expression')) {
 		my $expression_type = $self->get_expression_type($expression->{expression});
 		if (not ($expression_type)) {
 			die "ambiguous type clone expression";
@@ -288,11 +299,11 @@ sub compile_expression {
 		} else {
 			die "invalid value type for clone expression: '$expression_type'";
 		}
-	} elsif ($expression->{type} eq 'assignment_expression') {
+	} elsif (($expression->{type} eq 'assignment_expression')) {
 		my $left_expression = $self->compile_expression($expression->{left_expression});
 		my $right_expression = $self->compile_expression($expression->{right_expression});
 		return "$left_expression = $right_expression";
-	} elsif ($expression->{type} eq 'addition_assignment_expression') {
+	} elsif (($expression->{type} eq 'addition_assignment_expression')) {
 		my $expression_type = $self->infer_expression_type($expression);
 		if (not ($expression_type)) {
 			die "ambiguous type addition assignment expression";
@@ -306,30 +317,30 @@ sub compile_expression {
 		} else {
 			die "invalid expression type for addition assignment: $expression_type";
 		}
-	} elsif ($expression->{type} eq 'access_expression') {
+	} elsif (($expression->{type} eq 'access_expression')) {
 		my $sub_expression = $self->compile_expression($expression->{expression});
 		return "$sub_expression\->{$expression->{identifier}}";
-	} elsif ($expression->{type} eq 'expression_access_expression') {
+	} elsif (($expression->{type} eq 'expression_access_expression')) {
 		my $left_expression = $self->compile_expression($expression->{left_expression});
 		my $right_expression = $self->compile_expression($expression->{right_expression});
 		return "$left_expression\->{$right_expression}";
-	} elsif ($expression->{type} eq 'access_call_expression') {
+	} elsif (($expression->{type} eq 'access_call_expression')) {
 		my $sub_expression = $self->compile_expression($expression->{expression});
 		my $expression_list = $self->compile_expression_list($expression->{expression_list});
 		return "$sub_expression\->$expression->{identifier}\($expression_list)";
-	} elsif ($expression->{type} eq 'call_expression') {
+	} elsif (($expression->{type} eq 'call_expression')) {
 		my $sub_expression = $self->compile_expression($expression->{expression});
 		my $expression_list = $self->compile_expression_list($expression->{expression_list});
 		return "$sub_expression\->($expression_list)";
-	} elsif ($expression->{type} eq 'object_assignment_expression') {
+	} elsif (($expression->{type} eq 'object_assignment_expression')) {
 		my $left_expression = $self->compile_expression($expression->{left_expression});
 		my $right_expression = $self->compile_expression($expression->{right_expression});
 		return "$left_expression\->{$expression->{identifier}} = $right_expression";
-	} elsif ($expression->{type} eq 'numeric_comparison_expression') {
+	} elsif (($expression->{type} eq 'numeric_comparison_expression')) {
 		my $left_expression = $self->compile_expression($expression->{left_expression});
 		my $right_expression = $self->compile_expression($expression->{right_expression});
 		return "($left_expression $expression->{operator} $right_expression)";
-	} elsif ($expression->{type} eq 'comparison_expression') {
+	} elsif (($expression->{type} eq 'comparison_expression')) {
 		my $expression_type = $self->infer_expression_type($expression);
 		my $left_expression = $self->compile_expression($expression->{left_expression});
 		my $right_expression = $self->compile_expression($expression->{right_expression});
@@ -344,10 +355,10 @@ sub compile_expression {
 		} else {
 			return "($left_expression $expression->{operator} $right_expression)";
 		}
-	} elsif ($expression->{type} eq 'regex_match_expression') {
+	} elsif (($expression->{type} eq 'regex_match_expression')) {
 		my $sub_expression = $self->compile_expression($expression->{expression});
 		return "($sub_expression $expression->{operator} $expression->{regex})";
-	} elsif ($expression->{type} eq 'regex_substitution_expression') {
+	} elsif (($expression->{type} eq 'regex_substitution_expression')) {
 		my $sub_expression = $self->compile_expression($expression->{expression});
 		my $regex_expression = $self->compile_substitution_expression($expression->{regex});
 		return "($sub_expression =~ $regex_expression)";
@@ -405,7 +416,7 @@ sub compile_string_expression {
 			}
 			if ($variable_access) {
 				$compiled_string .= "\$$variable_match\->";
-				$compiled_string .= join('', @{[ map { "{$_}" } @{[ split("\\.", $variable_access) ]} ]});
+				$compiled_string .= join('', @{[ map { "{$_}" } @{[ split(quotemeta("."), $variable_access) ]} ]});
 			} else {
 				$compiled_string .= "\$$variable_match";
 			}
@@ -415,7 +426,7 @@ sub compile_string_expression {
 			}
 			if ($protected_variable_access) {
 				$compiled_string .= "\$$protected_variable_match\->";
-				$compiled_string .= join('', @{[ map { "{$_}" } @{[ split("\\.", $protected_variable_access) ]} ]});
+				$compiled_string .= join('', @{[ map { "{$_}" } @{[ split(quotemeta("."), $protected_variable_access) ]} ]});
 			} else {
 				$compiled_string .= "\${$protected_variable_match}";
 			}
