@@ -159,6 +159,12 @@ namespace Sugar.Lang {
 			}
 		}
 
+		public bool ContainsKey(string key) {
+			if (type != "hash")
+				throw new Exception("attempt to use " + type + " DynamicValue as a hash");
+			return hash_obj.ContainsKey(key);
+		}
+
 		public void Add(DynamicValue val) {
 			if (type != "list")
 				throw new Exception("attempt to use " + type + " DynamicValue as a list");

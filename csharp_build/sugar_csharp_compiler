@@ -82,7 +82,8 @@ public class $class_name : Sugar.Lang.BaseSyntaxParser {
 	if (0 < list length self.global_variable_names) {
 		foreach (string key in self.global_variable_names) {
 			string value = self.global_variable_expressions[key];
-			code += "\tpublic static string var_$key = $value;\n";
+
+			code += "\tpublic static $value.type var_$key = $value.value;\n";
 		}
 	}
 	code += "\n\n";
@@ -212,7 +213,15 @@ string sub get_function_by_name (string name) {
 void sub compile_syntax_intermediate () {
 	foreach (string key in self.global_variable_names) {
 		string value = self.compile_syntax_token_value(self.global_variable_expressions[key]);
-		self.global_variable_expressions[key] = value;
+		string value_type = 'string';
+		if (self.global_variable_expressions[key].type == 'substitution_regex_value') {
+			value_type = 'Func<string, string>';
+		}
+
+		self.global_variable_expressions[key] = {
+			type => value_type,
+			value => value,
+		};
 		self.variables_scope["\$$key"] = "var_$key";
 	}
 
@@ -240,9 +249,13 @@ string sub compile_syntax_token_value(tree value) {
 				self.confess_at_current_line("failed to parse syntax regex value: $value.value");
 			}
 		}
-		'substitution_regex': {
-			self.confess_at_current_line("substitution_regex currently unimplemented in csharp compiler");
-			# return "sub { \$_[0] =~ ${value.value}r }";
+		'substitution_regex_value': {
+			if (value.value =~ /\As\/(.*)\/(.*)\/([msixpodualn]*)\Z/s) {
+				return "(s) => Regex.Replace(s, @\"(?$3:$1)\", \"$2\")";
+			} else {
+				self.confess_at_current_line("failed to parse syntax substitution regex value: $value.value");
+			}
+			# self.confess_at_current_line("substitution_regex currently unimplemented in csharp compiler");
 		}
 		'variable_value': {
 			return self.get_variable(value.value);
@@ -700,10 +713,10 @@ string sub compile_syntax_spawn_expression (tree expression) {
 			}
 		}
 		'call_variable': {
-			self.confess_at_current_line("call_variable is unimplemented in csharp");
-			# string variable = self.get_variable(expression.variable);
-			# string expression_code = self.compile_syntax_spawn_expression(expression.argument);
-			# return "$variable\->($expression_code)";
+			# self.confess_at_current_line("call_variable is unimplemented in csharp");
+			string variable = self.get_variable(expression.variable);
+			string expression_code = self.compile_syntax_spawn_expression(expression.argument);
+			return "$variable($expression_code)";
 		}
 		'variable_value': {
 			string variable = self.get_variable(expression.variable);
