@@ -102,6 +102,11 @@ sub dir {
 	return Sugar::IO::Dir->new($self->path . '/..')->simplify
 }
 
+sub size {
+	my ($self) = @_;
+	return -s $self->{file_path};
+}
+
 
 
 sub read {

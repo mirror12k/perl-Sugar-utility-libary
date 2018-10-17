@@ -110,17 +110,17 @@ sub new {
 	my $self = bless {}, $class;
 	$self->{directory_path} = $path;
 
-	return $self
+	return $self;
 }
 
 
 
-sub path { return $_[0]{directory_path} }
-sub as_string { return $_[0]->path }
+sub path { $_[0]{directory_path} }
+sub as_string { $_[0]->path }
 
 sub exists {
 	my ($self) = @_;
-	return -e -d $self->{directory_path}
+	return -e -d $self->{directory_path};
 }
 
 
@@ -129,7 +129,7 @@ sub name {
 	my ($self) = @_;
 	my $path = $self->{directory_path};
 	croak "invalid directory_path '$path'" unless $path =~ /([^\/]+)\/?\Z/s;
-	return $1
+	return $1;
 }
 
 
@@ -148,14 +148,14 @@ sub simplify {
 	$path =~ s#(?<!\A)/\Z##;
 
 	return $self if $path eq $self->path;
-	return Sugar::IO::Dir->new($path)
+	return Sugar::IO::Dir->new($path);
 }
 
 sub upper {
 	my ($self) = @_;
 	croak "attempt to get upper directory of root" if $self->path eq '/';
 
-	return Sugar::IO::Dir->new($self->path . '/..')->simplify
+	return Sugar::IO::Dir->new($self->path . '/..')->simplify;
 }
 
 
@@ -164,7 +164,7 @@ sub abs_dir {
 	my $path = abs_path $self->path;
 
 	return $self if $path eq $self->path;
-	return Sugar::IO::Dir->new($path)
+	return Sugar::IO::Dir->new($path);
 }
 
 
@@ -188,7 +188,7 @@ sub read_directory {
 
 sub list {
 	my ($self) = @_;
-	return $self->files, $self->dirs
+	return $self->files, $self->dirs;
 }
 
 sub files {
@@ -196,7 +196,7 @@ sub files {
 	$self->read_directory unless defined $self->{directory_items};
 	$self->{directory_files} = [ map Sugar::IO::File->new($self->path . "/$_"), grep -f $self->path . "/$_", @{$self->{directory_items}} ]
 		unless defined $self->{directory_files};
-	return @{$self->{directory_files}}
+	return @{$self->{directory_files}};
 }
 
 sub dirs {
@@ -204,7 +204,7 @@ sub dirs {
 	$self->read_directory unless defined $self->{directory_items};
 	$self->{directory_subdirectories} = [ map Sugar::IO::Dir->new($self->path . "/$_"), grep -d $self->path . "/$_", @{$self->{directory_items}} ]
 		unless defined $self->{directory_subdirectories};
-	return @{$self->{directory_subdirectories}}
+	return @{$self->{directory_subdirectories}};
 }
 
 sub recursive_files {
@@ -221,7 +221,7 @@ sub recursive_files {
 		@paths = @new_paths;
 	}
 	
-	return @ret
+	return @ret;
 }
 
 
@@ -233,7 +233,7 @@ sub file {
 	my $file = Sugar::IO::File->new($self->path . "/$name");
 	# croak "missing file '$file'" unless $file->exists;
 
-	return $file
+	return $file;
 }
 
 sub new_file {
@@ -243,7 +243,22 @@ sub new_file {
 	my $file = Sugar::IO::File->new($self->path . "/$name");
 	croak "file already exists '$file'" if $file->exists;
 
-	return $file
+	return $file;
+}
+
+sub temp_file {
+	my ($self) = @_;
+
+	my $file = Sugar::IO::File->new("");
+	$file->{temp_token} = \'';
+
+	die "failed to parse memory address: '$file->{temp_token}'" unless "$file->{temp_token}" =~ /\ASCALAR\(0x([0-9a-fA-F]+)\)\Z/s;
+	my $temp_filepath = $self->path . "/temp_$$\_$1";
+
+	$file->{file_path} = $temp_filepath;
+	croak "file already exists '$file'" if $file->exists;
+
+	return $file;
 }
 
 sub dir {
@@ -253,7 +268,7 @@ sub dir {
 	my $dir = Sugar::IO::Dir->new($self->path . "/$name");
 	# croak "missing directory '$dir'" unless $dir->exists;
 
-	return $dir
+	return $dir;
 }
 
 sub new_dir {
@@ -263,7 +278,7 @@ sub new_dir {
 	my $dir = Sugar::IO::Dir->new($self->path . "/$name");
 	croak "directory already exists '$dir'" if $dir->exists;
 
-	return $dir
+	return $dir;
 }
 
 
@@ -278,7 +293,7 @@ sub mk {
 		$upper->mk;
 	}
 
-	mkdir $self->path
+	mkdir $self->path;
 }
 
 sub rm {
@@ -292,7 +307,7 @@ sub rm {
 		$dir->rm;
 	}
 
-	rmdir $self->path
+	rmdir $self->path;
 }
 
 
