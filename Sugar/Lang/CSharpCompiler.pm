@@ -372,18 +372,18 @@ sub compile_syntax_action {
 			my $key = $self->compile_syntax_spawn_expression($action->{key});
 			my $expression = $self->compile_syntax_spawn_expression($action->{expression});
 			my $variable = $self->get_variable($action->{variable});
-			push @{$code}, "$variable\[$key] = $expression;";
+			push @{$code}, "((DynamicValue)$variable)\[$key] = (DynamicValue)$expression;";
 		} elsif ($action->{type} eq 'assign_array_field_statement') {
 			my $key = $self->compile_syntax_spawn_expression($action->{key});
 			my $expression = $self->compile_syntax_spawn_expression($action->{expression});
 			my $variable = $self->get_variable($action->{variable});
-			push @{$code}, "$variable\[$key].Add($expression);";
+			push @{$code}, "((DynamicValue)$variable)\[$key].Add((DynamicValue)$expression);";
 		} elsif ($action->{type} eq 'assign_object_field_statement') {
 			my $key = $self->compile_syntax_spawn_expression($action->{key});
 			my $subkey = $self->compile_syntax_spawn_expression($action->{subkey});
 			my $expression = $self->compile_syntax_spawn_expression($action->{expression});
 			my $variable = $self->get_variable($action->{variable});
-			push @{$code}, "$variable\[$key][$subkey] = $expression;";
+			push @{$code}, "((DynamicValue)$variable)\[$key][$subkey] = (DynamicValue)$expression;";
 		} elsif ($action->{type} eq 'return_statement') {
 			push @{$code}, "return context_value;";
 			if (not ($self->{context_default_case})) {
@@ -557,7 +557,7 @@ sub compile_syntax_spawn_expression {
 		my $code = "new DynamicValue(new List<DynamicValue>{ ";
 		foreach my $field (@{$expression->{arguments}}) {
 			my $field_expression_code = $self->compile_syntax_spawn_expression($field);
-			$code .= "$field_expression_code, ";
+			$code .= "(DynamicValue)$field_expression_code, ";
 		}
 		$code .= "})";
 		return $code;
@@ -570,7 +570,7 @@ sub compile_syntax_spawn_expression {
 			my $value = shift(@{$items});
 			my $field_expression_code = $self->compile_syntax_spawn_expression($field);
 			my $value_expression_code = $self->compile_syntax_spawn_expression($value);
-			$code .= "{$field_expression_code, $value_expression_code}, ";
+			$code .= "{$field_expression_code, (DynamicValue)$value_expression_code}, ";
 		}
 		$code .= "})";
 		return $code;

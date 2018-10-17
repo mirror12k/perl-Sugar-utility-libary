@@ -279,8 +279,7 @@ sub compile_expression {
 		my $sub_expression = $self->compile_expression($expression->{expression});
 		return "shift(\@{$sub_expression})";
 	} elsif (($expression->{type} eq 'contains_expression')) {
-		if (($expression->{expression}->{type} eq 'access_expression')) {
-		} elsif (($expression->{expression}->{type} eq 'expression_access_expression')) {
+		if (($expression->{expression}->{type} eq 'access_expression') or ($expression->{expression}->{type} eq 'expression_access_expression')) {
 		} else {
 			die "invalid expression for contains expression: $expression->{expression}{type}";
 		}

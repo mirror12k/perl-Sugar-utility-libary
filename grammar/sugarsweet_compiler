@@ -411,7 +411,7 @@ string sub compile_expression (tree expression) {
 		}
 		'contains_expression': {
 			string switch (expression.expression.type) {
-				'access_expression': {}
+				'access_expression':
 				'expression_access_expression': {}
 				default: {
 					die "invalid expression for contains expression: $expression.expression.type";
