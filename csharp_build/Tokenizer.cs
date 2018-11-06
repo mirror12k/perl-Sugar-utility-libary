@@ -16,6 +16,7 @@ namespace Sugar.Lang {
 		string string_obj = null;
 		List<DynamicValue> list_obj = null;
 		Dictionary<string, DynamicValue> hash_obj = null;
+		object userdata_obj = null;
 
 		public DynamicValue(int obj) {
 			type = "value";
@@ -35,6 +36,11 @@ namespace Sugar.Lang {
 		public DynamicValue(Dictionary<string, DynamicValue> obj) {
 			type = "hash";
 			hash_obj = obj;
+		}
+
+		public DynamicValue(string userdata_type, object obj) {
+			type = "userdata";
+			userdata_obj = obj;
 		}
 
 		public static implicit operator string (DynamicValue v) {
@@ -131,6 +137,12 @@ namespace Sugar.Lang {
 				objs[key] = (DynamicValue)v[key];
 			}
 			return new DynamicValue(objs);
+		}
+
+		public object AsUserdata() {
+			if (type != "userdata")
+				throw new Exception("attempt to use " + type + " DynamicValue as a userdata");
+			return userdata_obj;
 		}
 
 		public DynamicValue this[int index] {
