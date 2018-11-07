@@ -692,7 +692,7 @@ string sub compile_expression_with_variables(tree expression, list with_variable
 void sub main () native:perl5 {{
 	my ($files_list) = @_;
 
-	require Data::Dumper;
+	# require Data::Dumper;
 	require Sugar::IO::File;
 	use Sugar::Lang::SugarsweetParser;
 

@@ -513,7 +513,7 @@ sub main {
 
 	my ($files_list) = @_;
 
-	require Data::Dumper;
+	# require Data::Dumper;
 	require Sugar::IO::File;
 	use Sugar::Lang::SugarsweetParser;
 

@@ -756,7 +756,7 @@ string sub compile_syntax_spawn_expression (tree expression) {
 void sub main () native:perl5 {{
 	my ($files_list) = @_;
 
-	require Data::Dumper;
+	# require Data::Dumper;
 	require Sugar::IO::File;
 	use Sugar::Lang::SugarGrammarParser;
 	# use Sugar::Lang::SugarGrammarCompiler;
