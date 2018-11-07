@@ -98,7 +98,6 @@ and compare the output to a perl script which interprets the same data
 
 sub new {
 	my ($class, %args) = @_;
-	# croak "path argument required" unless defined $path;
 
 	my $self = bless {}, $class;
 	$self->{test_files_dir} = Sugar::IO::Dir->new($args{test_files_dir} // croak "test_files_dir argument required");
