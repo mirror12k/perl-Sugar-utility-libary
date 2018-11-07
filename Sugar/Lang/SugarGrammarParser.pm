@@ -538,8 +538,8 @@ sub context_spawn_expression_hash {
 ##############################
 
 sub main {
-	use Data::Dumper;
-	use Sugar::IO::File;
+	require Data::Dumper;
+	require Sugar::IO::File;
 	# use Sugar::Lang::SyntaxIntermediateCompiler;
 
 	my $parser = __PACKAGE__->new;
