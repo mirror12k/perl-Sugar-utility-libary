@@ -405,15 +405,17 @@ sub context_spawn_expression {
 	while ($self->more_tokens) {
 		my @tokens;
 	
-		if ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] =~ /\A(\$\d++)\Z/ and $self->{tokens}[$self->{tokens_index} + 1][1] eq '{' and $self->{tokens}[$self->{tokens_index} + 2][1] eq 'line_number' and $self->{tokens}[$self->{tokens_index} + 3][1] eq '}') {
-			my @tokens = (@tokens, $self->step_tokens(4));
-			return { type => 'get_token_line_number', line_number => $tokens[0][2], token => $tokens[0][1], };
-		} elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] =~ /\A(\$\d++)\Z/ and $self->{tokens}[$self->{tokens_index} + 1][1] eq '{' and $self->{tokens}[$self->{tokens_index} + 2][1] eq 'line_offset' and $self->{tokens}[$self->{tokens_index} + 3][1] eq '}') {
-			my @tokens = (@tokens, $self->step_tokens(4));
-			return { type => 'get_token_line_offset', line_number => $tokens[0][2], token => $tokens[0][1], };
-		} elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] =~ /\A(\$\d++)\Z/) {
+		if ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] =~ /\A(\$\d++)\Z/) {
 			my @tokens = (@tokens, $self->step_tokens(1));
-			return { type => 'get_token_text', line_number => $tokens[0][2], token => $tokens[0][1], };
+			if ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] eq '{' and $self->{tokens}[$self->{tokens_index} + 1][1] eq 'line_number' and $self->{tokens}[$self->{tokens_index} + 2][1] eq '}') {
+				my @tokens = (@tokens, $self->step_tokens(3));
+				return { type => 'get_token_line_number', line_number => $tokens[0][2], token => $tokens[0][1], };
+			} elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] eq '{' and $self->{tokens}[$self->{tokens_index} + 1][1] eq 'line_offset' and $self->{tokens}[$self->{tokens_index} + 2][1] eq '}') {
+				my @tokens = (@tokens, $self->step_tokens(3));
+				return { type => 'get_token_line_offset', line_number => $tokens[0][2], token => $tokens[0][1], };
+			} else {
+				return { type => 'get_token_text', line_number => $tokens[0][2], token => $tokens[0][1], };
+			}
 		} elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] eq '$_') {
 			my @tokens = (@tokens, $self->step_tokens(1));
 			return $self->context_more_spawn_expression({ type => 'get_context', line_number => $tokens[0][2], });

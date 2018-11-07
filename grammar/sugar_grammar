@@ -369,14 +369,14 @@ object context if_chain {
 
 item context spawn_expression {
 	switch {
-		/\$\d++/, '{', 'line_number', '}' => {
-			return get_token_line_number:{ token => $0 }
-		}
-		/\$\d++/, '{', 'line_offset', '}' => {
-			return get_token_line_offset:{ token => $0 }
-		}
 		/\$\d++/ => {
-			return get_token_text:{ token => $0 }
+			if '{', 'line_number', '}' => {
+				return get_token_line_number:{ token => $0 }
+			} elsif '{', 'line_offset', '}' => {
+				return get_token_line_offset:{ token => $0 }
+			} else {
+				return get_token_text:{ token => $0 }
+			}
 		}
 		'$_' => {
 			return !more_spawn_expression->get_context:{}
