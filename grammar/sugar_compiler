@@ -385,7 +385,9 @@ string sub compile_syntax_match_list (tree match_list) {
 	# push compiled_conditions, '$self->more_tokens';
 
 	int match_length = length conditions;
-	push compiled_conditions, "\$self->{tokens_index} + $match_length <= \@{\$self->{tokens}}";
+	# push compiled_conditions, "((\$self->{tokens_index} = \$self->{save_tokens_index}) or 1)";
+	push compiled_conditions, "((\$self->{tokens_index} = \$self->{save_tokens_index}) + $match_length <= \@{\$self->{tokens}})";
+	# push compiled_conditions, "\$self->{tokens_index} + $match_length <= \@{\$self->{tokens}}";
 
 	int i = 0;
 	foreach (tree condition in conditions) {
@@ -467,6 +469,7 @@ list sub compile_syntax_action (tree match_list, list actions_list) {
 			# push code, "my \@tokens = (\@tokens, $tokens_list_string);";
 			# push code, "my \@tokens = (\@tokens, \$self->step_tokens($count));";
 			push code, "\$self->{tokens_index} += $count;";
+			push code, "\$self->{save_tokens_index} = \$self->{tokens_index};";
 			self.tokens_scope_count += count;
 		}
 	}
@@ -551,6 +554,7 @@ list sub compile_syntax_action (tree match_list, list actions_list) {
 					# push code, "my \@tokens = (\@tokens, $tokens_list_string);";
 					# push code, "\@tokens = (\@tokens, \$self->step_tokens($count));";
 					push code, "\$self->{tokens_index} += $count;";
+					push code, "\$self->{save_tokens_index} = \$self->{tokens_index};";
 					self.tokens_scope_count += count;
 				}
 			}

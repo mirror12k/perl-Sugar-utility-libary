@@ -96,6 +96,7 @@ sub parse_tokens {
 
 	$self->{tokens} = \@tokens;
 	$self->{tokens_index} = 0;
+	$self->{save_tokens_index} = 0;
 
 	return $self->{tokens}
 }

@@ -297,7 +297,7 @@ sub compile_syntax_match_list {
 	push @{$conditions}, @{$match_list->{look_ahead_conditons}};
 	my $compiled_conditions = [];
 	my $match_length = scalar(@{$conditions});
-	push @{$compiled_conditions}, "\$self->{tokens_index} + $match_length <= \@{\$self->{tokens}}";
+	push @{$compiled_conditions}, "((\$self->{tokens_index} = \$self->{save_tokens_index}) + $match_length <= \@{\$self->{tokens}})";
 	my $i = 0;
 	foreach my $condition (@{$conditions}) {
 		push @{$compiled_conditions}, $self->compile_syntax_condition($condition, $i);
@@ -365,6 +365,7 @@ sub compile_syntax_action {
 		my $count = $self->get_syntax_match_list_tokens_eaten($match_list);
 		if (($count > 0)) {
 			push @{$code}, "\$self->{tokens_index} += $count;";
+			push @{$code}, "\$self->{save_tokens_index} = \$self->{tokens_index};";
 			$self->{tokens_scope_count} += $count;
 		}
 	}
@@ -427,6 +428,7 @@ sub compile_syntax_action {
 			my $count = $self->get_syntax_match_list_tokens_eaten($action->{match_list});
 			if (($count > 0)) {
 				push @{$code}, "\$self->{tokens_index} += $count;";
+				push @{$code}, "\$self->{save_tokens_index} = \$self->{tokens_index};";
 				$self->{tokens_scope_count} += $count;
 			}
 		} elsif (($action->{type} eq 'if_statement')) {
