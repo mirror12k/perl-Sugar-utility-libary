@@ -16,7 +16,8 @@ use Sugar::IO::Dir;
 
 =head1 what is Sugar::Test::Barrage?
 
-Barrage is a simple file-oriented testing utility for verifying an expiremental set of text line output against a control set
+Barrage is a simple file-oriented testing utility for verifying an expiremental set of text line output against a control set.
+output is compared line by line and a differing lines fail the test.
 
 =head2 Sugar::Test::Barrage->new(%args)
 
@@ -59,8 +60,37 @@ the subroutine will receive as an argument, the test filepath as a Sugar::IO::Fi
 
 =head2 $test->run([$subdir])
 
-starts the execution of tests and prints out the status of each test. optional subdir argument is directory name inside the given test_files_dir which will be
+starts the execution of tests and prints out the status of each test.
+optional subdir argument is directory name inside the given test_files_dir which will be
 tested specifically instead of all files in the test_files_dir
+
+=head1 example tests comparing interpreter against lua binary
+
+this example uses Barrage to run the lua binary,
+and compare the output to a perl script which interprets the same data
+
+	use Sugar::Test::Barrage;
+
+	Sugar::Test::Barrage->new(
+		test_files_dir => 'lua_test_files',
+		control_processor => "lua \$testfile",
+		test_processor => "perl lua_interpreter.pl \$testfile",
+	)->run;
+
+=head2 example testing
+
+this example uses Barrage to run the lua binary,
+and compare the output to a perl script which interprets the same data
+
+	use Sugar::Test::Barrage;
+
+	Sugar::Test::Barrage->new(
+		test_files_dir => 'run_tests',
+		test_files_regex => qr/\.awesome$/,
+		control_processor => "cat \$testfile.expected",
+		test_processor => "perl my_processor.pl \$testfile",
+	)->run;
+
 
 =cut
 
