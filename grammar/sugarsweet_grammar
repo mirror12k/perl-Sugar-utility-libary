@@ -6,12 +6,12 @@ code_block_regex = /\{\{.*?\}\}/s
 symbol_regex = /\(|\)|\{|\}|\[|\]|<=|>=|<|>|->|=>|==|=~|\+=|!~|!=|=|,|\.|\+|\-|\*|\/|::|:|;/
 
 identifier_regex = /[a-zA-Z_][a-zA-Z0-9_]*+/
-string_regex = /'([^\\']|\\.)*+'|"([^\\"]|\\.)*+"/s
+string_regex = /'(?:[^\\']|\\.)*+'|"(?:[^\\"]|\\.)*+"/s
 integer_regex = /-?\d++/
-regex_regex = /\/([^\\\/]|\\.)*+\/[msixgcpodualn]*+/s
+regex_regex = /\/(?:[^\\\/]|\\.)*+\/[msixgcpodualn]*+/s
 # no e flag in substitution because no eval
 # no r flag in substitution because all substitutions return
-substitution_regex_regex = /s\/([^\\\/]|\\.)*+\/([^\\\/]|\\.)*+\/[msixpodualngc]*+/s
+substitution_regex_regex = /s\/(?:[^\\\/]|\\.)*+\/(?:[^\\\/]|\\.)*+\/[msixpodualngc]*+/s
 # variable_regex = /\$\w++/
 # context_reference_regex = /!\w++/
 # function_reference_regex = /\&\w++/

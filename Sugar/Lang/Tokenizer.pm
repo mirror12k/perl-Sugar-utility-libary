@@ -27,12 +27,23 @@ sub new {
 
 sub compile_tokenizer_regex {
 	my ($self) = @_;
-	use re 'eval';
 	my $token_pieces = join '|',
 			map "(?<$self->{token_regexes}[$_*2]>$self->{token_regexes}[$_*2+1])",
 				0 .. $#{$self->{token_regexes}} / 2;
-	# warn "debug regex: $token_pieces";
 	$self->{tokenizer_regex} = qr/$token_pieces/s;
+
+	# optimized selector for token names, because %+ is slow
+	my @index_names = map $self->{token_regexes}[$_*2], 0 .. $#{$self->{token_regexes}} / 2;
+	my @index_variables = map "\$$_", 1 .. @index_names;
+	my $index_selectors = join "\n\tels",
+			map "if (defined $index_variables[$_]) { return '$index_names[$_]', $index_variables[$_]; }",
+			0 .. $#index_names;
+
+	$self->{token_selector_callback} = eval "
+sub {
+	$index_selectors
+}
+";
 }
 
 sub parse {
@@ -59,7 +70,10 @@ sub parse_tokens {
 
 	# study $text;
 	while ($text =~ /\G$self->{tokenizer_regex}/gc) {
-		my ($token_type, $token_text) = each %+;
+		# despite the absurdity of this solution, this is still faster than loading %+
+		# my ($token_type, $token_text) = each %+;
+		my ($token_type, $token_text) = $self->{token_selector_callback}->();
+
 		push @tokens, [ $token_type => $token_text, $line_number, $offset ];
 		$offset = pos $text;
 		# amazingly, this is faster than a regex or an index count

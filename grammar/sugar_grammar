@@ -5,11 +5,11 @@ package Sugar::Lang::SugarGrammarParser
 code_block_regex = /\{\{.*?\}\}/s
 symbol_regex = /\(|\)|\{|\}|\[|\]|->|=>|=|,|\*|:/
 
-package_identifier_regex = /[a-zA-Z_][a-zA-Z0-9_]*+(\:\:[a-zA-Z_][a-zA-Z0-9_]*+)++/
+package_identifier_regex = /[a-zA-Z_][a-zA-Z0-9_]*+(?:\:\:[a-zA-Z_][a-zA-Z0-9_]*+)++/
 identifier_regex = /[a-zA-Z_][a-zA-Z0-9_]*+/
-string_regex = /'([^\\']|\\[\\'])*+'/s
-regex_regex = /\/([^\\\/]|\\.)*+\/[msixpodualn]*+/s
-substitution_regex_regex = /s\/([^\\\/]|\\.)*+\/([^\\\/]|\\.)*+\/[msixpodualngcer]*+/s
+string_regex = /'(?:[^\\']|\\[\\'])*+'/s
+regex_regex = /\/(?:[^\\\/]|\\.)*+\/[msixpodualn]*+/s
+substitution_regex_regex = /s\/(?:[^\\\/]|\\.)*+\/(?:[^\\\/]|\\.)*+\/[msixpodualngcer]*+/s
 variable_regex = /\$\w++/
 context_reference_regex = /!\w++/
 function_reference_regex = /\&\w++/

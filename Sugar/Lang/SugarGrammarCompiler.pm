@@ -21,6 +21,7 @@ sub load_syntax_definition_intermediate {
 	$self->{global_variable_names} = $self->{syntax_definition_intermediate}->{global_variable_names};
 	$self->{global_variable_expressions} = $self->{syntax_definition_intermediate}->{global_variable_expressions};
 	$self->{variables_scope} = { '$_' => ('$context_value') };
+	$self->{tokens_scope_count} = 0;
 	$self->{token_definitions} = [];
 	$self->{ignored_tokens} = $self->{syntax_definition_intermediate}->{ignored_tokens};
 	$self->{contexts} = $self->{syntax_definition_intermediate}->{contexts};
@@ -245,31 +246,45 @@ sub compile_syntax_condition {
 	if (not ($offset)) {
 		$offset = 0;
 	}
+	my $tokens_array_offset = $offset;
+	$tokens_array_offset += $self->{tokens_scope_count};
 	if (($condition->{type} eq 'function_match')) {
 		my $function = $self->get_function_by_name($condition->{function});
 		if (exists($condition->{argument})) {
 			my $expression_code = $self->compile_syntax_spawn_expression($condition->{argument});
-			return "\$self->$function(\$self->{tokens_index} + $offset, $expression_code)";
+			my $token_expression = "\$self->$function(\$self->{tokens_index} + $offset, $expression_code)";
+			my $token_memory_expression = "(\$tokens[$tokens_array_offset] = $token_expression)";
+			return $token_memory_expression;
 		} else {
-			return "\$self->$function(\$self->{tokens_index} + $offset)";
+			my $token_expression = "\$self->$function(\$self->{tokens_index} + $offset)";
+			my $token_memory_expression = "(\$tokens[$tokens_array_offset] = $token_expression)";
+			return $token_memory_expression;
 		}
 	} elsif (($condition->{type} eq 'variable_match')) {
 		if (($condition->{variable} =~ /\A\$(\w++)\Z/s)) {
 			my $variable = $self->get_variable($1);
-			return "\$self->{tokens}[\$self->{tokens_index} + $offset][1] =~ /\\A($variable)\\Z/";
+			my $token_expression = "\$self->{tokens}[\$self->{tokens_index} + $offset]";
+			my $token_memory_expression = "(\$tokens[$tokens_array_offset] = $token_expression)";
+			return "$token_memory_expression\->[1] =~ /\\A($variable)\\Z/";
 		} else {
 			$self->confess_at_current_line("invalid variable condition value: $condition->{variable}");
 		}
 	} elsif (($condition->{type} eq 'regex_match')) {
 		if (($condition->{regex} =~ /\A\/(.*)\/([msixpodualn]*)\Z/s)) {
-			return "\$self->{tokens}[\$self->{tokens_index} + $offset][1] =~ /\\A($1)\\Z/$2";
+			my $token_expression = "\$self->{tokens}[\$self->{tokens_index} + $offset]";
+			my $token_memory_expression = "(\$tokens[$tokens_array_offset] = $token_expression)";
+			return "$token_memory_expression\->[1] =~ /\\A($1)\\Z/$2";
 		} else {
 			$self->confess_at_current_line("invalid regex condition value: $condition->{regex}");
 		}
 	} elsif (($condition->{type} eq 'string_match')) {
-		return "\$self->{tokens}[\$self->{tokens_index} + $offset][1] eq $condition->{string}";
+		my $token_expression = "\$self->{tokens}[\$self->{tokens_index} + $offset]";
+		my $token_memory_expression = "(\$tokens[$tokens_array_offset] = $token_expression)";
+		return "$token_memory_expression\->[1] eq $condition->{string}";
 	} elsif (($condition->{type} eq 'token_type_match')) {
-		return "\$self->{tokens}[\$self->{tokens_index} + $offset][0] eq '$condition->{value}'";
+		my $token_expression = "\$self->{tokens}[\$self->{tokens_index} + $offset]";
+		my $token_memory_expression = "(\$tokens[$tokens_array_offset] = $token_expression)";
+		return "$token_memory_expression\->[0] eq '$condition->{value}'";
 	} else {
 		$self->confess_at_current_line("invalid syntax condition '$condition->{type}'");
 	}
@@ -294,6 +309,18 @@ sub compile_syntax_match_list {
 sub get_syntax_match_list_tokens_eaten {
 	my ($self, $match_list) = @_;
 	return scalar(@{$match_list->{match_conditions}});
+}
+
+sub get_syntax_match_list_tokens_list {
+	my ($self, $match_list) = @_;
+	my $token_count = scalar(@{$match_list->{match_conditions}});
+	my $i = 0;
+	my $tokens_list = [];
+	while (($i < $token_count)) {
+		push @{$tokens_list}, "\$token$i";
+		$i += 1;
+	}
+	return join(', ', @{$tokens_list});
 }
 
 sub syntax_match_list_as_string {
@@ -333,10 +360,12 @@ sub compile_syntax_action {
 	my $code = [];
 	my $previous_variables_scope = $self->{variables_scope};
 	$self->{variables_scope} = { %{$previous_variables_scope} };
+	my $previous_tokens_scope_count = $self->{tokens_scope_count};
 	if ($match_list) {
 		my $count = $self->get_syntax_match_list_tokens_eaten($match_list);
 		if (($count > 0)) {
-			push @{$code}, "my \@tokens = (\@tokens, \$self->step_tokens($count));";
+			push @{$code}, "\$self->{tokens_index} += $count;";
+			$self->{tokens_scope_count} += $count;
 		}
 	}
 	foreach my $action (@{$actions_list}) {
@@ -397,7 +426,8 @@ sub compile_syntax_action {
 			push @{$code}, "\tunless $match_expression;";
 			my $count = $self->get_syntax_match_list_tokens_eaten($action->{match_list});
 			if (($count > 0)) {
-				push @{$code}, "\@tokens = (\@tokens, \$self->step_tokens($count));";
+				push @{$code}, "\$self->{tokens_index} += $count;";
+				$self->{tokens_scope_count} += $count;
 			}
 		} elsif (($action->{type} eq 'if_statement')) {
 			my $condition_code = $self->compile_syntax_match_list($action->{match_list});
@@ -462,6 +492,7 @@ sub compile_syntax_action {
 		}
 	}
 	$self->{variables_scope} = $previous_variables_scope;
+	$self->{tokens_scope_count} = $previous_tokens_scope_count;
 	return [ map { "\t$_" } @{$code} ];
 }
 
