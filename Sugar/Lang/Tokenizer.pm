@@ -54,11 +54,14 @@ sub parse_tokens {
 	my $line_number = 1;
 	my $offset = 0;
 
+	# study $text;
 	while ($text =~ /\G$self->{tokenizer_regex}/gc) {
 		my ($token_type, $token_text) = each %+;
 		push @tokens, [ $token_type => $token_text, $line_number, $offset ];
 		$offset = pos $text;
-		$line_number += ()= ($token_text =~ /\n/g);
+		# amazingly, this is faster than a regex or an index count
+		# must be because perl optimizes out the string modification, and just performs a count
+		$line_number += $token_text =~ y/\n//;
 	}
 
 	confess "parsing error on line $line_number:\nHERE ---->" . substr ($text, pos $text // 0, 200) . "\n\n\n"

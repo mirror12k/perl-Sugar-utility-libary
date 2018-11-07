@@ -32,3 +32,7 @@ trial_sugarsweet_compiler:
 
 test_sugar_grammar:
 	./tests/sugar_grammar_tests.pl
+
+profile_sugar_compiler:
+	perl -d:NYTProf Sugar/Lang/SugarGrammarParser.pm grammar/sugar_grammar > temp_compiled_file
+	rm temp_compiled_file
