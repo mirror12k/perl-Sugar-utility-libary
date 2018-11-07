@@ -597,8 +597,8 @@ sub main {
 
 	my ($files_list) = @_;
 
-	use Data::Dumper;
-	use Sugar::IO::File;
+	require Data::Dumper;
+	require Sugar::IO::File;
 	use Sugar::Lang::SugarGrammarParser;
 	# use Sugar::Lang::SugarGrammarCompiler;
 
