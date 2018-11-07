@@ -30,7 +30,7 @@ sub compile_tokenizer_regex {
 	my $token_pieces = join '|',
 			map "(?<$self->{token_regexes}[$_*2]>$self->{token_regexes}[$_*2+1])",
 				0 .. $#{$self->{token_regexes}} / 2;
-	$self->{tokenizer_regex} = qr/$token_pieces/s;
+	$self->{tokenizer_regex} = qr/$token_pieces/so;
 
 	# optimized selector for token names, because %+ is slow
 	my @index_names = map $self->{token_regexes}[$_*2], 0 .. $#{$self->{token_regexes}} / 2;
@@ -69,7 +69,7 @@ sub parse_tokens {
 	my $offset = 0;
 
 	# study $text;
-	while ($text =~ /\G$self->{tokenizer_regex}/gc) {
+	while ($text =~ /\G$self->{tokenizer_regex}/gco) {
 		# despite the absurdity of this solution, this is still faster than loading %+
 		# my ($token_type, $token_text) = each %+;
 		my ($token_type, $token_text) = $self->{token_selector_callback}->();

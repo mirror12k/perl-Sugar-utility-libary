@@ -81,9 +81,9 @@ $verifier->expect_result(
 $verifier->expect_result(
 	'test item context'
 	=> context_root
-			# match ')'
 	=> "
 		item context token_definition {
+			match ')'
 			\$_ = \$0
 			return \$1
 		}
@@ -94,15 +94,15 @@ $verifier->expect_result(
 			'identifier' => 'token_definition',
 			'type' => 'item_context',
 			'block' => [
-				# {
-				# 	'type' => 'match_statement',
-				# 	'match_list' => {
-				# 		'match_conditions' => [
-				# 			{ 'type' => 'string_match', 'string' => '\')\'' }
-				# 		],
-				# 		'look_ahead_conditons' => []
-				# 	},
-				# },
+				{
+					'type' => 'match_statement',
+					'match_list' => {
+						'match_conditions' => [
+							{ 'type' => 'string_match', 'string' => '\')\'' }
+						],
+						'look_ahead_conditons' => []
+					},
+				},
 				{
 					'type' => 'assign_item_statement',
 					'expression' => { 'token' => '$0', 'type' => 'get_token_text' },
