@@ -27,8 +27,11 @@ sub new {
 
 sub compile_tokenizer_regex {
 	my ($self) = @_;
+	use re 'eval';
 	my $token_pieces = join '|',
-			map "(?<" . $self->{token_regexes}[$_*2] . ">" . $self->{token_regexes}[$_*2+1] . ")", 0 .. $#{$self->{token_regexes}} / 2;
+			map "(?<$self->{token_regexes}[$_*2]>$self->{token_regexes}[$_*2+1])",
+				0 .. $#{$self->{token_regexes}} / 2;
+	# warn "debug regex: $token_pieces";
 	$self->{tokenizer_regex} = qr/$token_pieces/s;
 }
 

@@ -104,38 +104,38 @@ sub context_root {
 	while ($self->more_tokens) {
 		my @tokens;
 	
-		if ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][0] eq 'identifier' and $self->{tokens}[$self->{tokens_index} + 1][1] eq '=') {
+		if ($self->{tokens_index} + 2 <= @{$self->{tokens}} and $self->{tokens}[$self->{tokens_index} + 0][0] eq 'identifier' and $self->{tokens}[$self->{tokens_index} + 1][1] eq '=') {
 			my @tokens = (@tokens, $self->step_tokens(2));
 			push @{$context_value->{global_variable_names}}, $tokens[0][1];
 			$context_value->{global_variable_expressions}{$tokens[0][1]} = $self->context_def_value;
-		} elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] eq 'package' and $self->{tokens}[$self->{tokens_index} + 1][0] eq 'package_identifier') {
+		} elsif ($self->{tokens_index} + 2 <= @{$self->{tokens}} and $self->{tokens}[$self->{tokens_index} + 0][1] eq 'package' and $self->{tokens}[$self->{tokens_index} + 1][0] eq 'package_identifier') {
 			my @tokens = (@tokens, $self->step_tokens(2));
 			$context_value->{package_identifier} = $tokens[1][1];
-		} elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] eq 'package' and $self->{tokens}[$self->{tokens_index} + 1][0] eq 'identifier') {
+		} elsif ($self->{tokens_index} + 2 <= @{$self->{tokens}} and $self->{tokens}[$self->{tokens_index} + 0][1] eq 'package' and $self->{tokens}[$self->{tokens_index} + 1][0] eq 'identifier') {
 			my @tokens = (@tokens, $self->step_tokens(2));
 			$context_value->{package_identifier} = $tokens[1][1];
-		} elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] eq 'tokens' and $self->{tokens}[$self->{tokens_index} + 1][1] eq '{') {
+		} elsif ($self->{tokens_index} + 2 <= @{$self->{tokens}} and $self->{tokens}[$self->{tokens_index} + 0][1] eq 'tokens' and $self->{tokens}[$self->{tokens_index} + 1][1] eq '{') {
 			my @tokens = (@tokens, $self->step_tokens(2));
 			$context_value->{tokens} = $self->context_token_definition([]);
-		} elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] eq 'ignored_tokens' and $self->{tokens}[$self->{tokens_index} + 1][1] eq '{') {
+		} elsif ($self->{tokens_index} + 2 <= @{$self->{tokens}} and $self->{tokens}[$self->{tokens_index} + 0][1] eq 'ignored_tokens' and $self->{tokens}[$self->{tokens_index} + 1][1] eq '{') {
 			my @tokens = (@tokens, $self->step_tokens(2));
 			$context_value->{ignored_tokens} = $self->context_ignored_tokens_list([]);
-		} elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] eq 'item' and $self->{tokens}[$self->{tokens_index} + 1][1] eq 'context' and $self->{tokens}[$self->{tokens_index} + 2][0] eq 'identifier') {
+		} elsif ($self->{tokens_index} + 3 <= @{$self->{tokens}} and $self->{tokens}[$self->{tokens_index} + 0][1] eq 'item' and $self->{tokens}[$self->{tokens_index} + 1][1] eq 'context' and $self->{tokens}[$self->{tokens_index} + 2][0] eq 'identifier') {
 			my @tokens = (@tokens, $self->step_tokens(3));
 			my $var_context = { type => 'item_context', line_number => $tokens[0][2], identifier => $tokens[2][1], block => $self->context_action_block, };
 			push @{$context_value->{contexts}}, $var_context;
 			$context_value->{contexts_by_name}{$tokens[2][1]} = $var_context;
-		} elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] eq 'list' and $self->{tokens}[$self->{tokens_index} + 1][1] eq 'context' and $self->{tokens}[$self->{tokens_index} + 2][0] eq 'identifier') {
+		} elsif ($self->{tokens_index} + 3 <= @{$self->{tokens}} and $self->{tokens}[$self->{tokens_index} + 0][1] eq 'list' and $self->{tokens}[$self->{tokens_index} + 1][1] eq 'context' and $self->{tokens}[$self->{tokens_index} + 2][0] eq 'identifier') {
 			my @tokens = (@tokens, $self->step_tokens(3));
 			my $var_context = { type => 'list_context', line_number => $tokens[0][2], identifier => $tokens[2][1], block => $self->context_action_block, };
 			push @{$context_value->{contexts}}, $var_context;
 			$context_value->{contexts_by_name}{$tokens[2][1]} = $var_context;
-		} elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] eq 'object' and $self->{tokens}[$self->{tokens_index} + 1][1] eq 'context' and $self->{tokens}[$self->{tokens_index} + 2][0] eq 'identifier') {
+		} elsif ($self->{tokens_index} + 3 <= @{$self->{tokens}} and $self->{tokens}[$self->{tokens_index} + 0][1] eq 'object' and $self->{tokens}[$self->{tokens_index} + 1][1] eq 'context' and $self->{tokens}[$self->{tokens_index} + 2][0] eq 'identifier') {
 			my @tokens = (@tokens, $self->step_tokens(3));
 			my $var_context = { type => 'object_context', line_number => $tokens[0][2], identifier => $tokens[2][1], block => $self->context_action_block, };
 			push @{$context_value->{contexts}}, $var_context;
 			$context_value->{contexts_by_name}{$tokens[2][1]} = $var_context;
-		} elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] eq 'sub' and $self->{tokens}[$self->{tokens_index} + 1][0] eq 'identifier' and $self->{tokens}[$self->{tokens_index} + 2][0] eq 'code_block') {
+		} elsif ($self->{tokens_index} + 3 <= @{$self->{tokens}} and $self->{tokens}[$self->{tokens_index} + 0][1] eq 'sub' and $self->{tokens}[$self->{tokens_index} + 1][0] eq 'identifier' and $self->{tokens}[$self->{tokens_index} + 2][0] eq 'code_block') {
 			my @tokens = (@tokens, $self->step_tokens(3));
 			push @{$context_value->{subroutines}}, { type => 'subroutine', line_number => $tokens[0][2], identifier => $tokens[1][1], code_block => $tokens[2][1], };
 		}
@@ -147,16 +147,16 @@ sub context_def_value {
 	while ($self->more_tokens) {
 		my @tokens;
 	
-		if ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][0] eq 'string') {
+		if ($self->{tokens_index} + 1 <= @{$self->{tokens}} and $self->{tokens}[$self->{tokens_index} + 0][0] eq 'string') {
 			my @tokens = (@tokens, $self->step_tokens(1));
 			return { type => 'string_value', line_number => $tokens[0][2], value => $tokens[0][1], };
-		} elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][0] eq 'substitution_regex') {
+		} elsif ($self->{tokens_index} + 1 <= @{$self->{tokens}} and $self->{tokens}[$self->{tokens_index} + 0][0] eq 'substitution_regex') {
 			my @tokens = (@tokens, $self->step_tokens(1));
 			return { type => 'substitution_regex_value', line_number => $tokens[0][2], value => $tokens[0][1], };
-		} elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][0] eq 'regex') {
+		} elsif ($self->{tokens_index} + 1 <= @{$self->{tokens}} and $self->{tokens}[$self->{tokens_index} + 0][0] eq 'regex') {
 			my @tokens = (@tokens, $self->step_tokens(1));
 			return { type => 'regex_value', line_number => $tokens[0][2], value => $tokens[0][1], };
-		} elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][0] eq 'variable') {
+		} elsif ($self->{tokens_index} + 1 <= @{$self->{tokens}} and $self->{tokens}[$self->{tokens_index} + 0][0] eq 'variable') {
 			my @tokens = (@tokens, $self->step_tokens(1));
 			return { type => 'variable_value', line_number => $tokens[0][2], value => $tokens[0][1], };
 		} else {
@@ -170,10 +170,10 @@ sub context_token_definition {
 	while ($self->more_tokens) {
 		my @tokens;
 	
-		if ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] eq '}') {
+		if ($self->{tokens_index} + 1 <= @{$self->{tokens}} and $self->{tokens}[$self->{tokens_index} + 0][1] eq '}') {
 			my @tokens = (@tokens, $self->step_tokens(1));
 			return $context_value;
-		} elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][0] eq 'identifier' and $self->{tokens}[$self->{tokens_index} + 1][1] eq '=>') {
+		} elsif ($self->{tokens_index} + 2 <= @{$self->{tokens}} and $self->{tokens}[$self->{tokens_index} + 0][0] eq 'identifier' and $self->{tokens}[$self->{tokens_index} + 1][1] eq '=>') {
 			my @tokens = (@tokens, $self->step_tokens(2));
 			push @$context_value, { type => 'token_definition', line_number => $tokens[0][2], identifier => $tokens[0][1], value => $self->context_def_value, };
 		} else {
@@ -187,10 +187,10 @@ sub context_ignored_tokens_list {
 	while ($self->more_tokens) {
 		my @tokens;
 	
-		if ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] eq '}') {
+		if ($self->{tokens_index} + 1 <= @{$self->{tokens}} and $self->{tokens}[$self->{tokens_index} + 0][1] eq '}') {
 			my @tokens = (@tokens, $self->step_tokens(1));
 			return $context_value;
-		} elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][0] eq 'identifier') {
+		} elsif ($self->{tokens_index} + 1 <= @{$self->{tokens}} and $self->{tokens}[$self->{tokens_index} + 0][0] eq 'identifier') {
 			my @tokens = (@tokens, $self->step_tokens(1));
 			push @$context_value, $tokens[0][1];
 		} else {
@@ -204,19 +204,19 @@ sub context_match_list_specifier {
 	my @tokens;
 
 	$context_value = { match_conditions => [], look_ahead_conditons => [], };
-	if ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] eq '(') {
+	if ($self->{tokens_index} + 1 <= @{$self->{tokens}} and $self->{tokens}[$self->{tokens_index} + 0][1] eq '(') {
 		my @tokens = (@tokens, $self->step_tokens(1));
 		$context_value->{look_ahead_conditons} = $self->context_match_conditions_list;
 		$self->confess_at_current_offset('expected \')\'')
-			unless $self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] eq ')';
+			unless $self->{tokens_index} + 1 <= @{$self->{tokens}} and $self->{tokens}[$self->{tokens_index} + 0][1] eq ')';
 		@tokens = (@tokens, $self->step_tokens(1));
 	} else {
 		$context_value->{match_conditions} = $self->context_match_conditions_list;
-		if ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] eq '(') {
+		if ($self->{tokens_index} + 1 <= @{$self->{tokens}} and $self->{tokens}[$self->{tokens_index} + 0][1] eq '(') {
 			my @tokens = (@tokens, $self->step_tokens(1));
 			$context_value->{look_ahead_conditons} = $self->context_match_conditions_list;
 			$self->confess_at_current_offset('expected \')\'')
-				unless $self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] eq ')';
+				unless $self->{tokens_index} + 1 <= @{$self->{tokens}} and $self->{tokens}[$self->{tokens_index} + 0][1] eq ')';
 			@tokens = (@tokens, $self->step_tokens(1));
 		}
 	}
@@ -227,7 +227,7 @@ sub context_match_conditions_list {
 	my @tokens;
 
 	push @$context_value, $self->context_match_item;
-	while ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] eq ',') {
+	while ($self->{tokens_index} + 1 <= @{$self->{tokens}} and $self->{tokens}[$self->{tokens_index} + 0][1] eq ',') {
 		my @tokens = (@tokens, $self->step_tokens(1));
 		push @$context_value, $self->context_match_item;
 	}
@@ -239,7 +239,7 @@ sub context_match_list_arrow {
 
 	$context_value = $self->context_match_list_specifier($context_value);
 	$self->confess_at_current_offset('expected \'=>\'')
-		unless $self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] eq '=>';
+		unless $self->{tokens_index} + 1 <= @{$self->{tokens}} and $self->{tokens}[$self->{tokens_index} + 0][1] eq '=>';
 	@tokens = (@tokens, $self->step_tokens(1));
 	return $context_value;
 }
@@ -248,22 +248,22 @@ sub context_match_item {
 	while ($self->more_tokens) {
 		my @tokens;
 	
-		if ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][0] eq 'function_reference' and $self->{tokens}[$self->{tokens_index} + 1][1] eq '->') {
+		if ($self->{tokens_index} + 2 <= @{$self->{tokens}} and $self->{tokens}[$self->{tokens_index} + 0][0] eq 'function_reference' and $self->{tokens}[$self->{tokens_index} + 1][1] eq '->') {
 			my @tokens = (@tokens, $self->step_tokens(2));
 			return { type => 'function_match', line_number => $tokens[0][2], function => $tokens[0][1], argument => $self->context_spawn_expression, };
-		} elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][0] eq 'function_reference') {
+		} elsif ($self->{tokens_index} + 1 <= @{$self->{tokens}} and $self->{tokens}[$self->{tokens_index} + 0][0] eq 'function_reference') {
 			my @tokens = (@tokens, $self->step_tokens(1));
 			return { type => 'function_match', line_number => $tokens[0][2], function => $tokens[0][1], };
-		} elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][0] eq 'variable') {
+		} elsif ($self->{tokens_index} + 1 <= @{$self->{tokens}} and $self->{tokens}[$self->{tokens_index} + 0][0] eq 'variable') {
 			my @tokens = (@tokens, $self->step_tokens(1));
 			return { type => 'variable_match', line_number => $tokens[0][2], variable => $tokens[0][1], };
-		} elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][0] eq 'regex') {
+		} elsif ($self->{tokens_index} + 1 <= @{$self->{tokens}} and $self->{tokens}[$self->{tokens_index} + 0][0] eq 'regex') {
 			my @tokens = (@tokens, $self->step_tokens(1));
 			return { type => 'regex_match', line_number => $tokens[0][2], regex => $tokens[0][1], };
-		} elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][0] eq 'string') {
+		} elsif ($self->{tokens_index} + 1 <= @{$self->{tokens}} and $self->{tokens}[$self->{tokens_index} + 0][0] eq 'string') {
 			my @tokens = (@tokens, $self->step_tokens(1));
 			return { type => 'string_match', line_number => $tokens[0][2], string => $tokens[0][1], };
-		} elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] eq '*' and $self->{tokens}[$self->{tokens_index} + 1][0] eq 'identifier') {
+		} elsif ($self->{tokens_index} + 2 <= @{$self->{tokens}} and $self->{tokens}[$self->{tokens_index} + 0][1] eq '*' and $self->{tokens}[$self->{tokens_index} + 1][0] eq 'identifier') {
 			my @tokens = (@tokens, $self->step_tokens(2));
 			return { type => 'token_type_match', line_number => $tokens[0][2], value => $tokens[1][1], };
 		} else {
@@ -277,11 +277,11 @@ sub context_action_block {
 	my @tokens;
 
 	$self->confess_at_current_offset('"{" expected for code block')
-		unless $self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] eq '{';
+		unless $self->{tokens_index} + 1 <= @{$self->{tokens}} and $self->{tokens}[$self->{tokens_index} + 0][1] eq '{';
 	@tokens = (@tokens, $self->step_tokens(1));
 	$context_value = $self->context_match_action([]);
 	$self->confess_at_current_offset('"}" expected after code block')
-		unless $self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] eq '}';
+		unless $self->{tokens_index} + 1 <= @{$self->{tokens}} and $self->{tokens}[$self->{tokens_index} + 0][1] eq '}';
 	@tokens = (@tokens, $self->step_tokens(1));
 	return $context_value;
 }
@@ -290,68 +290,68 @@ sub context_match_action {
 	while ($self->more_tokens) {
 		my @tokens;
 	
-		if ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][0] eq 'variable' and $self->{tokens}[$self->{tokens_index} + 1][1] eq '=') {
+		if ($self->{tokens_index} + 2 <= @{$self->{tokens}} and $self->{tokens}[$self->{tokens_index} + 0][0] eq 'variable' and $self->{tokens}[$self->{tokens_index} + 1][1] eq '=') {
 			my @tokens = (@tokens, $self->step_tokens(2));
 			push @$context_value, { type => 'assign_item_statement', line_number => $tokens[0][2], variable => $tokens[0][1], expression => $self->context_spawn_expression, };
-		} elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][0] eq 'variable' and $self->{tokens}[$self->{tokens_index} + 1][1] eq '{') {
+		} elsif ($self->{tokens_index} + 2 <= @{$self->{tokens}} and $self->{tokens}[$self->{tokens_index} + 0][0] eq 'variable' and $self->{tokens}[$self->{tokens_index} + 1][1] eq '{') {
 			my @tokens = (@tokens, $self->step_tokens(2));
 			my $var_key_expression = $self->context_spawn_expression;
 			$self->confess_at_current_offset('"}" expected after key expression')
-				unless $self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] eq '}';
+				unless $self->{tokens_index} + 1 <= @{$self->{tokens}} and $self->{tokens}[$self->{tokens_index} + 0][1] eq '}';
 			@tokens = (@tokens, $self->step_tokens(1));
-			if ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] eq '{') {
+			if ($self->{tokens_index} + 1 <= @{$self->{tokens}} and $self->{tokens}[$self->{tokens_index} + 0][1] eq '{') {
 				my @tokens = (@tokens, $self->step_tokens(1));
 				my $var_subkey_expression = $self->context_spawn_expression;
 				$self->confess_at_current_offset('"}", "=" expected after sub-key expression')
-					unless $self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] eq '}' and $self->{tokens}[$self->{tokens_index} + 1][1] eq '=';
+					unless $self->{tokens_index} + 2 <= @{$self->{tokens}} and $self->{tokens}[$self->{tokens_index} + 0][1] eq '}' and $self->{tokens}[$self->{tokens_index} + 1][1] eq '=';
 				@tokens = (@tokens, $self->step_tokens(2));
 				push @$context_value, { type => 'assign_object_field_statement', line_number => $tokens[0][2], variable => $tokens[0][1], expression => $self->context_spawn_expression, subkey => $var_subkey_expression, key => $var_key_expression, };
-			} elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] eq '[') {
+			} elsif ($self->{tokens_index} + 1 <= @{$self->{tokens}} and $self->{tokens}[$self->{tokens_index} + 0][1] eq '[') {
 				my @tokens = (@tokens, $self->step_tokens(1));
 				$self->confess_at_current_offset('"]", "=" expected after array access expression')
-					unless $self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] eq ']' and $self->{tokens}[$self->{tokens_index} + 1][1] eq '=';
+					unless $self->{tokens_index} + 2 <= @{$self->{tokens}} and $self->{tokens}[$self->{tokens_index} + 0][1] eq ']' and $self->{tokens}[$self->{tokens_index} + 1][1] eq '=';
 				@tokens = (@tokens, $self->step_tokens(2));
 				push @$context_value, { type => 'assign_array_field_statement', line_number => $tokens[0][2], variable => $tokens[0][1], expression => $self->context_spawn_expression, key => $var_key_expression, };
 			} else {
 				$self->confess_at_current_offset('"=" expected after key expression')
-					unless $self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] eq '=';
+					unless $self->{tokens_index} + 1 <= @{$self->{tokens}} and $self->{tokens}[$self->{tokens_index} + 0][1] eq '=';
 				@tokens = (@tokens, $self->step_tokens(1));
 				push @$context_value, { type => 'assign_field_statement', line_number => $tokens[0][2], variable => $tokens[0][1], expression => $self->context_spawn_expression, key => $var_key_expression, };
 			}
-		} elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] eq 'push') {
+		} elsif ($self->{tokens_index} + 1 <= @{$self->{tokens}} and $self->{tokens}[$self->{tokens_index} + 0][1] eq 'push') {
 			my @tokens = (@tokens, $self->step_tokens(1));
 			push @$context_value, { type => 'push_statement', line_number => $tokens[0][2], expression => $self->context_spawn_expression, };
-		} elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] eq 'return') {
+		} elsif ($self->{tokens_index} + 1 <= @{$self->{tokens}} and $self->{tokens}[$self->{tokens_index} + 0][1] eq 'return') {
 			my @tokens = (@tokens, $self->step_tokens(1));
-			if ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] eq '}') {
+			if ($self->{tokens_index} + 1 <= @{$self->{tokens}} and $self->{tokens}[$self->{tokens_index} + 0][1] eq '}') {
 				push @$context_value, { type => 'return_statement', line_number => $tokens[0][2], };
 			} else {
 				push @$context_value, { type => 'return_expression_statement', line_number => $tokens[0][2], expression => $self->context_spawn_expression, };
 			}
-		} elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] eq 'match') {
+		} elsif ($self->{tokens_index} + 1 <= @{$self->{tokens}} and $self->{tokens}[$self->{tokens_index} + 0][1] eq 'match') {
 			my @tokens = (@tokens, $self->step_tokens(1));
 			my $var_statement = { type => 'match_statement', line_number => $tokens[0][2], match_list => $self->context_match_list_specifier, };
-			if ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] eq 'or' and $self->{tokens}[$self->{tokens_index} + 1][1] eq 'die') {
+			if ($self->{tokens_index} + 2 <= @{$self->{tokens}} and $self->{tokens}[$self->{tokens_index} + 0][1] eq 'or' and $self->{tokens}[$self->{tokens_index} + 1][1] eq 'die') {
 				my @tokens = (@tokens, $self->step_tokens(2));
 				$var_statement->{death_expression} = $self->context_spawn_expression;
 			}
 			push @$context_value, $var_statement;
-		} elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] eq 'if') {
+		} elsif ($self->{tokens_index} + 1 <= @{$self->{tokens}} and $self->{tokens}[$self->{tokens_index} + 0][1] eq 'if') {
 			my @tokens = (@tokens, $self->step_tokens(1));
 			push @$context_value, $self->context_if_chain({ type => 'if_statement', line_number => $tokens[0][2], match_list => $self->context_match_list_arrow, block => $self->context_action_block, });
-		} elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] eq 'switch') {
+		} elsif ($self->{tokens_index} + 1 <= @{$self->{tokens}} and $self->{tokens}[$self->{tokens_index} + 0][1] eq 'switch') {
 			my @tokens = (@tokens, $self->step_tokens(1));
 			$self->confess_at_current_offset('expected \'{\'')
-				unless $self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] eq '{';
+				unless $self->{tokens_index} + 1 <= @{$self->{tokens}} and $self->{tokens}[$self->{tokens_index} + 0][1] eq '{';
 			@tokens = (@tokens, $self->step_tokens(1));
 			push @$context_value, { type => 'switch_statement', line_number => $tokens[0][2], switch_cases => $self->context_switch_blocks([]), };
-		} elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] eq 'while') {
+		} elsif ($self->{tokens_index} + 1 <= @{$self->{tokens}} and $self->{tokens}[$self->{tokens_index} + 0][1] eq 'while') {
 			my @tokens = (@tokens, $self->step_tokens(1));
 			push @$context_value, { type => 'while_statement', line_number => $tokens[0][2], match_list => $self->context_match_list_arrow, block => $self->context_action_block, };
-		} elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] eq 'warn') {
+		} elsif ($self->{tokens_index} + 1 <= @{$self->{tokens}} and $self->{tokens}[$self->{tokens_index} + 0][1] eq 'warn') {
 			my @tokens = (@tokens, $self->step_tokens(1));
 			push @$context_value, { type => 'warn_statement', line_number => $tokens[0][2], expression => $self->context_spawn_expression, };
-		} elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] eq 'die') {
+		} elsif ($self->{tokens_index} + 1 <= @{$self->{tokens}} and $self->{tokens}[$self->{tokens_index} + 0][1] eq 'die') {
 			my @tokens = (@tokens, $self->step_tokens(1));
 			push @$context_value, { type => 'die_statement', line_number => $tokens[0][2], expression => $self->context_spawn_expression, };
 		} else {
@@ -365,14 +365,14 @@ sub context_switch_blocks {
 	while ($self->more_tokens) {
 		my @tokens;
 	
-		if ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] eq '}') {
+		if ($self->{tokens_index} + 1 <= @{$self->{tokens}} and $self->{tokens}[$self->{tokens_index} + 0][1] eq '}') {
 			my @tokens = (@tokens, $self->step_tokens(1));
 			return $context_value;
-		} elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] eq 'default') {
+		} elsif ($self->{tokens_index} + 1 <= @{$self->{tokens}} and $self->{tokens}[$self->{tokens_index} + 0][1] eq 'default') {
 			my @tokens = (@tokens, $self->step_tokens(1));
 			push @$context_value, { type => 'default_case', line_number => $tokens[0][2], block => $self->context_action_block, };
 			$self->confess_at_current_offset('expected \'}\'')
-				unless $self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] eq '}';
+				unless $self->{tokens_index} + 1 <= @{$self->{tokens}} and $self->{tokens}[$self->{tokens_index} + 0][1] eq '}';
 			@tokens = (@tokens, $self->step_tokens(1));
 			return $context_value;
 		} else {
@@ -386,11 +386,11 @@ sub context_if_chain {
 	while ($self->more_tokens) {
 		my @tokens;
 	
-		if ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] eq 'elsif') {
+		if ($self->{tokens_index} + 1 <= @{$self->{tokens}} and $self->{tokens}[$self->{tokens_index} + 0][1] eq 'elsif') {
 			my @tokens = (@tokens, $self->step_tokens(1));
 			$context_value->{'branch'} = $self->context_if_chain({ type => 'elsif_statement', line_number => $tokens[0][2], match_list => $self->context_match_list_arrow, block => $self->context_action_block, });
 			return $context_value;
-		} elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] eq 'else') {
+		} elsif ($self->{tokens_index} + 1 <= @{$self->{tokens}} and $self->{tokens}[$self->{tokens_index} + 0][1] eq 'else') {
 			my @tokens = (@tokens, $self->step_tokens(1));
 			$context_value->{'branch'} = { type => 'else_statement', line_number => $tokens[0][2], block => $self->context_action_block, };
 			return $context_value;
@@ -405,67 +405,67 @@ sub context_spawn_expression {
 	while ($self->more_tokens) {
 		my @tokens;
 	
-		if ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] =~ /\A(\$\d++)\Z/) {
+		if ($self->{tokens_index} + 1 <= @{$self->{tokens}} and $self->{tokens}[$self->{tokens_index} + 0][1] =~ /\A(\$\d++)\Z/) {
 			my @tokens = (@tokens, $self->step_tokens(1));
-			if ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] eq '{' and $self->{tokens}[$self->{tokens_index} + 1][1] eq 'line_number' and $self->{tokens}[$self->{tokens_index} + 2][1] eq '}') {
+			if ($self->{tokens_index} + 3 <= @{$self->{tokens}} and $self->{tokens}[$self->{tokens_index} + 0][1] eq '{' and $self->{tokens}[$self->{tokens_index} + 1][1] eq 'line_number' and $self->{tokens}[$self->{tokens_index} + 2][1] eq '}') {
 				my @tokens = (@tokens, $self->step_tokens(3));
 				return { type => 'get_token_line_number', line_number => $tokens[0][2], token => $tokens[0][1], };
-			} elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] eq '{' and $self->{tokens}[$self->{tokens_index} + 1][1] eq 'line_offset' and $self->{tokens}[$self->{tokens_index} + 2][1] eq '}') {
+			} elsif ($self->{tokens_index} + 3 <= @{$self->{tokens}} and $self->{tokens}[$self->{tokens_index} + 0][1] eq '{' and $self->{tokens}[$self->{tokens_index} + 1][1] eq 'line_offset' and $self->{tokens}[$self->{tokens_index} + 2][1] eq '}') {
 				my @tokens = (@tokens, $self->step_tokens(3));
 				return { type => 'get_token_line_offset', line_number => $tokens[0][2], token => $tokens[0][1], };
 			} else {
 				return { type => 'get_token_text', line_number => $tokens[0][2], token => $tokens[0][1], };
 			}
-		} elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] eq '$_') {
+		} elsif ($self->{tokens_index} + 1 <= @{$self->{tokens}} and $self->{tokens}[$self->{tokens_index} + 0][1] eq '$_') {
 			my @tokens = (@tokens, $self->step_tokens(1));
 			return $self->context_more_spawn_expression({ type => 'get_context', line_number => $tokens[0][2], });
-		} elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] eq 'pop') {
+		} elsif ($self->{tokens_index} + 1 <= @{$self->{tokens}} and $self->{tokens}[$self->{tokens_index} + 0][1] eq 'pop') {
 			my @tokens = (@tokens, $self->step_tokens(1));
 			warn ('pop expressions are deprecated');
 			return { type => 'pop_list', line_number => $tokens[0][2], };
-		} elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] eq '[' and $self->{tokens}[$self->{tokens_index} + 1][1] eq ']') {
+		} elsif ($self->{tokens_index} + 2 <= @{$self->{tokens}} and $self->{tokens}[$self->{tokens_index} + 0][1] eq '[' and $self->{tokens}[$self->{tokens_index} + 1][1] eq ']') {
 			my @tokens = (@tokens, $self->step_tokens(2));
 			return { type => 'empty_list', line_number => $tokens[0][2], };
-		} elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] eq '[') {
+		} elsif ($self->{tokens_index} + 1 <= @{$self->{tokens}} and $self->{tokens}[$self->{tokens_index} + 0][1] eq '[') {
 			my @tokens = (@tokens, $self->step_tokens(1));
 			return { type => 'list_constructor', line_number => $tokens[0][2], arguments => $self->context_spawn_expression_list([]), };
-		} elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] eq '{' and $self->{tokens}[$self->{tokens_index} + 1][1] eq '}') {
+		} elsif ($self->{tokens_index} + 2 <= @{$self->{tokens}} and $self->{tokens}[$self->{tokens_index} + 0][1] eq '{' and $self->{tokens}[$self->{tokens_index} + 1][1] eq '}') {
 			my @tokens = (@tokens, $self->step_tokens(2));
 			return { type => 'empty_hash', line_number => $tokens[0][2], };
-		} elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] eq '{') {
+		} elsif ($self->{tokens_index} + 1 <= @{$self->{tokens}} and $self->{tokens}[$self->{tokens_index} + 0][1] eq '{') {
 			my @tokens = (@tokens, $self->step_tokens(1));
 			return { type => 'hash_constructor', line_number => $tokens[0][2], arguments => $self->context_spawn_expression_hash([]), };
-		} elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][0] eq 'identifier' and $self->{tokens}[$self->{tokens_index} + 1][1] eq ':' and $self->{tokens}[$self->{tokens_index} + 2][1] eq '{') {
+		} elsif ($self->{tokens_index} + 3 <= @{$self->{tokens}} and $self->{tokens}[$self->{tokens_index} + 0][0] eq 'identifier' and $self->{tokens}[$self->{tokens_index} + 1][1] eq ':' and $self->{tokens}[$self->{tokens_index} + 2][1] eq '{') {
 			my @tokens = (@tokens, $self->step_tokens(3));
 			return { type => 'hash_constructor', line_number => $tokens[0][2], arguments => $self->context_spawn_expression_hash([ { type => 'bareword', line_number => $tokens[0][2], value => 'type', }, { type => 'bareword_string', line_number => $tokens[0][2], value => $tokens[0][1], }, { type => 'bareword', line_number => $tokens[0][2], value => 'line_number', }, { type => 'get_token_line_number', line_number => $tokens[0][2], token => '$0', }, ]), };
-		} elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] eq 'undef') {
+		} elsif ($self->{tokens_index} + 1 <= @{$self->{tokens}} and $self->{tokens}[$self->{tokens_index} + 0][1] eq 'undef') {
 			my @tokens = (@tokens, $self->step_tokens(1));
 			return { type => 'undef', line_number => $tokens[0][2], };
-		} elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][0] eq 'context_reference' and $self->{tokens}[$self->{tokens_index} + 1][1] eq '->') {
+		} elsif ($self->{tokens_index} + 2 <= @{$self->{tokens}} and $self->{tokens}[$self->{tokens_index} + 0][0] eq 'context_reference' and $self->{tokens}[$self->{tokens_index} + 1][1] eq '->') {
 			my @tokens = (@tokens, $self->step_tokens(2));
 			return { type => 'call_context', line_number => $tokens[0][2], context => $tokens[0][1], argument => $self->context_spawn_expression, };
-		} elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][0] eq 'context_reference') {
+		} elsif ($self->{tokens_index} + 1 <= @{$self->{tokens}} and $self->{tokens}[$self->{tokens_index} + 0][0] eq 'context_reference') {
 			my @tokens = (@tokens, $self->step_tokens(1));
 			return { type => 'call_context', line_number => $tokens[0][2], context => $tokens[0][1], };
-		} elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][0] eq 'function_reference' and $self->{tokens}[$self->{tokens_index} + 1][1] eq '->') {
+		} elsif ($self->{tokens_index} + 2 <= @{$self->{tokens}} and $self->{tokens}[$self->{tokens_index} + 0][0] eq 'function_reference' and $self->{tokens}[$self->{tokens_index} + 1][1] eq '->') {
 			my @tokens = (@tokens, $self->step_tokens(2));
 			return { type => 'call_function', line_number => $tokens[0][2], function => $tokens[0][1], argument => $self->context_spawn_expression, };
-		} elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][0] eq 'function_reference') {
+		} elsif ($self->{tokens_index} + 1 <= @{$self->{tokens}} and $self->{tokens}[$self->{tokens_index} + 0][0] eq 'function_reference') {
 			my @tokens = (@tokens, $self->step_tokens(1));
 			return { type => 'call_function', line_number => $tokens[0][2], function => $tokens[0][1], };
-		} elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][0] eq 'substitution_regex' and $self->{tokens}[$self->{tokens_index} + 1][1] eq '->') {
+		} elsif ($self->{tokens_index} + 2 <= @{$self->{tokens}} and $self->{tokens}[$self->{tokens_index} + 0][0] eq 'substitution_regex' and $self->{tokens}[$self->{tokens_index} + 1][1] eq '->') {
 			my @tokens = (@tokens, $self->step_tokens(2));
 			return { type => 'call_substitution', line_number => $tokens[0][2], regex => $tokens[0][1], argument => $self->context_spawn_expression, };
-		} elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][0] eq 'variable' and $self->{tokens}[$self->{tokens_index} + 1][1] eq '->') {
+		} elsif ($self->{tokens_index} + 2 <= @{$self->{tokens}} and $self->{tokens}[$self->{tokens_index} + 0][0] eq 'variable' and $self->{tokens}[$self->{tokens_index} + 1][1] eq '->') {
 			my @tokens = (@tokens, $self->step_tokens(2));
 			return { type => 'call_variable', line_number => $tokens[0][2], variable => $tokens[0][1], argument => $self->context_spawn_expression, };
-		} elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][0] eq 'variable') {
+		} elsif ($self->{tokens_index} + 1 <= @{$self->{tokens}} and $self->{tokens}[$self->{tokens_index} + 0][0] eq 'variable') {
 			my @tokens = (@tokens, $self->step_tokens(1));
 			return $self->context_more_spawn_expression({ type => 'variable_value', line_number => $tokens[0][2], variable => $tokens[0][1], });
-		} elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][0] eq 'string') {
+		} elsif ($self->{tokens_index} + 1 <= @{$self->{tokens}} and $self->{tokens}[$self->{tokens_index} + 0][0] eq 'string') {
 			my @tokens = (@tokens, $self->step_tokens(1));
 			return { type => 'string', line_number => $tokens[0][2], string => $tokens[0][1], };
-		} elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][0] eq 'identifier') {
+		} elsif ($self->{tokens_index} + 1 <= @{$self->{tokens}} and $self->{tokens}[$self->{tokens_index} + 0][0] eq 'identifier') {
 			my @tokens = (@tokens, $self->step_tokens(1));
 			return { type => 'bareword', line_number => $tokens[0][2], value => $tokens[0][1], };
 		} else {
@@ -479,11 +479,11 @@ sub context_more_spawn_expression {
 	while ($self->more_tokens) {
 		my @tokens;
 	
-		if ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] eq '{') {
+		if ($self->{tokens_index} + 1 <= @{$self->{tokens}} and $self->{tokens}[$self->{tokens_index} + 0][1] eq '{') {
 			my @tokens = (@tokens, $self->step_tokens(1));
 			$context_value = { type => 'access', line_number => $tokens[0][2], left_expression => $context_value, right_expression => $self->context_spawn_expression, };
 			$self->confess_at_current_offset('expected \'}\'')
-				unless $self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] eq '}';
+				unless $self->{tokens_index} + 1 <= @{$self->{tokens}} and $self->{tokens}[$self->{tokens_index} + 0][1] eq '}';
 			@tokens = (@tokens, $self->step_tokens(1));
 		} else {
 			return $context_value;
@@ -496,14 +496,14 @@ sub context_spawn_expression_list {
 	while ($self->more_tokens) {
 		my @tokens;
 	
-		if ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] eq ']') {
+		if ($self->{tokens_index} + 1 <= @{$self->{tokens}} and $self->{tokens}[$self->{tokens_index} + 0][1] eq ']') {
 			my @tokens = (@tokens, $self->step_tokens(1));
 			return $context_value;
 		} else {
 			push @$context_value, $self->context_spawn_expression;
-			if ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] eq ',') {
+			if ($self->{tokens_index} + 1 <= @{$self->{tokens}} and $self->{tokens}[$self->{tokens_index} + 0][1] eq ',') {
 				my @tokens = (@tokens, $self->step_tokens(1));
-			} elsif ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] eq ']') {
+			} elsif ($self->{tokens_index} + 1 <= @{$self->{tokens}} and $self->{tokens}[$self->{tokens_index} + 0][1] eq ']') {
 				my @tokens = (@tokens, $self->step_tokens(1));
 				return $context_value;
 			} else {
@@ -518,13 +518,13 @@ sub context_spawn_expression_hash {
 	while ($self->more_tokens) {
 		my @tokens;
 	
-		if ($self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] eq '}') {
+		if ($self->{tokens_index} + 1 <= @{$self->{tokens}} and $self->{tokens}[$self->{tokens_index} + 0][1] eq '}') {
 			my @tokens = (@tokens, $self->step_tokens(1));
 			return $context_value;
 		} else {
 			push @$context_value, $self->context_spawn_expression;
 			$self->confess_at_current_offset('expected \'=>\'')
-				unless $self->more_tokens and $self->{tokens}[$self->{tokens_index} + 0][1] eq '=>';
+				unless $self->{tokens_index} + 1 <= @{$self->{tokens}} and $self->{tokens}[$self->{tokens_index} + 0][1] eq '=>';
 			@tokens = (@tokens, $self->step_tokens(1));
 			push @$context_value, $self->context_spawn_expression;
 		}

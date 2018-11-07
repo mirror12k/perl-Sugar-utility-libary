@@ -281,7 +281,8 @@ sub compile_syntax_match_list {
 	push @{$conditions}, @{$match_list->{match_conditions}};
 	push @{$conditions}, @{$match_list->{look_ahead_conditons}};
 	my $compiled_conditions = [];
-	push @{$compiled_conditions}, '$self->more_tokens';
+	my $match_length = scalar(@{$conditions});
+	push @{$compiled_conditions}, "\$self->{tokens_index} + $match_length <= \@{\$self->{tokens}}";
 	my $i = 0;
 	foreach my $condition (@{$conditions}) {
 		push @{$compiled_conditions}, $self->compile_syntax_condition($condition, $i);

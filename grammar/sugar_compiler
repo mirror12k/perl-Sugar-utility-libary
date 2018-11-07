@@ -367,7 +367,10 @@ string sub compile_syntax_match_list (tree match_list) {
 	list push conditions, match_list.look_ahead_conditons;
 
 	list compiled_conditions = [];
-	push compiled_conditions, '$self->more_tokens';
+	# push compiled_conditions, '$self->more_tokens';
+
+	int match_length = length conditions;
+	push compiled_conditions, "\$self->{tokens_index} + $match_length <= \@{\$self->{tokens}}";
 
 	int i = 0;
 	foreach (tree condition in conditions) {
