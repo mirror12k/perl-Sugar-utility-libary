@@ -12,7 +12,7 @@ use overload '""' => 'path';
 
 
 use Sugar::IO::Dir;
-use Sugar::IO::Archive;
+# use Sugar::IO::Archive;
 
 
 
@@ -84,8 +84,10 @@ sub exists {
 	my ($self) = @_;
 	return -e -f $self->{file_path}
 }
+
 sub as_archive {
 	my ($self) = @_;
+	require Sugar::IO::Archive;
 	return Sugar::IO::Archive->new($self->path)
 }
 
