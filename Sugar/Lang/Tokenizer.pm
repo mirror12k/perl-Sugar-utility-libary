@@ -27,23 +27,24 @@ sub new {
 
 sub compile_tokenizer_regex {
 	my ($self) = @_;
+	use re 'eval';
 	my $token_pieces = join '|',
-			map "(?<$self->{token_regexes}[$_*2]>$self->{token_regexes}[$_*2+1])",
+			map "($self->{token_regexes}[$_*2+1])(?{'$self->{token_regexes}[$_*2]'})",
 				0 .. $#{$self->{token_regexes}} / 2;
 	$self->{tokenizer_regex} = qr/$token_pieces/so;
 
-	# optimized selector for token names, because %+ is slow
-	my @index_names = map $self->{token_regexes}[$_*2], 0 .. $#{$self->{token_regexes}} / 2;
-	my @index_variables = map "\$$_", 1 .. @index_names;
-	my $index_selectors = join "\n\tels",
-			map "if (defined $index_variables[$_]) { return '$index_names[$_]', $index_variables[$_]; }",
-			0 .. $#index_names;
+# 	# optimized selector for token names, because %+ is slow
+# 	my @index_names = map $self->{token_regexes}[$_*2], 0 .. $#{$self->{token_regexes}} / 2;
+# 	my @index_variables = map "\$$_", 1 .. @index_names;
+# 	my $index_selectors = join "\n\tels",
+# 			map "if (defined $index_variables[$_]) { return '$index_names[$_]', $index_variables[$_]; }",
+# 			0 .. $#index_names;
 
-	$self->{token_selector_callback} = eval "
-sub {
-	$index_selectors
-}
-";
+# 	$self->{token_selector_callback} = eval "
+# sub {
+# 	$index_selectors
+# }
+# ";
 }
 
 sub parse {
@@ -72,7 +73,8 @@ sub parse_tokens {
 	while ($text =~ /\G$self->{tokenizer_regex}/gco) {
 		# despite the absurdity of this solution, this is still faster than loading %+
 		# my ($token_type, $token_text) = each %+;
-		my ($token_type, $token_text) = $self->{token_selector_callback}->();
+		# my ($token_type, $token_text) = $self->{token_selector_callback}->();
+		my ($token_type, $token_text) = ($^R, $^N);
 
 		push @tokens, [ $token_type => $token_text, $line_number, $offset ];
 		$offset = pos $text;
