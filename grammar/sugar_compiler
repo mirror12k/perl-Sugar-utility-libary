@@ -301,7 +301,7 @@ string sub compile_syntax_context (tree context) {
 		push code, '';
 		list push code, self.compile_syntax_action(0, context.block);
 	} else {
-		push code, "while (\$self->more_tokens) {";
+		push code, "while (\$self->{tokens_index} < \@{\$self->{tokens}}) {";
 
 		push code, "\tmy \@tokens;";
 		push code, '';
@@ -323,7 +323,6 @@ string sub compile_syntax_context (tree context) {
 
 string sub compile_syntax_condition (tree condition, int offset) {
 	# my ($self, $context_type, $condition, $offset) = @_;
-	offset = 0 unless offset;
 	int tokens_array_offset = offset;
 	tokens_array_offset += self.tokens_scope_count;
 	string switch (condition.type) {
@@ -331,11 +330,11 @@ string sub compile_syntax_condition (tree condition, int offset) {
 			string function = self.get_function_by_name(condition.function);
 			if (contains condition.argument) {
 				string expression_code = self.compile_syntax_spawn_expression(condition.argument);
-				string token_expression = "\$self->$function(\$self->{tokens_index} + $offset, $expression_code)";
+				string token_expression = "\$self->$function(\$self->{tokens_index}, $expression_code)";
 				string token_memory_expression = "(\$tokens[$tokens_array_offset] = $token_expression)";
 				return token_memory_expression;
 			} else {
-				string token_expression = "\$self->$function(\$self->{tokens_index} + $offset)";
+				string token_expression = "\$self->$function(\$self->{tokens_index})";
 				string token_memory_expression = "(\$tokens[$tokens_array_offset] = $token_expression)";
 				return token_memory_expression;
 			}
@@ -343,7 +342,7 @@ string sub compile_syntax_condition (tree condition, int offset) {
 		'variable_match': {
 			if (condition.variable =~ /\A\$(\w++)\Z/s) {
 				string variable = self.get_variable(match[1]);
-				string token_expression = "\$self->{tokens}[\$self->{tokens_index} + $offset]";
+				string token_expression = "\$self->{tokens}[\$self->{tokens_index}++]";
 				string token_memory_expression = "(\$tokens[$tokens_array_offset] = $token_expression)";
 				return "$token_memory_expression\->[1] =~ /\\A($variable)\\Z/";
 			} else {
@@ -352,7 +351,7 @@ string sub compile_syntax_condition (tree condition, int offset) {
 		}
 		'regex_match': {
 			if (condition.regex =~ /\A\/(.*)\/([msixpodualn]*)\Z/s) {
-				string token_expression = "\$self->{tokens}[\$self->{tokens_index} + $offset]";
+				string token_expression = "\$self->{tokens}[\$self->{tokens_index}++]";
 				string token_memory_expression = "(\$tokens[$tokens_array_offset] = $token_expression)";
 				return "$token_memory_expression\->[1] =~ /\\A($1)\\Z/$2";
 			} else {
@@ -360,12 +359,12 @@ string sub compile_syntax_condition (tree condition, int offset) {
 			}
 		}
 		'string_match': {
-			string token_expression = "\$self->{tokens}[\$self->{tokens_index} + $offset]";
+			string token_expression = "\$self->{tokens}[\$self->{tokens_index}++]";
 			string token_memory_expression = "(\$tokens[$tokens_array_offset] = $token_expression)";
 			return "$token_memory_expression\->[1] eq $condition.string";
 		}
 		'token_type_match': {
-			string token_expression = "\$self->{tokens}[\$self->{tokens_index} + $offset]";
+			string token_expression = "\$self->{tokens}[\$self->{tokens_index}++]";
 			string token_memory_expression = "(\$tokens[$tokens_array_offset] = $token_expression)";
 			return "$token_memory_expression\->[0] eq '$condition.value'";
 		}
@@ -375,23 +374,74 @@ string sub compile_syntax_condition (tree condition, int offset) {
 	}
 }
 
+string sub compile_syntax_look_ahead_condition (tree condition, int offset) {
+	# my ($self, $context_type, $condition, $offset) = @_;
+	string switch (condition.type) {
+		'function_match': {
+			string function = self.get_function_by_name(condition.function);
+			if (contains condition.argument) {
+				string expression_code = self.compile_syntax_spawn_expression(condition.argument);
+				string token_expression = "\$self->$function(\$self->{tokens_index} + $offset, $expression_code)";
+				return token_expression;
+			} else {
+				string token_expression = "\$self->$function(\$self->{tokens_index} + $offset)";
+				return token_expression;
+			}
+		}
+		'variable_match': {
+			if (condition.variable =~ /\A\$(\w++)\Z/s) {
+				string variable = self.get_variable(match[1]);
+				string token_expression = "\$self->{tokens}[\$self->{tokens_index} + $offset]";
+				return "$token_expression\->[1] =~ /\\A($variable)\\Z/";
+			} else {
+				self.confess_at_current_line("invalid variable condition value: $condition.variable");
+			}
+		}
+		'regex_match': {
+			if (condition.regex =~ /\A\/(.*)\/([msixpodualn]*)\Z/s) {
+				string token_expression = "\$self->{tokens}[\$self->{tokens_index} + $offset]";
+				return "$token_expression\->[1] =~ /\\A($1)\\Z/$2";
+			} else {
+				self.confess_at_current_line("invalid regex condition value: $condition.regex");
+			}
+		}
+		'string_match': {
+			string token_expression = "\$self->{tokens}[\$self->{tokens_index} + $offset]";
+			return "$token_expression\->[1] eq $condition.string";
+		}
+		'token_type_match': {
+			string token_expression = "\$self->{tokens}[\$self->{tokens_index} + $offset]";
+			return "$token_expression\->[0] eq '$condition.value'";
+		}
+		default: {
+			self.confess_at_current_line("invalid syntax condition '$condition.type'");
+		}
+	}
+}
+
 string sub compile_syntax_match_list (tree match_list) {
 
-	list conditions = [];
-	list push conditions, match_list.match_conditions;
-	list push conditions, match_list.look_ahead_conditons;
+	# list conditions = [];
+	# list push conditions, match_list.match_conditions;
+	# list push conditions, match_list.look_ahead_conditons;
 
 	list compiled_conditions = [];
 	# push compiled_conditions, '$self->more_tokens';
 
-	int match_length = length conditions;
+	int match_length = list length match_list.match_conditions;
+	match_length += list length match_list.look_ahead_conditons;
 	# push compiled_conditions, "((\$self->{tokens_index} = \$self->{save_tokens_index}) or 1)";
 	push compiled_conditions, "((\$self->{tokens_index} = \$self->{save_tokens_index}) + $match_length <= \@{\$self->{tokens}})";
 	# push compiled_conditions, "\$self->{tokens_index} + $match_length <= \@{\$self->{tokens}}";
 
 	int i = 0;
-	foreach (tree condition in conditions) {
+	foreach (tree condition in match_list.match_conditions) {
 		push compiled_conditions, self.compile_syntax_condition(condition, i);
+		i += 1;
+	}
+	i = 0;
+	foreach (tree condition in match_list.look_ahead_conditons) {
+		push compiled_conditions, self.compile_syntax_look_ahead_condition(condition, i);
 		i += 1;
 	}
 	return join ' and ', compiled_conditions;
@@ -468,7 +518,7 @@ list sub compile_syntax_action (tree match_list, list actions_list) {
 			# string tokens_list_string = self.get_syntax_match_list_tokens_list(match_list);
 			# push code, "my \@tokens = (\@tokens, $tokens_list_string);";
 			# push code, "my \@tokens = (\@tokens, \$self->step_tokens($count));";
-			push code, "\$self->{tokens_index} += $count;";
+			# push code, "\$self->{tokens_index} += $count;";
 			push code, "\$self->{save_tokens_index} = \$self->{tokens_index};";
 			self.tokens_scope_count += count;
 		}
@@ -553,7 +603,7 @@ list sub compile_syntax_action (tree match_list, list actions_list) {
 					# string tokens_list_string = self.get_syntax_match_list_tokens_list(action.match_list);
 					# push code, "my \@tokens = (\@tokens, $tokens_list_string);";
 					# push code, "\@tokens = (\@tokens, \$self->step_tokens($count));";
-					push code, "\$self->{tokens_index} += $count;";
+					# push code, "\$self->{tokens_index} += $count;";
 					push code, "\$self->{save_tokens_index} = \$self->{tokens_index};";
 					self.tokens_scope_count += count;
 				}
@@ -578,10 +628,12 @@ list sub compile_syntax_action (tree match_list, list actions_list) {
 						list action_code = self.compile_syntax_action(branch.match_list, branch.block);
 
 						push code, "} else {";
+						push code, "\t\$self->{tokens_index} = \$self->{save_tokens_index};";
 						list push code, action_code;
 					}
 				}
 				push code, "}";
+				push code, "\$self->{tokens_index} = \$self->{save_tokens_index};";
 			}
 			'switch_statement': {
 				int first = 1;
@@ -602,12 +654,14 @@ list sub compile_syntax_action (tree match_list, list actions_list) {
 					} elsif (case.type == 'default_case') {
 						list action_code = self.compile_syntax_action(0, case.block);
 						push code, "} else {";
+						push code, "\t\$self->{tokens_index} = \$self->{save_tokens_index};";
 						list push code, action_code;
 					} else {
 						self.confess_at_current_line("invalid switch case type: $case.type");
 					}
 				}
 				push code, "}" unless first;
+				push code, "\$self->{tokens_index} = \$self->{save_tokens_index};";
 			}
 			'while_statement': {
 				string condition_code = self.compile_syntax_match_list(action.match_list);

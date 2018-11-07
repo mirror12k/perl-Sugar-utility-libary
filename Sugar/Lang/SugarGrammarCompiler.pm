@@ -226,7 +226,7 @@ sub compile_syntax_context {
 		push @{$code}, '';
 		push @{$code}, @{$self->compile_syntax_action(0, $context->{block})};
 	} else {
-		push @{$code}, "while (\$self->more_tokens) {";
+		push @{$code}, "while (\$self->{tokens_index} < \@{\$self->{tokens}}) {";
 		push @{$code}, "\tmy \@tokens;";
 		push @{$code}, '';
 		push @{$code}, @{$self->compile_syntax_action(0, $context->{block})};
@@ -243,27 +243,24 @@ sub compile_syntax_context {
 
 sub compile_syntax_condition {
 	my ($self, $condition, $offset) = @_;
-	if (not ($offset)) {
-		$offset = 0;
-	}
 	my $tokens_array_offset = $offset;
 	$tokens_array_offset += $self->{tokens_scope_count};
 	if (($condition->{type} eq 'function_match')) {
 		my $function = $self->get_function_by_name($condition->{function});
 		if (exists($condition->{argument})) {
 			my $expression_code = $self->compile_syntax_spawn_expression($condition->{argument});
-			my $token_expression = "\$self->$function(\$self->{tokens_index} + $offset, $expression_code)";
+			my $token_expression = "\$self->$function(\$self->{tokens_index}, $expression_code)";
 			my $token_memory_expression = "(\$tokens[$tokens_array_offset] = $token_expression)";
 			return $token_memory_expression;
 		} else {
-			my $token_expression = "\$self->$function(\$self->{tokens_index} + $offset)";
+			my $token_expression = "\$self->$function(\$self->{tokens_index})";
 			my $token_memory_expression = "(\$tokens[$tokens_array_offset] = $token_expression)";
 			return $token_memory_expression;
 		}
 	} elsif (($condition->{type} eq 'variable_match')) {
 		if (($condition->{variable} =~ /\A\$(\w++)\Z/s)) {
 			my $variable = $self->get_variable($1);
-			my $token_expression = "\$self->{tokens}[\$self->{tokens_index} + $offset]";
+			my $token_expression = "\$self->{tokens}[\$self->{tokens_index}++]";
 			my $token_memory_expression = "(\$tokens[$tokens_array_offset] = $token_expression)";
 			return "$token_memory_expression\->[1] =~ /\\A($variable)\\Z/";
 		} else {
@@ -271,18 +268,18 @@ sub compile_syntax_condition {
 		}
 	} elsif (($condition->{type} eq 'regex_match')) {
 		if (($condition->{regex} =~ /\A\/(.*)\/([msixpodualn]*)\Z/s)) {
-			my $token_expression = "\$self->{tokens}[\$self->{tokens_index} + $offset]";
+			my $token_expression = "\$self->{tokens}[\$self->{tokens_index}++]";
 			my $token_memory_expression = "(\$tokens[$tokens_array_offset] = $token_expression)";
 			return "$token_memory_expression\->[1] =~ /\\A($1)\\Z/$2";
 		} else {
 			$self->confess_at_current_line("invalid regex condition value: $condition->{regex}");
 		}
 	} elsif (($condition->{type} eq 'string_match')) {
-		my $token_expression = "\$self->{tokens}[\$self->{tokens_index} + $offset]";
+		my $token_expression = "\$self->{tokens}[\$self->{tokens_index}++]";
 		my $token_memory_expression = "(\$tokens[$tokens_array_offset] = $token_expression)";
 		return "$token_memory_expression\->[1] eq $condition->{string}";
 	} elsif (($condition->{type} eq 'token_type_match')) {
-		my $token_expression = "\$self->{tokens}[\$self->{tokens_index} + $offset]";
+		my $token_expression = "\$self->{tokens}[\$self->{tokens_index}++]";
 		my $token_memory_expression = "(\$tokens[$tokens_array_offset] = $token_expression)";
 		return "$token_memory_expression\->[0] eq '$condition->{value}'";
 	} else {
@@ -290,17 +287,58 @@ sub compile_syntax_condition {
 	}
 }
 
+sub compile_syntax_look_ahead_condition {
+	my ($self, $condition, $offset) = @_;
+	if (($condition->{type} eq 'function_match')) {
+		my $function = $self->get_function_by_name($condition->{function});
+		if (exists($condition->{argument})) {
+			my $expression_code = $self->compile_syntax_spawn_expression($condition->{argument});
+			my $token_expression = "\$self->$function(\$self->{tokens_index} + $offset, $expression_code)";
+			return $token_expression;
+		} else {
+			my $token_expression = "\$self->$function(\$self->{tokens_index} + $offset)";
+			return $token_expression;
+		}
+	} elsif (($condition->{type} eq 'variable_match')) {
+		if (($condition->{variable} =~ /\A\$(\w++)\Z/s)) {
+			my $variable = $self->get_variable($1);
+			my $token_expression = "\$self->{tokens}[\$self->{tokens_index} + $offset]";
+			return "$token_expression\->[1] =~ /\\A($variable)\\Z/";
+		} else {
+			$self->confess_at_current_line("invalid variable condition value: $condition->{variable}");
+		}
+	} elsif (($condition->{type} eq 'regex_match')) {
+		if (($condition->{regex} =~ /\A\/(.*)\/([msixpodualn]*)\Z/s)) {
+			my $token_expression = "\$self->{tokens}[\$self->{tokens_index} + $offset]";
+			return "$token_expression\->[1] =~ /\\A($1)\\Z/$2";
+		} else {
+			$self->confess_at_current_line("invalid regex condition value: $condition->{regex}");
+		}
+	} elsif (($condition->{type} eq 'string_match')) {
+		my $token_expression = "\$self->{tokens}[\$self->{tokens_index} + $offset]";
+		return "$token_expression\->[1] eq $condition->{string}";
+	} elsif (($condition->{type} eq 'token_type_match')) {
+		my $token_expression = "\$self->{tokens}[\$self->{tokens_index} + $offset]";
+		return "$token_expression\->[0] eq '$condition->{value}'";
+	} else {
+		$self->confess_at_current_line("invalid syntax condition '$condition->{type}'");
+	}
+}
+
 sub compile_syntax_match_list {
 	my ($self, $match_list) = @_;
-	my $conditions = [];
-	push @{$conditions}, @{$match_list->{match_conditions}};
-	push @{$conditions}, @{$match_list->{look_ahead_conditons}};
 	my $compiled_conditions = [];
-	my $match_length = scalar(@{$conditions});
+	my $match_length = scalar(@{$match_list->{match_conditions}});
+	$match_length += scalar(@{$match_list->{look_ahead_conditons}});
 	push @{$compiled_conditions}, "((\$self->{tokens_index} = \$self->{save_tokens_index}) + $match_length <= \@{\$self->{tokens}})";
 	my $i = 0;
-	foreach my $condition (@{$conditions}) {
+	foreach my $condition (@{$match_list->{match_conditions}}) {
 		push @{$compiled_conditions}, $self->compile_syntax_condition($condition, $i);
+		$i += 1;
+	}
+	$i = 0;
+	foreach my $condition (@{$match_list->{look_ahead_conditons}}) {
+		push @{$compiled_conditions}, $self->compile_syntax_look_ahead_condition($condition, $i);
 		$i += 1;
 	}
 	return join(' and ', @{$compiled_conditions});
@@ -364,7 +402,6 @@ sub compile_syntax_action {
 	if ($match_list) {
 		my $count = $self->get_syntax_match_list_tokens_eaten($match_list);
 		if (($count > 0)) {
-			push @{$code}, "\$self->{tokens_index} += $count;";
 			push @{$code}, "\$self->{save_tokens_index} = \$self->{tokens_index};";
 			$self->{tokens_scope_count} += $count;
 		}
@@ -427,7 +464,6 @@ sub compile_syntax_action {
 			push @{$code}, "\tunless $match_expression;";
 			my $count = $self->get_syntax_match_list_tokens_eaten($action->{match_list});
 			if (($count > 0)) {
-				push @{$code}, "\$self->{tokens_index} += $count;";
 				push @{$code}, "\$self->{save_tokens_index} = \$self->{tokens_index};";
 				$self->{tokens_scope_count} += $count;
 			}
@@ -447,10 +483,12 @@ sub compile_syntax_action {
 				} else {
 					my $action_code = $self->compile_syntax_action($branch->{match_list}, $branch->{block});
 					push @{$code}, "} else {";
+					push @{$code}, "\t\$self->{tokens_index} = \$self->{save_tokens_index};";
 					push @{$code}, @{$action_code};
 				}
 			}
 			push @{$code}, "}";
+			push @{$code}, "\$self->{tokens_index} = \$self->{save_tokens_index};";
 		} elsif (($action->{type} eq 'switch_statement')) {
 			my $first = 1;
 			foreach my $case (@{$action->{switch_cases}}) {
@@ -469,6 +507,7 @@ sub compile_syntax_action {
 				} elsif (($case->{type} eq 'default_case')) {
 					my $action_code = $self->compile_syntax_action(0, $case->{block});
 					push @{$code}, "} else {";
+					push @{$code}, "\t\$self->{tokens_index} = \$self->{save_tokens_index};";
 					push @{$code}, @{$action_code};
 				} else {
 					$self->confess_at_current_line("invalid switch case type: $case->{type}");
@@ -477,6 +516,7 @@ sub compile_syntax_action {
 			if (not ($first)) {
 				push @{$code}, "}";
 			}
+			push @{$code}, "\$self->{tokens_index} = \$self->{save_tokens_index};";
 		} elsif (($action->{type} eq 'while_statement')) {
 			my $condition_code = $self->compile_syntax_match_list($action->{match_list});
 			my $action_code = $self->compile_syntax_action($action->{match_list}, $action->{block});
