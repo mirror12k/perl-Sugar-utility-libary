@@ -196,6 +196,23 @@ sub confess_at_current_offset {
 
 	confess "error on $position: $msg$next_token";
 }
+sub confess_at_offset {
+	my ($self, $msg, $offset) = @_;
+
+	my $position;
+	my $next_token = '';
+	if ($offset < @{$self->{tokens}}) {
+		$position = 'line ' . $self->{tokens}[$offset][2];
+		my ($type, $val) = ($self->{tokens}[$offset][0], $self->{tokens}[$offset][1]);
+		$next_token = " (next token is $type => <$val>)";
+	} else {
+		$position = 'end of file';
+	}
+
+	# say $self->dump_at_current_offset;
+
+	confess "error on $position: $msg$next_token";
+}
 
 sub current_line_number {
 	my ($self) = @_;

@@ -313,6 +313,38 @@ $verifier->expect_result(
 	]);
 
 
+
+$verifier->expect_result(
+	'test match context result'
+	=> context_match_action
+	=> "
+		match 'asdf', !qwer, !zxcv->[]
+	"
+	=> [
+		{
+			'type' => 'match_statement',
+			'match_list' => { 'match_conditions' => [
+				{
+					'type' => 'string_match',
+					'line_number' => 2,
+					'string' => '\'asdf\''
+				},
+				{
+					'line_number' => 2,
+					'identifier' => '!qwer',
+					'type' => 'context_match'
+				},
+				{
+					'line_number' => 2,
+					'identifier' => '!zxcv',
+					'type' => 'context_match',
+					'argument' => { 'type' => 'empty_list', }
+				},
+			], 'look_ahead_conditons' => [] },
+		},
+	]);
+
+
 $verifier->run;
 
 
