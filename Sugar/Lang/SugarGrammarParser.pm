@@ -106,11 +106,11 @@ sub context_root {
 	my $save_tokens_index = $self->{tokens_index};
 	
 		$save_tokens_index = $self->{tokens_index};
-		if ((($self->{tokens_index} = $save_tokens_index) + 2 <= @{$self->{tokens}}) and ($tokens[0] = $self->{tokens}[$self->{tokens_index}++])->[0] eq 'identifier' and ($tokens[1] = $self->{tokens}[$self->{tokens_index}++])->[1] eq '=') {
+		if ((($self->{tokens_index} = $save_tokens_index) + 3 <= @{$self->{tokens}}) and ($tokens[0] = $self->{tokens}[$self->{tokens_index}++])->[0] eq 'identifier' and ($tokens[1] = $self->{tokens}[$self->{tokens_index}++])->[1] eq '=' and ($tokens[2] = $self->context_def_value)) {
 			$save_tokens_index = $self->{tokens_index};
 			$save_tokens_index = $self->{tokens_index};
 			push @{$context_value->{global_variable_names}}, $tokens[0][1];
-			$context_value->{global_variable_expressions}{$tokens[0][1]} = $self->context_def_value;
+			$context_value->{global_variable_expressions}{$tokens[0][1]} = $tokens[2];
 			$save_tokens_index = $self->{tokens_index};
 		} elsif ((($self->{tokens_index} = $save_tokens_index) + 2 <= @{$self->{tokens}}) and ($tokens[0] = $self->{tokens}[$self->{tokens_index}++])->[1] eq 'package' and ($tokens[1] = $self->{tokens}[$self->{tokens_index}++])->[0] eq 'package_identifier') {
 			$save_tokens_index = $self->{tokens_index};
@@ -122,34 +122,34 @@ sub context_root {
 			$save_tokens_index = $self->{tokens_index};
 			$context_value->{package_identifier} = $tokens[1][1];
 			$save_tokens_index = $self->{tokens_index};
-		} elsif ((($self->{tokens_index} = $save_tokens_index) + 2 <= @{$self->{tokens}}) and ($tokens[0] = $self->{tokens}[$self->{tokens_index}++])->[1] eq 'tokens' and ($tokens[1] = $self->{tokens}[$self->{tokens_index}++])->[1] eq '{') {
+		} elsif ((($self->{tokens_index} = $save_tokens_index) + 4 <= @{$self->{tokens}}) and ($tokens[0] = $self->{tokens}[$self->{tokens_index}++])->[1] eq 'tokens' and ($tokens[1] = $self->{tokens}[$self->{tokens_index}++])->[1] eq '{' and ($tokens[2] = $self->context_token_definition([])) and ($tokens[3] = $self->{tokens}[$self->{tokens_index}++])->[1] eq '}') {
 			$save_tokens_index = $self->{tokens_index};
 			$save_tokens_index = $self->{tokens_index};
-			$context_value->{tokens} = $self->context_token_definition([]);
+			$context_value->{tokens} = $tokens[2];
 			$save_tokens_index = $self->{tokens_index};
-		} elsif ((($self->{tokens_index} = $save_tokens_index) + 2 <= @{$self->{tokens}}) and ($tokens[0] = $self->{tokens}[$self->{tokens_index}++])->[1] eq 'ignored_tokens' and ($tokens[1] = $self->{tokens}[$self->{tokens_index}++])->[1] eq '{') {
-			$save_tokens_index = $self->{tokens_index};
-			$save_tokens_index = $self->{tokens_index};
-			$context_value->{ignored_tokens} = $self->context_ignored_tokens_list([]);
-			$save_tokens_index = $self->{tokens_index};
-		} elsif ((($self->{tokens_index} = $save_tokens_index) + 3 <= @{$self->{tokens}}) and ($tokens[0] = $self->{tokens}[$self->{tokens_index}++])->[1] eq 'item' and ($tokens[1] = $self->{tokens}[$self->{tokens_index}++])->[1] eq 'context' and ($tokens[2] = $self->{tokens}[$self->{tokens_index}++])->[0] eq 'identifier') {
+		} elsif ((($self->{tokens_index} = $save_tokens_index) + 4 <= @{$self->{tokens}}) and ($tokens[0] = $self->{tokens}[$self->{tokens_index}++])->[1] eq 'ignored_tokens' and ($tokens[1] = $self->{tokens}[$self->{tokens_index}++])->[1] eq '{' and ($tokens[2] = $self->context_ignored_tokens_list([])) and ($tokens[3] = $self->{tokens}[$self->{tokens_index}++])->[1] eq '}') {
 			$save_tokens_index = $self->{tokens_index};
 			$save_tokens_index = $self->{tokens_index};
-			my $var_context = { type => 'item_context', line_number => $tokens[0][2], identifier => $tokens[2][1], block => $self->context_action_block, };
+			$context_value->{ignored_tokens} = $tokens[2];
+			$save_tokens_index = $self->{tokens_index};
+		} elsif ((($self->{tokens_index} = $save_tokens_index) + 4 <= @{$self->{tokens}}) and ($tokens[0] = $self->{tokens}[$self->{tokens_index}++])->[1] eq 'item' and ($tokens[1] = $self->{tokens}[$self->{tokens_index}++])->[1] eq 'context' and ($tokens[2] = $self->{tokens}[$self->{tokens_index}++])->[0] eq 'identifier' and ($tokens[3] = $self->context_action_block)) {
+			$save_tokens_index = $self->{tokens_index};
+			$save_tokens_index = $self->{tokens_index};
+			my $var_context = { type => 'item_context', line_number => $tokens[0][2], identifier => $tokens[2][1], block => $tokens[3], };
 			push @{$context_value->{contexts}}, $var_context;
 			$context_value->{contexts_by_name}{$tokens[2][1]} = $var_context;
 			$save_tokens_index = $self->{tokens_index};
-		} elsif ((($self->{tokens_index} = $save_tokens_index) + 3 <= @{$self->{tokens}}) and ($tokens[0] = $self->{tokens}[$self->{tokens_index}++])->[1] eq 'list' and ($tokens[1] = $self->{tokens}[$self->{tokens_index}++])->[1] eq 'context' and ($tokens[2] = $self->{tokens}[$self->{tokens_index}++])->[0] eq 'identifier') {
+		} elsif ((($self->{tokens_index} = $save_tokens_index) + 4 <= @{$self->{tokens}}) and ($tokens[0] = $self->{tokens}[$self->{tokens_index}++])->[1] eq 'list' and ($tokens[1] = $self->{tokens}[$self->{tokens_index}++])->[1] eq 'context' and ($tokens[2] = $self->{tokens}[$self->{tokens_index}++])->[0] eq 'identifier' and ($tokens[3] = $self->context_action_block)) {
 			$save_tokens_index = $self->{tokens_index};
 			$save_tokens_index = $self->{tokens_index};
-			my $var_context = { type => 'list_context', line_number => $tokens[0][2], identifier => $tokens[2][1], block => $self->context_action_block, };
+			my $var_context = { type => 'list_context', line_number => $tokens[0][2], identifier => $tokens[2][1], block => $tokens[3], };
 			push @{$context_value->{contexts}}, $var_context;
 			$context_value->{contexts_by_name}{$tokens[2][1]} = $var_context;
 			$save_tokens_index = $self->{tokens_index};
-		} elsif ((($self->{tokens_index} = $save_tokens_index) + 3 <= @{$self->{tokens}}) and ($tokens[0] = $self->{tokens}[$self->{tokens_index}++])->[1] eq 'object' and ($tokens[1] = $self->{tokens}[$self->{tokens_index}++])->[1] eq 'context' and ($tokens[2] = $self->{tokens}[$self->{tokens_index}++])->[0] eq 'identifier') {
+		} elsif ((($self->{tokens_index} = $save_tokens_index) + 4 <= @{$self->{tokens}}) and ($tokens[0] = $self->{tokens}[$self->{tokens_index}++])->[1] eq 'object' and ($tokens[1] = $self->{tokens}[$self->{tokens_index}++])->[1] eq 'context' and ($tokens[2] = $self->{tokens}[$self->{tokens_index}++])->[0] eq 'identifier' and ($tokens[3] = $self->context_action_block)) {
 			$save_tokens_index = $self->{tokens_index};
 			$save_tokens_index = $self->{tokens_index};
-			my $var_context = { type => 'object_context', line_number => $tokens[0][2], identifier => $tokens[2][1], block => $self->context_action_block, };
+			my $var_context = { type => 'object_context', line_number => $tokens[0][2], identifier => $tokens[2][1], block => $tokens[3], };
 			push @{$context_value->{contexts}}, $var_context;
 			$context_value->{contexts_by_name}{$tokens[2][1]} = $var_context;
 			$save_tokens_index = $self->{tokens_index};
@@ -206,15 +206,14 @@ sub context_token_definition {
 	my $save_tokens_index = $self->{tokens_index};
 	
 		$save_tokens_index = $self->{tokens_index};
-		if ((($self->{tokens_index} = $save_tokens_index) + 1 <= @{$self->{tokens}}) and ($tokens[0] = $self->{tokens}[$self->{tokens_index}++])->[1] eq '}') {
-			$save_tokens_index = $self->{tokens_index};
+		if ((($self->{tokens_index} = $save_tokens_index) + 1 <= @{$self->{tokens}}) and $self->{tokens}[$self->{tokens_index} + 0]->[1] eq '}') {
 			$save_tokens_index = $self->{tokens_index};
 			return $context_value;
 			$save_tokens_index = $self->{tokens_index};
-		} elsif ((($self->{tokens_index} = $save_tokens_index) + 2 <= @{$self->{tokens}}) and ($tokens[0] = $self->{tokens}[$self->{tokens_index}++])->[0] eq 'identifier' and ($tokens[1] = $self->{tokens}[$self->{tokens_index}++])->[1] eq '=>') {
+		} elsif ((($self->{tokens_index} = $save_tokens_index) + 3 <= @{$self->{tokens}}) and ($tokens[0] = $self->{tokens}[$self->{tokens_index}++])->[0] eq 'identifier' and ($tokens[1] = $self->{tokens}[$self->{tokens_index}++])->[1] eq '=>' and ($tokens[2] = $self->context_def_value)) {
 			$save_tokens_index = $self->{tokens_index};
 			$save_tokens_index = $self->{tokens_index};
-			push @$context_value, { type => 'token_definition', line_number => $tokens[0][2], identifier => $tokens[0][1], value => $self->context_def_value, };
+			push @$context_value, { type => 'token_definition', line_number => $tokens[0][2], identifier => $tokens[0][1], value => $tokens[2], };
 			$save_tokens_index = $self->{tokens_index};
 		} else {
 			$self->{tokens_index} = $save_tokens_index;
@@ -232,8 +231,7 @@ sub context_ignored_tokens_list {
 	my $save_tokens_index = $self->{tokens_index};
 	
 		$save_tokens_index = $self->{tokens_index};
-		if ((($self->{tokens_index} = $save_tokens_index) + 1 <= @{$self->{tokens}}) and ($tokens[0] = $self->{tokens}[$self->{tokens_index}++])->[1] eq '}') {
-			$save_tokens_index = $self->{tokens_index};
+		if ((($self->{tokens_index} = $save_tokens_index) + 1 <= @{$self->{tokens}}) and $self->{tokens}[$self->{tokens_index} + 0]->[1] eq '}') {
 			$save_tokens_index = $self->{tokens_index};
 			return $context_value;
 			$save_tokens_index = $self->{tokens_index};
