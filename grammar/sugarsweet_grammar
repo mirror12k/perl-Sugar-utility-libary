@@ -50,10 +50,9 @@ ignored_tokens {
 # context definitions
 object context root {
 	switch {
-		'class' => {
+		'class', !class_identifier->[] => {
 			$_{classes}[] = !class_definition->class_declaration:{
-				# name => $1
-				name => !class_identifier
+				name => $1{value}
 			}
 		}
 		default {

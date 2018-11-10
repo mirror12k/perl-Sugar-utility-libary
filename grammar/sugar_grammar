@@ -44,9 +44,9 @@ ignored_tokens {
 # context definitions
 object context root {
 	switch {
-		*identifier, '=', !def_value => {
+		*identifier, '=' => {
 			$_{global_variable_names}[] = $0
-			$_{global_variable_expressions}{$0} = $2{value}
+			$_{global_variable_expressions}{$0} = !def_value
 		}
 		'package', *package_identifier => {
 			$_{package_identifier} = $1
@@ -54,11 +54,11 @@ object context root {
 		'package', *identifier => {
 			$_{package_identifier} = $1
 		}
-		'tokens', '{', !token_definition->[], '}' => {
-			$_{tokens} = $2{value}
+		'tokens', '{' => {
+			$_{tokens} = !token_definition->[]
 		}
-		'ignored_tokens', '{', !ignored_tokens_list->[], '}' => {
-			$_{ignored_tokens} = $2{value}
+		'ignored_tokens', '{' => {
+			$_{ignored_tokens} = !ignored_tokens_list->[]
 		}
 		'item', 'context', *identifier, !action_block => {
 			$context = item_context:{
@@ -67,8 +67,6 @@ object context root {
 			}
 			$_{contexts}[] = $context
 			$_{contexts_by_name}{$2} = $context
-			# $_{context_order}[] = $2
-			# $_{item_contexts}{$2} = !action_block
 		}
 		'list', 'context', *identifier, !action_block => {
 			$context = list_context:{
@@ -77,8 +75,6 @@ object context root {
 			}
 			$_{contexts}[] = $context
 			$_{contexts_by_name}{$2} = $context
-			# $_{context_order}[] = $2
-			# $_{list_contexts}{$2} = !action_block
 		}
 		'object', 'context', *identifier, !action_block => {
 			$context = object_context:{
@@ -87,11 +83,8 @@ object context root {
 			}
 			$_{contexts}[] = $context
 			$_{contexts_by_name}{$2} = $context
-			# $_{context_order}[] = $2
-			# $_{object_contexts}{$2} = !action_block
 		}
 		'sub', *identifier, *code_block => {
-			# $_{subroutine_order}[] = $1
 			$_{subroutines}[] = subroutine:{
 				identifier => $1
 				code_block => $2
@@ -122,13 +115,13 @@ item context def_value {
 
 list context token_definition {
 	switch {
-		('}') => {
+		'}' => {
 			return
 		}
-		*identifier, '=>', !def_value => {
+		*identifier, '=>' => {
 			push token_definition:{
 				identifier => $0
-				value => $2{value}
+				value => !def_value
 			}
 		}
 		default {
@@ -139,7 +132,7 @@ list context token_definition {
 
 list context ignored_tokens_list {
 	switch {
-		('}') => {
+		'}' => {
 			return
 		}
 		*identifier => {
