@@ -1,0 +1,116 @@
+
+# declare our class name
+package example::JSONParser
+
+# compile with ./Sugar/Lang/SugarGrammarCompiler.pm example/json_parser.sugar > example/JSONParser.pm
+
+
+
+# define all of our parser tokens as regex
+tokens {
+	# all groups must be set to non-capturing with ?:
+	string => /"(?:[^"\\]|\\["\\\/bfnrt])*"/s
+	# order matters, as earlier tokens will be tested first before later ones
+	identifier => /[a-zA-Z_][a-zA-Z0-9_]*+/
+	symbol => /\{|\}|\[|\]|,|:/
+	number => /-?(?:0|[1-9][0-9]*)(?:\.[0-9]+)?(?:[eE][\+\-]?[0-9]+)?/
+	# standard regex flags are accepted
+	whitespace => /\s++/s
+}
+# define which tokens get filtered off before syntax parsing
+ignored_tokens {
+	whitespace
+}
+
+
+# root context must be defined
+# it is the entry point to your syntax parser
+object context root {
+	# parse a single json value, and return it
+	return !json_value
+}
+
+# a context which is meant to match a json value
+object context json_value {
+	# switch a list of possible token matches
+	switch {
+		# match a string token by it's token type
+		*string => {
+			# return an object of type string_value, with a value of the string token we matched
+			return string_value:{
+				value => $0
+			}
+		}
+		*number => {
+			return number_value:{
+				value => $0
+			}
+		}
+		# match a boolean value by regex
+		/true|false/ => {
+			# return a boolean value
+			return boolean_value:{
+				value => $0
+			}
+		}
+		# match a null value by exact token value
+		'null' => {
+			# return a null value
+			return null_value:{}
+		}
+		# match a json list by the exact tokens and a json_list context in the middle
+		'[', !json_list->[], ']' => {
+			# return a list_value with the values matched by json_list
+			return list_value:{
+				value => $1{value}
+			}
+		}
+		'{', !json_object->{}, '}' => {
+			# reutrn an object value
+			return object_value:{
+				value => $1{value}
+			}
+		}
+		default {
+			# if we couldn't match anything, throw an exception and kill the parser
+			die 'expected json value'
+		}
+	}
+}
+
+list context json_list {
+	# peek the next token to see if we have to leave immediately
+	if (']') => {
+		return
+	}
+
+	# match a json value and push it into our list
+	push !json_value
+	# look for a comma and match another json value if we find it
+	while ',' => {
+		push !json_value
+		# look for a comma again...
+	}
+	return
+}
+
+object context json_object {
+	# peek the next token to see if we have to leave immediately
+	if ('}') => {
+		return
+	}
+
+	# match the key string, a colon, and a json value
+	match *string, ':', !json_value
+	# assign the value by the string key
+	$_{$0} = $2{value}
+	# look for a comma and match another json value if we find it
+	while ',' => {
+		# match another key-value pair
+		match *string, ':', !json_value
+		$_{$4} = $6{value}
+		# look for a comma again...
+	}
+	return
+}
+
