@@ -101,7 +101,11 @@ sub parse {
 sub context_root {
 	my ($self) = @_;
 	my $context_value = {};
-	while ($self->{tokens_index} < @{$self->{tokens}}) {
+	my $last_loop_index = -1;
+	while (1) {
+		$self->confess_at_current_offset('infinite loop in context_root')
+				if $last_loop_index == $self->{tokens_index};
+		$last_loop_index = $self->{tokens_index};
 		my @tokens;
 	my $save_tokens_index = $self->{tokens_index};
 	
@@ -158,6 +162,10 @@ sub context_root {
 			$save_tokens_index = $self->{tokens_index};
 			push @{$context_value->{subroutines}}, { type => 'subroutine', line_number => $tokens[0][2], identifier => $tokens[1][1], code_block => $tokens[2][1], };
 			$save_tokens_index = $self->{tokens_index};
+		} else {
+			$self->{tokens_index} = $save_tokens_index;
+			return $context_value;
+			$save_tokens_index = $self->{tokens_index};
 		}
 		$self->{tokens_index} = $save_tokens_index;
 	}
@@ -165,7 +173,11 @@ sub context_root {
 }
 sub context_def_value {
 	my ($self, $context_value) = @_;
-	while ($self->{tokens_index} < @{$self->{tokens}}) {
+	my $last_loop_index = -1;
+	while (1) {
+		$self->confess_at_current_offset('infinite loop in context_def_value')
+				if $last_loop_index == $self->{tokens_index};
+		$last_loop_index = $self->{tokens_index};
 		my @tokens;
 	my $save_tokens_index = $self->{tokens_index};
 	
@@ -201,7 +213,11 @@ sub context_def_value {
 }
 sub context_token_definition {
 	my ($self, $context_value) = @_;
-	while ($self->{tokens_index} < @{$self->{tokens}}) {
+	my $last_loop_index = -1;
+	while (1) {
+		$self->confess_at_current_offset('infinite loop in context_token_definition')
+				if $last_loop_index == $self->{tokens_index};
+		$last_loop_index = $self->{tokens_index};
 		my @tokens;
 	my $save_tokens_index = $self->{tokens_index};
 	
@@ -227,7 +243,11 @@ sub context_token_definition {
 }
 sub context_ignored_tokens_list {
 	my ($self, $context_value) = @_;
-	while ($self->{tokens_index} < @{$self->{tokens}}) {
+	my $last_loop_index = -1;
+	while (1) {
+		$self->confess_at_current_offset('infinite loop in context_ignored_tokens_list')
+				if $last_loop_index == $self->{tokens_index};
+		$last_loop_index = $self->{tokens_index};
 		my @tokens;
 	my $save_tokens_index = $self->{tokens_index};
 	
@@ -317,7 +337,11 @@ sub context_match_list_arrow {
 }
 sub context_match_item {
 	my ($self, $context_value) = @_;
-	while ($self->{tokens_index} < @{$self->{tokens}}) {
+	my $last_loop_index = -1;
+	while (1) {
+		$self->confess_at_current_offset('infinite loop in context_match_item')
+				if $last_loop_index == $self->{tokens_index};
+		$last_loop_index = $self->{tokens_index};
 		my @tokens;
 	my $save_tokens_index = $self->{tokens_index};
 	
@@ -389,7 +413,11 @@ sub context_action_block {
 }
 sub context_match_action {
 	my ($self, $context_value) = @_;
-	while ($self->{tokens_index} < @{$self->{tokens}}) {
+	my $last_loop_index = -1;
+	while (1) {
+		$self->confess_at_current_offset('infinite loop in context_match_action')
+				if $last_loop_index == $self->{tokens_index};
+		$last_loop_index = $self->{tokens_index};
 		my @tokens;
 	my $save_tokens_index = $self->{tokens_index};
 	
@@ -512,7 +540,11 @@ sub context_match_action {
 }
 sub context_switch_blocks {
 	my ($self, $context_value) = @_;
-	while ($self->{tokens_index} < @{$self->{tokens}}) {
+	my $last_loop_index = -1;
+	while (1) {
+		$self->confess_at_current_offset('infinite loop in context_switch_blocks')
+				if $last_loop_index == $self->{tokens_index};
+		$last_loop_index = $self->{tokens_index};
 		my @tokens;
 	my $save_tokens_index = $self->{tokens_index};
 	
@@ -543,7 +575,11 @@ sub context_switch_blocks {
 }
 sub context_if_chain {
 	my ($self, $context_value) = @_;
-	while ($self->{tokens_index} < @{$self->{tokens}}) {
+	my $last_loop_index = -1;
+	while (1) {
+		$self->confess_at_current_offset('infinite loop in context_if_chain')
+				if $last_loop_index == $self->{tokens_index};
+		$last_loop_index = $self->{tokens_index};
 		my @tokens;
 	my $save_tokens_index = $self->{tokens_index};
 	
@@ -571,7 +607,11 @@ sub context_if_chain {
 }
 sub context_spawn_expression {
 	my ($self, $context_value) = @_;
-	while ($self->{tokens_index} < @{$self->{tokens}}) {
+	my $last_loop_index = -1;
+	while (1) {
+		$self->confess_at_current_offset('infinite loop in context_spawn_expression')
+				if $last_loop_index == $self->{tokens_index};
+		$last_loop_index = $self->{tokens_index};
 		my @tokens;
 	my $save_tokens_index = $self->{tokens_index};
 	
@@ -704,7 +744,11 @@ sub context_spawn_expression {
 }
 sub context_more_spawn_expression {
 	my ($self, $context_value) = @_;
-	while ($self->{tokens_index} < @{$self->{tokens}}) {
+	my $last_loop_index = -1;
+	while (1) {
+		$self->confess_at_current_offset('infinite loop in context_more_spawn_expression')
+				if $last_loop_index == $self->{tokens_index};
+		$last_loop_index = $self->{tokens_index};
 		my @tokens;
 	my $save_tokens_index = $self->{tokens_index};
 	
@@ -729,7 +773,11 @@ sub context_more_spawn_expression {
 }
 sub context_spawn_expression_list {
 	my ($self, $context_value) = @_;
-	while ($self->{tokens_index} < @{$self->{tokens}}) {
+	my $last_loop_index = -1;
+	while (1) {
+		$self->confess_at_current_offset('infinite loop in context_spawn_expression_list')
+				if $last_loop_index == $self->{tokens_index};
+		$last_loop_index = $self->{tokens_index};
 		my @tokens;
 	my $save_tokens_index = $self->{tokens_index};
 	
@@ -766,7 +814,11 @@ sub context_spawn_expression_list {
 }
 sub context_spawn_expression_hash {
 	my ($self, $context_value) = @_;
-	while ($self->{tokens_index} < @{$self->{tokens}}) {
+	my $last_loop_index = -1;
+	while (1) {
+		$self->confess_at_current_offset('infinite loop in context_spawn_expression_hash')
+				if $last_loop_index == $self->{tokens_index};
+		$last_loop_index = $self->{tokens_index};
 		my @tokens;
 	my $save_tokens_index = $self->{tokens_index};
 	

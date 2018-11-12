@@ -90,6 +90,9 @@ object context root {
 				code_block => $2
 			}
 		}
+		default {
+			return
+		}
 	}
 }
 

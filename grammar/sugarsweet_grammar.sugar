@@ -56,7 +56,8 @@ object context root {
 			}
 		}
 		default {
-			die 'expected class definition'
+			return
+			# die 'expected class definition'
 		}
 	}
 }

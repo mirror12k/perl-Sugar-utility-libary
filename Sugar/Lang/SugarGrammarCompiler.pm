@@ -227,7 +227,11 @@ sub compile_syntax_context {
 		push @{$code}, '';
 		push @{$code}, @{$self->compile_syntax_action(0, $context->{block})};
 	} else {
-		push @{$code}, "while (\$self->{tokens_index} < \@{\$self->{tokens}}) {";
+		push @{$code}, "my \$last_loop_index = -1;";
+		push @{$code}, "while (1) {";
+		push @{$code}, "\t\$self->confess_at_current_offset('infinite loop in context_$context->{identifier}')";
+		push @{$code}, "\t\t\tif \$last_loop_index == \$self->{tokens_index};";
+		push @{$code}, "\t\$last_loop_index = \$self->{tokens_index};";
 		push @{$code}, "\tmy \@tokens;";
 		push @{$code}, "my \$save_tokens_index = \$self->{tokens_index};";
 		push @{$code}, '';
