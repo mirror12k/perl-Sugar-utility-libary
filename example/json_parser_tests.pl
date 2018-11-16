@@ -15,23 +15,21 @@ my $verifier = Sugar::Test::LangVerifier->new(
 );
 
 $verifier->expect_result(
-	'test string'
-	=> context_root
-	=> '
+	'test string',
+	text => '
 		"asdf
 
 "
-	'
-	=> { type => 'string_value', value => "\"asdf\n\n\"" }
+	',
+	expected_result => { type => 'string_value', value => "\"asdf\n\n\"" }
 );
 
 $verifier->expect_result(
-	'test list'
-	=> context_root
-	=> '
+	'test list',
+	text => '
 		[ "asdf", "qwer"]
-	'
-	=> {
+	',
+	expected_result => {
 		type => 'list_value',
 		value => [
 			{ type => 'string_value', value => '"asdf"' },
@@ -41,12 +39,11 @@ $verifier->expect_result(
 );
 
 $verifier->expect_result(
-	'test values'
-	=> context_root
-	=> '
+	'test values',
+	text => '
 		[ true, false, null ]
-	'
-	=> {
+	',
+	expected_result => {
 		type => 'list_value',
 		value => [
 			{ type => 'boolean_value', value => 'true' },
@@ -57,12 +54,11 @@ $verifier->expect_result(
 );
 
 $verifier->expect_result(
-	'test numbers'
-	=> context_root
-	=> '
+	'test numbers',
+	text => '
 		[ 1, 2, -3, 0, 102030, 0.15, 0.00100, 1e10, 1E-15, -123.156e-1 ]
-	'
-	=> {
+	',
+	expected_result => {
 		type => 'list_value',
 		value => [
 			{ type => 'number_value', value => '1' },
@@ -80,30 +76,27 @@ $verifier->expect_result(
 );
 
 $verifier->expect_error(
-	'test value error'
-	=> context_root
-	=> '
+	'test value error',
+	text => '
 		[ asdf ]
-	'
-	=> qr/expected json value/,
+	',
+	expected_error => qr/expected json value/,
 );
 
 $verifier->expect_error(
-	'test list error'
-	=> context_root
-	=> '
+	'test list error',
+	text => '
 		[true,]
-	'
-	=> qr/expected json value/,
+	',
+	expected_error => qr/expected json value/,
 );
 
 $verifier->expect_result(
-	'test recursive list'
-	=> context_root
-	=> '
+	'test recursive list',
+	text => '
 		[[], ["zxcv"], [ "asdf", "qwer"]]
-	'
-	=> {
+	',
+	expected_result => {
 		type => 'list_value',
 		value => [
 			{ type => 'list_value', value => [], },
@@ -125,12 +118,11 @@ $verifier->expect_result(
 );
 
 $verifier->expect_result(
-	'test object'
-	=> context_root
-	=> '
+	'test object',
+	text => '
 		{"asdf":true, "qwer": false}
-	'
-	=> {
+	',
+	expected_result => {
 		type => 'object_value',
 		value => {
 			'"asdf"' => { type => 'boolean_value', value => 'true' },
@@ -140,12 +132,11 @@ $verifier->expect_result(
 );
 
 $verifier->expect_result(
-	'test object recursive'
-	=> context_root
-	=> '
+	'test object recursive',
+	text => '
 		{"a": {"asdf":true, "qwer": false}, "b":{}}
-	'
-	=> {
+	',
+	expected_result => {
 		type => 'object_value',
 		value => {
 			'"a"' => {

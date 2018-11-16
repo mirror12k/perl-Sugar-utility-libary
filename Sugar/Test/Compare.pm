@@ -15,7 +15,7 @@ sub compare_values {
 	return compare_values_array($config, $v1, $v2, $access_key) if ref $v1 eq 'ARRAY';
 	die "v1$access_key is not defined\n" if not defined $v1 and defined $v2;
 	die "v2$access_key is not defined\n" if not defined $v2 and defined $v1;
-	die "v1$access_key and v2$access_key do not match: [$v1] <=> [$v2]\n" unless $v1 eq $v2;
+	die "v1$access_key and v2$access_key do not match: [$v1] <=> [$v2]\n" if defined $v1 and defined $v2 and $v1 ne $v2;
 }
 
 

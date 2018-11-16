@@ -19,43 +19,39 @@ my $verifier = Sugar::Test::LangVerifier->new(
 $verifier->{ignore_keys}{contexts_by_name} = 1;
 
 $verifier->expect_result(
-	'test comments'
-	=> context_root
-	=> "
+	'test comments',
+	text => "
 		# asdf qewkengiwniwf9r2339t9023r9203r9203r#(@#
-	"
-	=> {}
+	",
+	expected_result => {}
 );
 
 $verifier->expect_result(
-	'test ignored tokens'
-	=> context_root
-	=> "
+	'test ignored tokens',
+	text => "
 		ignored_tokens {
 			comment
 			whitespace
 		}
-	"
-	=> {
+	",
+	expected_result => {
 		ignored_tokens => [ 'comment', 'whitespace', ],
 	}
 );
 
 $verifier->expect_result(
-	'test package name'
-	=> context_root
-	=> "
+	'test package name',
+	text => "
 		package Awesome::Test::Package
-	"
-	=> {
+	",
+	expected_result => {
 		package_identifier => 'Awesome::Test::Package',
 	}
 );
 
 $verifier->expect_result(
-	'test tokens list and def values'
-	=> context_root
-	=> "
+	'test tokens list and def values',
+	text => "
 		tokens {
 			test_a => \$var_a
 			symbol => /[a-z_][a-z0-9_]*/
@@ -63,8 +59,8 @@ $verifier->expect_result(
 
 			comment => '# hello world!'
 		}
-	"
-	=> {
+	",
+	expected_result => {
 		tokens => [
 			{ type => 'token_definition', identifier => 'test_a',
 					value => { type => 'variable_value', value => '$var_a', }, },
@@ -79,16 +75,15 @@ $verifier->expect_result(
 );
 
 $verifier->expect_result(
-	'test item context'
-	=> context_root
-	=> "
+	'test item context',
+	text => "
 		item context token_definition {
 			match ')'
 			\$_ = \$0
 			return \$1
 		}
-	"
-	=> {
+	",
+	expected_result => {
 	'contexts' => [
 		{
 			'identifier' => 'token_definition',
@@ -118,9 +113,8 @@ $verifier->expect_result(
 });
 
 $verifier->expect_result(
-	'test list context'
-	=> context_root
-	=> "
+	'test list context',
+	text => "
 		list context mycoolcontext {
 			switch {
 				*my_type => {
@@ -132,8 +126,8 @@ $verifier->expect_result(
 				/qwer/ => {}
 			}
 		}
-	"
-	=> {
+	",
+	expected_result => {
 	'contexts' => [
 		{
 			'identifier' => 'mycoolcontext',
@@ -194,9 +188,8 @@ $verifier->expect_result(
 });
 
 $verifier->expect_result(
-	'test object context'
-	=> context_root
-	=> "
+	'test object context',
+	text => "
 		object context objdefinition {
 			\$_ = {
 				asdf => []
@@ -208,8 +201,8 @@ $verifier->expect_result(
 			\$_{my_hash}{wat} = \$0
 			return \$_
 		}
-	"
-	=> {
+	",
+	expected_result => {
 	'contexts' => [
 		{
 			'identifier' => 'objdefinition',
@@ -284,23 +277,22 @@ $verifier->expect_result(
 
 
 $verifier->expect_error(
-	'missing def value error'
-	=> context_root
-	=> "
+	'missing def value error',
+	text => "
 		asdf = A::B
-	"
-	=> qr/unexpected token in def_value/);
+	",
+	expected_error => qr/unexpected token in def_value/);
 
 
 
 $verifier->expect_result(
-	'test match action simple'
-	=> context_match_action
-	=> "
+	'test match action simple',
+	context_key => 'context_match_action',
+	text => "
 		\$_ = \$0
 		return \$1
-	"
-	=> [
+	",
+	expected_result => [
 		{
 			'type' => 'assign_item_statement',
 			'expression' => { 'token' => '$0', 'type' => 'get_token_text' },
@@ -315,12 +307,12 @@ $verifier->expect_result(
 
 
 $verifier->expect_result(
-	'test match context result'
-	=> context_match_action
-	=> "
+	'test match context result',
+	context_key => 'context_match_action',
+	text => "
 		match 'asdf', !qwer, !zxcv->[]
-	"
-	=> [
+	",
+	expected_result => [
 		{
 			'type' => 'match_statement',
 			'match_list' => { 'match_conditions' => [
