@@ -10,7 +10,9 @@ sugar_compiler:
 	chmod +x temp_compiled_file
 	mv temp_compiled_file Sugar/Lang/SugarGrammarCompiler.pm
 sugarsweet_grammar:
-	./Sugar/Lang/SugarGrammarCompiler.pm grammar/sugarsweet_grammar.sugar > Sugar/Lang/SugarsweetParser.pm
+	./Sugar/Lang/SugarGrammarCompiler.pm grammar/sugarsweet_grammar.sugar > temp_compiled_file
+	chmod +x temp_compiled_file
+	mv temp_compiled_file Sugar/Lang/SugarsweetParser.pm
 sugarsweet_compiler:
 	./Sugar/Lang/SugarsweetCompiler.pm grammar/sugarsweet_compiler.sugarsweet > temp_compiled_file
 	chmod +x temp_compiled_file

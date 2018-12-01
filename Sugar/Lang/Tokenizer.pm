@@ -184,9 +184,9 @@ sub confess_at_current_offset {
 
 	my $position;
 	my $next_token = '';
-	if ($self->more_tokens) {
+	if ($self->{tokens_index} < @{$self->{tokens}}) {
 		$position = 'line ' . $self->{tokens}[$self->{tokens_index}][2];
-		my ($type, $val) = @{$self->peek_token};
+		my ($type, $val) = @{$self->{tokens}[$self->{tokens_index}]};
 		$next_token = " (next token is $type => <$val>)";
 	} else {
 		$position = 'end of file';
