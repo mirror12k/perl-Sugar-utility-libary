@@ -250,7 +250,7 @@ string sub compile_syntax_token_value(tree value) {
 		'regex_value': {
 			return "qr$value.value";
 		}
-		'substitution_regex': {
+		'substitution_regex_value': {
 			return "sub { \$_[0] =~ ${value.value}r }";
 		}
 		'variable_value': {

@@ -189,7 +189,7 @@ sub compile_syntax_token_value {
 	my ($self, $value) = @_;
 	if (($value->{type} eq 'regex_value')) {
 		return "qr$value->{value}";
-	} elsif (($value->{type} eq 'substitution_regex')) {
+	} elsif (($value->{type} eq 'substitution_regex_value')) {
 		return "sub { \$_[0] =~ $value->{value}r }";
 	} elsif (($value->{type} eq 'variable_value')) {
 		return $self->get_variable($value->{value});
