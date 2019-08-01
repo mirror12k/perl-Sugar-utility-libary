@@ -91,12 +91,12 @@ $verifier->expect_result(
 			'block' => [
 				{
 					'type' => 'match_statement',
-					'match_list' => {
+					'match_list' => [{
 						'match_conditions' => [
 							{ 'type' => 'string_match', 'string' => '\')\'' }
 						],
 						'look_ahead_conditons' => []
-					},
+					}],
 				},
 				{
 					'type' => 'assign_item_statement',
@@ -138,12 +138,12 @@ $verifier->expect_result(
 					'switch_cases' => [
 						{
 							'type' => 'match_case',
-							'match_list' => {
+							'match_list' => [{
 								'match_conditions' => [
 									{ 'type' => 'token_type_match', 'value' => 'my_type' }
 								],
 								'look_ahead_conditons' => [],
-							},
+							}],
 
 							'block' => [
 								{
@@ -162,22 +162,22 @@ $verifier->expect_result(
 						},
 						{
 							'type' => 'match_case',
-							'match_list' => {
+							'match_list' => [{
 								'match_conditions' => [
 									{ 'type' => 'string_match', 'string' => "'asdf'" }
 								],
 								'look_ahead_conditons' => [],
-							},
+							}],
 							'block' => [],
 						},
 						{
 							'type' => 'match_case',
-							'match_list' => {
+							'match_list' => [{
 								'match_conditions' => [
 									{ 'type' => 'regex_match', 'regex' => "/qwer/" }
 								],
 								'look_ahead_conditons' => [],
-							},
+							}],
 							'block' => [],
 						},
 					],
@@ -315,7 +315,7 @@ $verifier->expect_result(
 	expected_result => [
 		{
 			'type' => 'match_statement',
-			'match_list' => { 'match_conditions' => [
+			'match_list' => [{ 'match_conditions' => [
 				{
 					'type' => 'string_match',
 					'line_number' => 2,
@@ -332,7 +332,7 @@ $verifier->expect_result(
 					'type' => 'context_match',
 					'argument' => { 'type' => 'empty_list', }
 				},
-			], 'look_ahead_conditons' => [] },
+			], 'look_ahead_conditons' => [] }],
 		},
 	]);
 

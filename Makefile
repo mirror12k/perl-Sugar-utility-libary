@@ -38,6 +38,8 @@ test_sugar_grammar:
 test_json_example:
 	./Sugar/Lang/SugarGrammarCompiler.pm example/json_parser.sugar > example/JSONParser.pm
 	./example/json_parser_tests.pl
+	./Sugar/Lang/SugarGrammarCompiler.pm example/json_parser.synth > example/JSONParser.pm
+	./example/json_parser_tests.pl
 
 profile_sugar_compiler:
 	perl -d:NYTProf Sugar/Lang/SugarGrammarParser.pm grammar/sugar_grammar.sugar > temp_compiled_file

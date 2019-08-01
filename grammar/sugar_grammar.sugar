@@ -3,7 +3,7 @@ package Sugar::Lang::SugarGrammarParser
 
 # regex definitions
 code_block_regex = /\{\{.*?\}\}/s
-symbol_regex = /\(|\)|\{|\}|\[|\]|->|=>|=|,|\*|:/
+symbol_regex = /\(|\)|\{|\}|\[|\]|->|=>|=|,|\||\*|:/
 
 package_identifier_regex = /[a-zA-Z_][a-zA-Z0-9_]*+(?:\:\:[a-zA-Z_][a-zA-Z0-9_]*+)++/
 identifier_regex = /[a-zA-Z_][a-zA-Z0-9_]*+/
@@ -147,7 +147,15 @@ list context ignored_tokens_list {
 	}
 }
 
-object context match_list_specifier {
+list context match_list_specifier {
+	push !match_list_specifier_branch
+	while '|' => {
+		push !match_list_specifier_branch
+	}
+	return
+}
+
+object context match_list_specifier_branch {
 	$_ = {
 		match_conditions => []
 		look_ahead_conditons => []
@@ -174,15 +182,30 @@ list context match_conditions_list {
 }
 
 list context match_list_arrow {
-	$_ = !match_list_specifier->$_
+	$_ = !match_list_specifier
 	match '=>'
 	return
 }
 
 item context match_item {
 	switch {
+		*identifier, ':', '{', *identifier, '}', '=' => {
+			$_ = !match_item
+			$_{assign_object_type} = $0
+			$_{assign_object_value} = $3
+			return $_
+		}
+		'{', *identifier, '}', '=' => {
+			$_ = !match_item
+			$_{assign_object_value} = $0
+			return $_
+		}
+		'[', ']', '=' => {
+			$_ = !match_item
+			$_{assign_list_value} = $0
+			return $_
+		}
 		*variable, '=' => {
-			warn 'assign variable'
 			$_ = !match_item
 			$_{assign_variable} = $0
 			return $_
@@ -210,6 +233,9 @@ item context match_item {
 		}
 		'*', *identifier => {
 			return token_type_match:{ value => $1 }
+		}
+		'die', !spawn_expression => {
+			return death_match:{ argument => $1{value} }
 		}
 		default {
 			die 'expected match item'

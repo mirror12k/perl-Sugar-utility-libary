@@ -313,12 +313,50 @@ sub compile_syntax_condition {
 		my $token_expression = "\$self->{tokens}[\$self->{tokens_index}++]";
 		my $token_memory_expression = "(\$tokens[$tokens_array_offset] = $token_expression)";
 		$token_condition_string = "$token_memory_expression\->[0] eq '$condition->{value}'";
+	} elsif (($condition->{type} eq 'death_match')) {
+		my $expression = $self->compile_syntax_spawn_expression($condition->{argument});
+		$token_condition_string = "\$self->confess_at_current_offset($expression)";
 	} else {
 		$self->confess_at_current_line("invalid syntax condition '$condition->{type}'");
 	}
 	if (exists($condition->{assign_variable})) {
 		my $variable = $self->add_variable($condition->{assign_variable});
-		$token_condition_string = "($token_condition_string and my $variable = \$tokens[$tokens_array_offset][1])";
+		my $value_expression;
+		if (($condition->{type} eq 'function_match')) {
+			$value_expression = "\$tokens[$tokens_array_offset]";
+		} elsif (($condition->{type} eq 'context_match')) {
+			$value_expression = "\$tokens[$tokens_array_offset]";
+		} else {
+			$value_expression = "\$tokens[$tokens_array_offset][1]";
+		}
+		$token_condition_string = "($token_condition_string and do { my $variable = $value_expression; 1 })";
+	}
+	if (exists($condition->{assign_object_value})) {
+		my $variable = $condition->{assign_object_value};
+		my $value_expression;
+		if (($condition->{type} eq 'function_match')) {
+			$value_expression = "\$tokens[$tokens_array_offset]";
+		} elsif (($condition->{type} eq 'context_match')) {
+			$value_expression = "\$tokens[$tokens_array_offset]";
+		} else {
+			$value_expression = "\$tokens[$tokens_array_offset][1]";
+		}
+		$token_condition_string = "($token_condition_string and do { \$context_value->{$variable} = $value_expression; 1 })";
+	}
+	if (exists($condition->{assign_list_value})) {
+		my $value_expression;
+		if (($condition->{type} eq 'function_match')) {
+			$value_expression = "\$tokens[$tokens_array_offset]";
+		} elsif (($condition->{type} eq 'context_match')) {
+			$value_expression = "\$tokens[$tokens_array_offset]";
+		} else {
+			$value_expression = "\$tokens[$tokens_array_offset][1]";
+		}
+		$token_condition_string = "($token_condition_string and do { push \@\$context_value, $value_expression; 1 })";
+	}
+	if (exists($condition->{assign_object_type})) {
+		my $type_value = $condition->{assign_object_type};
+		$token_condition_string = "($token_condition_string and \$context_value->{type} = '$type_value')";
 	}
 	return $token_condition_string;
 }
@@ -358,12 +396,20 @@ sub compile_syntax_look_ahead_condition {
 	} elsif (($condition->{type} eq 'token_type_match')) {
 		my $token_expression = "\$self->{tokens}[\$self->{tokens_index} + $offset]";
 		return "$token_expression\->[0] eq '$condition->{value}'";
+	} elsif (($condition->{type} eq 'death_match')) {
+		my $expression = $self->compile_syntax_spawn_expression($condition->{argument});
+		return "\$self->confess_at_current_offset($expression)";
 	} else {
 		$self->confess_at_current_line("invalid syntax condition '$condition->{type}'");
 	}
 }
 
 sub compile_syntax_match_list {
+	my ($self, $match_list) = @_;
+	return join(" \n\t\t\t\tor ", @{[ map { "($_)" } @{[ map { $self->compile_syntax_match_list_branch($_) } @{$match_list} ]} ]});
+}
+
+sub compile_syntax_match_list_branch {
 	my ($self, $match_list) = @_;
 	my $compiled_conditions = [];
 	my $match_length = scalar(@{$match_list->{match_conditions}});
@@ -384,7 +430,11 @@ sub compile_syntax_match_list {
 
 sub get_syntax_match_list_tokens_eaten {
 	my ($self, $match_list) = @_;
-	return scalar(@{$match_list->{match_conditions}});
+	my $i = 0;
+	foreach my $branch (@{$match_list}) {
+		$i += scalar(@{$branch->{match_conditions}});
+	}
+	return $i;
 }
 
 sub get_syntax_match_list_tokens_list {
@@ -400,6 +450,11 @@ sub get_syntax_match_list_tokens_list {
 }
 
 sub syntax_match_list_as_string {
+	my ($self, $match_list) = @_;
+	return join(' or ', @{[ map { $self->syntax_match_list_branch_as_string($_) } @{$match_list} ]});
+}
+
+sub syntax_match_list_branch_as_string {
 	my ($self, $match_list) = @_;
 	my $conditions_string = join(', ', @{[ map { $self->syntax_condition_as_string($_) } @{$match_list->{match_conditions}} ]});
 	if ((0 < scalar(@{$match_list->{look_ahead_conditons}}))) {
@@ -428,6 +483,8 @@ sub syntax_condition_as_string {
 		return "$condition->{string}";
 	} elsif (($condition->{type} eq 'token_type_match')) {
 		return "$condition->{value} token";
+	} elsif (($condition->{type} eq 'death_match')) {
+		return "...";
 	} else {
 		$self->confess_at_current_line("invalid syntax condition '$condition->{type}'");
 	}
