@@ -60,7 +60,7 @@ object context root {
 		'ignored_tokens', '{' => {
 			$_{ignored_tokens} = !ignored_tokens_list->[]
 		}
-		'item', 'context', *identifier, !action_block => {
+		'item', /context|sub/, *identifier, !action_block => {
 			$context = item_context:{
 				identifier => $2
 				block => $3{value}
@@ -68,7 +68,7 @@ object context root {
 			$_{contexts}[] = $context
 			$_{contexts_by_name}{$2} = $context
 		}
-		'list', 'context', *identifier, !action_block => {
+		'list', /context|sub/, *identifier, !action_block => {
 			$context = list_context:{
 				identifier => $2
 				block => $3{value}
@@ -76,7 +76,7 @@ object context root {
 			$_{contexts}[] = $context
 			$_{contexts_by_name}{$2} = $context
 		}
-		'object', 'context', *identifier, !action_block => {
+		'object', /context|sub/, *identifier, !action_block => {
 			$context = object_context:{
 				identifier => $2
 				block => $3{value}
@@ -181,6 +181,12 @@ list context match_list_arrow {
 
 item context match_item {
 	switch {
+		*variable, '=' => {
+			warn 'assign variable'
+			$_ = !match_item
+			$_{assign_variable} = $0
+			return $_
+		}
 		*function_reference, '->', !spawn_expression => {
 			return function_match:{ function => $0 argument => $2{value} }
 		}
@@ -424,24 +430,24 @@ item context spawn_expression {
 
 
 		*context_reference, '->' => {
-			return call_context:{
+			return !more_spawn_expression->call_context:{
 				context => $0
 				argument => !spawn_expression
 			}
 		}
 		*context_reference => {
-			return call_context:{
+			return !more_spawn_expression->call_context:{
 				context => $0
 			}
 		}
 		*function_reference, '->' => {
-			return call_function:{
+			return !more_spawn_expression->call_function:{
 				function => $0
 				argument => !spawn_expression
 			}
 		}
 		*function_reference => {
-			return call_function:{
+			return !more_spawn_expression->call_function:{
 				function => $0
 			}
 		}

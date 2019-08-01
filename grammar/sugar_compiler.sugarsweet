@@ -348,6 +348,9 @@ string sub compile_syntax_condition (tree condition, int offset) {
 	# my ($self, $context_type, $condition, $offset) = @_;
 	int tokens_array_offset = offset;
 	tokens_array_offset += self.tokens_scope_count;
+
+	string token_condition_string;
+
 	string switch (condition.type) {
 		'function_match': {
 			string function = self.get_function_by_name(condition.function);
@@ -355,11 +358,11 @@ string sub compile_syntax_condition (tree condition, int offset) {
 				string expression_code = self.compile_syntax_spawn_expression(condition.argument);
 				string token_expression = "\$self->$function(\$self->{tokens_index}, $expression_code)";
 				string token_memory_expression = "(\$tokens[$tokens_array_offset] = $token_expression)";
-				return token_memory_expression;
+				token_condition_string = token_memory_expression;
 			} else {
 				string token_expression = "\$self->$function(\$self->{tokens_index})";
 				string token_memory_expression = "(\$tokens[$tokens_array_offset] = $token_expression)";
-				return token_memory_expression;
+				token_condition_string = token_memory_expression;
 			}
 		}
 		'context_match': {
@@ -368,11 +371,11 @@ string sub compile_syntax_condition (tree condition, int offset) {
 				string expression_code = self.compile_syntax_spawn_expression(condition.argument);
 				string token_expression = "\$self->$context($expression_code)";
 				string token_memory_expression = "(\$tokens[$tokens_array_offset] = $token_expression)";
-				return token_memory_expression;
+				token_condition_string = token_memory_expression;
 			} else {
 				string token_expression = "\$self->$context";
 				string token_memory_expression = "(\$tokens[$tokens_array_offset] = $token_expression)";
-				return token_memory_expression;
+				token_condition_string = token_memory_expression;
 			}
 		}
 		'variable_match': {
@@ -380,7 +383,7 @@ string sub compile_syntax_condition (tree condition, int offset) {
 				string variable = self.get_variable(match[1]);
 				string token_expression = "\$self->{tokens}[\$self->{tokens_index}++]";
 				string token_memory_expression = "(\$tokens[$tokens_array_offset] = $token_expression)";
-				return "$token_memory_expression\->[1] =~ /\\A($variable)\\Z/";
+				token_condition_string = "$token_memory_expression\->[1] =~ /\\A($variable)\\Z/";
 			} else {
 				self.confess_at_current_line("invalid variable condition value: $condition.variable");
 			}
@@ -389,7 +392,7 @@ string sub compile_syntax_condition (tree condition, int offset) {
 			if (condition.regex =~ /\A\/(.*)\/([msixpodualn]*)\Z/s) {
 				string token_expression = "\$self->{tokens}[\$self->{tokens_index}++]";
 				string token_memory_expression = "(\$tokens[$tokens_array_offset] = $token_expression)";
-				return "$token_memory_expression\->[1] =~ /\\A($1)\\Z/$2";
+				token_condition_string = "$token_memory_expression\->[1] =~ /\\A($1)\\Z/$2";
 			} else {
 				self.confess_at_current_line("invalid regex condition value: $condition.regex");
 			}
@@ -397,17 +400,24 @@ string sub compile_syntax_condition (tree condition, int offset) {
 		'string_match': {
 			string token_expression = "\$self->{tokens}[\$self->{tokens_index}++]";
 			string token_memory_expression = "(\$tokens[$tokens_array_offset] = $token_expression)";
-			return "$token_memory_expression\->[1] eq $condition.string";
+			token_condition_string = "$token_memory_expression\->[1] eq $condition.string";
 		}
 		'token_type_match': {
 			string token_expression = "\$self->{tokens}[\$self->{tokens_index}++]";
 			string token_memory_expression = "(\$tokens[$tokens_array_offset] = $token_expression)";
-			return "$token_memory_expression\->[0] eq '$condition.value'";
+			token_condition_string = "$token_memory_expression\->[0] eq '$condition.value'";
 		}
 		default: {
 			self.confess_at_current_line("invalid syntax condition '$condition.type'");
 		}
 	}
+
+	if (contains condition.assign_variable) {
+		string variable = self.add_variable(condition.assign_variable);
+		token_condition_string = "($token_condition_string and my $variable = \$tokens[$tokens_array_offset][1])";
+	}
+
+	return token_condition_string;
 }
 
 string sub compile_syntax_look_ahead_condition (tree condition, int offset) {
