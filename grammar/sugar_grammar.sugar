@@ -3,7 +3,7 @@ package Sugar::Lang::SugarGrammarParser
 
 # regex definitions
 code_block_regex = /\{\{.*?\}\}/s
-symbol_regex = /\(|\)|\{|\}|\[|\]|->|=>|=|,|\||\*|:/
+symbol_regex = /\(|\)|\{|\}|\[|\]|->|=>|=|,|\||\*|:|\@/
 
 package_identifier_regex = /[a-zA-Z_][a-zA-Z0-9_]*+(?:\:\:[a-zA-Z_][a-zA-Z0-9_]*+)++/
 identifier_regex = /[a-zA-Z_][a-zA-Z0-9_]*+/
@@ -160,6 +160,7 @@ object context match_list_specifier_branch {
 		match_conditions => []
 		look_ahead_conditons => []
 		optional_match_conditions => []
+		optional_loop_conditions => []
 	}
 	if '(' => {
 		$_{look_ahead_conditons} = !match_conditions_list
@@ -173,6 +174,9 @@ object context match_list_specifier_branch {
 	}
 	if '[' => {
 		$_{optional_match_conditions} = !match_conditions_list
+		match ']'
+	} elsif '@', '[' => {
+		$_{optional_loop_conditions} = !match_conditions_list
 		match ']'
 	}
 	

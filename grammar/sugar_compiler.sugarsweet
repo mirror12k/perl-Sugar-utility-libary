@@ -431,7 +431,7 @@ string sub compile_syntax_condition (tree condition, int offset) {
 		} else {
 			value_expression = "\$tokens[$tokens_array_offset][1]";
 		}
-		token_condition_string = "($token_condition_string and do { my $variable = $value_expression; 1 })";
+		token_condition_string = "($token_condition_string and ((my $variable = $value_expression) or do { 1 }))";
 	}
 
 	if (contains condition.assign_object_value) {
@@ -569,21 +569,29 @@ string sub compile_syntax_match_list_branch (tree match_list) {
 		i += 1;
 	}
 
+	int offset = self.get_match_list_match_length(match_list.match_conditions);
+
 	int count = list length match_list.optional_match_conditions;
 	if (count > 0) {
-		push compiled_conditions, self.compile_syntax_match_list_optional_branch(match_list.optional_match_conditions);
+		push compiled_conditions,
+				self.compile_syntax_match_list_optional_branch(match_list.optional_match_conditions, offset);
+	}
+
+	count = list length match_list.optional_loop_conditions;
+	if (count > 0) {
+		push compiled_conditions,
+				self.compile_syntax_match_list_optional_loop(match_list.optional_loop_conditions, offset);
 	}
 
 	return join ' and ', compiled_conditions;
 }
 
-string sub compile_syntax_match_list_optional_branch (list optional_match_list) {
+string sub compile_syntax_match_list_optional_branch (list optional_match_list, int i) {
 	list compiled_conditions = [];
 
 	int match_length = list length optional_match_list;
 	push compiled_conditions, "((\$self->{tokens_index} = \$save_tokens_index) + $match_length <= \@{\$self->{tokens}})";
 
-	int i = 0;
 	foreach (tree condition in optional_match_list) {
 		push compiled_conditions, self.compile_syntax_condition(condition, i);
 		i += 1;
@@ -591,6 +599,22 @@ string sub compile_syntax_match_list_optional_branch (list optional_match_list) 
 	string main_condition = join ' and ', compiled_conditions;
 	return "(do { \$save_tokens_index = \$self->{tokens_index}; 1 } and ($main_condition)
 						or do { \$self->{tokens_index} = \$save_tokens_index ; 1 })";
+}
+
+string sub compile_syntax_match_list_optional_loop (list optional_loop_match_list, int i) {
+	list compiled_conditions = [];
+
+	int match_length = list length optional_loop_match_list;
+	push compiled_conditions, "((\$self->{tokens_index} = \$save_tokens_index) + $match_length <= \@{\$self->{tokens}})";
+
+	foreach (tree condition in optional_loop_match_list) {
+		push compiled_conditions, self.compile_syntax_condition(condition, i);
+		i += 1;
+	}
+	string main_condition = join ' and ', compiled_conditions;
+	return "(do { \$save_tokens_index = \$self->{tokens_index}; while ($main_condition)
+						{ \$save_tokens_index = \$self->{tokens_index}; }
+						\$self->{tokens_index} = \$save_tokens_index; 1; })";
 }
 
 int sub get_syntax_match_list_tokens_eaten (tree match_list) {

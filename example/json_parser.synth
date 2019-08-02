@@ -74,26 +74,24 @@ object sub json_value {
 		| die 'expected json value'
 	return
 }
-# object sub json_value =>
-# 	string_value:{value} = *string
-# 		| number_value:{value} = *number
-# 		| boolean_value:{value} = /true|false/
-# 		| 'null', null_value:{value} => undef
-# 		| '[', ']', list_value:{value} => []
-# 		| '[', list_value:{value} = !json_list->[], ']'
-# 		| '{', '}', object_value:{value} => {}
-# 		| '{', object_value:{value} = !json_object->{}, '}'
-# 		| die 'expected json value'
+object sub json_value =>
+	string_value:{value} = *string
+		| number_value:{value} = *number
+		| boolean_value:{value} = /true|false/
+		| 'null', null_value:{value} => undef
+		| '[', ']', list_value:{value} => []
+		| '[', list_value:{value} = !json_list->[], ']'
+		| '{', '}', object_value:{value} => {}
+		| '{', object_value:{value} = !json_object->{}, '}'
+		| die 'expected json value'
 
 list sub json_list {
-	match [] = !json_value
-	while ',', [] = !json_value => {}
+	match [] = !json_value @[ ',', [] = !json_value ]
 	return
 }
 
 object sub json_object {
-	match *string, ':', {$0} => !json_value
-	while ',', *string, ':', {$3} => !json_value => {}
+	match *string, ':', {$0} => !json_value @[ ',', *string, ':', {$3} => !json_value ]
 	return
 }
 

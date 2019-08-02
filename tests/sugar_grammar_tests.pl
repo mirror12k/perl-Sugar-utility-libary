@@ -97,6 +97,7 @@ $verifier->expect_result(
 						],
 						'look_ahead_conditons' => [],
 						'optional_match_conditions' => [],
+						'optional_loop_conditions' => [],
 					}],
 				},
 				{
@@ -145,6 +146,7 @@ $verifier->expect_result(
 								],
 								'look_ahead_conditons' => [],
 								'optional_match_conditions' => [],
+								'optional_loop_conditions' => [],
 							}],
 
 							'block' => [
@@ -170,6 +172,7 @@ $verifier->expect_result(
 								],
 								'look_ahead_conditons' => [],
 								'optional_match_conditions' => [],
+								'optional_loop_conditions' => [],
 							}],
 							'block' => [],
 						},
@@ -181,6 +184,7 @@ $verifier->expect_result(
 								],
 								'look_ahead_conditons' => [],
 								'optional_match_conditions' => [],
+								'optional_loop_conditions' => [],
 							}],
 							'block' => [],
 						},
@@ -340,6 +344,7 @@ $verifier->expect_result(
 				],
 				'look_ahead_conditons' => [],
 				'optional_match_conditions' => [],
+				'optional_loop_conditions' => [],
 			}],
 		},
 	]);

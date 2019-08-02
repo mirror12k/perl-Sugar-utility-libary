@@ -333,7 +333,7 @@ sub compile_syntax_condition {
 		} else {
 			$value_expression = "\$tokens[$tokens_array_offset][1]";
 		}
-		$token_condition_string = "($token_condition_string and do { my $variable = $value_expression; 1 })";
+		$token_condition_string = "($token_condition_string and ((my $variable = $value_expression) or do { 1 }))";
 	}
 	if (exists($condition->{assign_object_value})) {
 		my $variable = $condition->{assign_object_value};
@@ -445,19 +445,23 @@ sub compile_syntax_match_list_branch {
 		push @{$compiled_conditions}, $self->compile_syntax_look_ahead_condition($condition, $i);
 		$i += 1;
 	}
+	my $offset = $self->get_match_list_match_length($match_list->{match_conditions});
 	my $count = scalar(@{$match_list->{optional_match_conditions}});
 	if (($count > 0)) {
-		push @{$compiled_conditions}, $self->compile_syntax_match_list_optional_branch($match_list->{optional_match_conditions});
+		push @{$compiled_conditions}, $self->compile_syntax_match_list_optional_branch($match_list->{optional_match_conditions}, $offset);
+	}
+	$count = scalar(@{$match_list->{optional_loop_conditions}});
+	if (($count > 0)) {
+		push @{$compiled_conditions}, $self->compile_syntax_match_list_optional_loop($match_list->{optional_loop_conditions}, $offset);
 	}
 	return join(' and ', @{$compiled_conditions});
 }
 
 sub compile_syntax_match_list_optional_branch {
-	my ($self, $optional_match_list) = @_;
+	my ($self, $optional_match_list, $i) = @_;
 	my $compiled_conditions = [];
 	my $match_length = scalar(@{$optional_match_list});
 	push @{$compiled_conditions}, "((\$self->{tokens_index} = \$save_tokens_index) + $match_length <= \@{\$self->{tokens}})";
-	my $i = 0;
 	foreach my $condition (@{$optional_match_list}) {
 		push @{$compiled_conditions}, $self->compile_syntax_condition($condition, $i);
 		$i += 1;
@@ -465,6 +469,21 @@ sub compile_syntax_match_list_optional_branch {
 	my $main_condition = join(' and ', @{$compiled_conditions});
 	return "(do { \$save_tokens_index = \$self->{tokens_index}; 1 } and ($main_condition)
 						or do { \$self->{tokens_index} = \$save_tokens_index ; 1 })";
+}
+
+sub compile_syntax_match_list_optional_loop {
+	my ($self, $optional_loop_match_list, $i) = @_;
+	my $compiled_conditions = [];
+	my $match_length = scalar(@{$optional_loop_match_list});
+	push @{$compiled_conditions}, "((\$self->{tokens_index} = \$save_tokens_index) + $match_length <= \@{\$self->{tokens}})";
+	foreach my $condition (@{$optional_loop_match_list}) {
+		push @{$compiled_conditions}, $self->compile_syntax_condition($condition, $i);
+		$i += 1;
+	}
+	my $main_condition = join(' and ', @{$compiled_conditions});
+	return "(do { \$save_tokens_index = \$self->{tokens_index}; while ($main_condition)
+						{ \$save_tokens_index = \$self->{tokens_index}; }
+						\$self->{tokens_index} = \$save_tokens_index; 1; })";
 }
 
 sub get_syntax_match_list_tokens_eaten {
