@@ -19,9 +19,7 @@ sub compile_file {
 	push @{$code}, "use warnings;";
 	push @{$code}, "use feature 'say';";
 	push @{$code}, "";
-	foreach my $class_tree (@{$syntax_tree->{classes}}) {
-		push @{$code}, @{$self->compile_class($class_tree)};
-	}
+	push @{$code}, @{[ map @$_, @{[ map { $self->compile_class($_) } @{$syntax_tree->{classes}} ]} ]};
 	push @{$code}, "";
 	return join("\n", @{$code});
 }

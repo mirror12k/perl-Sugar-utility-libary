@@ -22,9 +22,10 @@ string sub compile_file(tree syntax_tree) {
 	# push @code, "use feature 'say';";
 	# push @code, "";
 
-	foreach (tree class_tree in syntax_tree.classes) {
-		list push code, self.compile_class(class_tree);
-	}
+	list push code, flatten map { self.compile_class(_) } syntax_tree.classes;
+	# foreach (tree class_tree in syntax_tree.classes) {
+	# 	list push code, self.compile_class(class_tree);
+	# }
 	# foreach my $class (@{$tree->{classes}}) {
 	# 	push @code, $self->compile_class($class);
 	# }

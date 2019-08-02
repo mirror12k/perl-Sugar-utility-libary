@@ -19,6 +19,8 @@ sugarsweet_compiler:
 	mv temp_compiled_file Sugar/Lang/SugarsweetCompiler.pm
 
 
+all_trial: trial_sugar_grammar trial_sugar_compiler trial_sugarsweet_grammar trial_sugarsweet_compiler
+
 trial_sugar_grammar:
 	./Sugar/Lang/SugarGrammarCompiler.pm grammar/sugar_grammar.sugar > SugarGrammarParser.pm
 	chmod +x SugarGrammarParser.pm
