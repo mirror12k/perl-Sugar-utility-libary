@@ -224,9 +224,9 @@ sub compile_syntax_context {
 	my $args_list_string = join(', ', @{$args_list});
 	push @{$code}, "my ($args_list_string) = \@_;";
 	if (($context->{identifier} eq 'root')) {
-		if (($context->{type} eq 'object_context')) {
+		if (($context->{context_type} eq 'object')) {
 			push @{$code}, "my \$context_value = {};";
-		} elsif (($context->{type} eq 'list_context')) {
+		} elsif (($context->{context_type} eq 'list')) {
 			push @{$code}, "my \$context_value = [];";
 		} else {
 			push @{$code}, "my \$context_value;";
@@ -586,7 +586,7 @@ sub compile_syntax_action {
 		$self->{current_line} = $action->{line_number};
 		if (($action->{type} eq 'push_statement')) {
 			my $expression = $self->compile_syntax_spawn_expression($action->{expression});
-			if (($self->{current_context}->{type} eq 'list_context')) {
+			if (($self->{current_context}->{context_type} eq 'list')) {
 				push @{$code}, "push \@\$context_value, $expression;";
 			} else {
 				$self->confess_at_current_line("use of push in $self->{current_context}{type}");
@@ -772,7 +772,7 @@ sub compile_syntax_spawn_expression {
 	} elsif (($expression->{type} eq 'get_context')) {
 		return "\$context_value";
 	} elsif (($expression->{type} eq 'pop_list')) {
-		if (($self->{current_context}->{type} eq 'list_context')) {
+		if (($self->{current_context}->{context_type} eq 'list_context')) {
 			return "pop \@\$context_value";
 		} else {
 			$self->confess_at_current_line("use of pop in $self->{current_context}{type}");

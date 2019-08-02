@@ -87,7 +87,8 @@ $verifier->expect_result(
 	'contexts' => [
 		{
 			'identifier' => 'token_definition',
-			'type' => 'item_context',
+			'type' => 'context_definition',
+			'context_type' => 'item',
 			'block' => [
 				{
 					'type' => 'match_statement',
@@ -133,7 +134,8 @@ $verifier->expect_result(
 	'contexts' => [
 		{
 			'identifier' => 'mycoolcontext',
-			'type' => 'list_context',
+			'type' => 'context_definition',
+			'context_type' => 'list',
 			'block' => [
 				{
 					'type' => 'switch_statement',
@@ -214,7 +216,8 @@ $verifier->expect_result(
 	'contexts' => [
 		{
 			'identifier' => 'objdefinition',
-			'type' => 'object_context',
+			'type' => 'context_definition',
+			'context_type' => 'object',
 			'block' => [
 				{
 					'type' => 'assign_item_statement',

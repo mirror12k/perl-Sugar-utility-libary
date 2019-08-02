@@ -300,9 +300,9 @@ string sub compile_syntax_context (tree context) {
 	push code, "my ($args_list_string) = \@_;";
 
 	if (context.identifier == 'root') {
-		if (context.type == 'object_context') {
+		if (context.context_type == 'object') {
 			push code, "my \$context_value = {};";
-		} elsif (context.type == 'list_context') {
+		} elsif (context.context_type == 'list') {
 			push code, "my \$context_value = [];";
 		} else {
 			push code, "my \$context_value;";
@@ -740,7 +740,7 @@ list sub compile_syntax_action (tree match_list, list actions_list) {
 		string switch (action.type) {
 			'push_statement': {
 				string expression = self.compile_syntax_spawn_expression(action.expression);
-				if (self.current_context.type == 'list_context') {
+				if (self.current_context.context_type == 'list') {
 					push code, "push \@\$context_value, $expression;";
 				} else {
 					self.confess_at_current_line("use of push in $self.current_context.type");
@@ -977,7 +977,7 @@ string sub compile_syntax_spawn_expression (tree expression) {
 			return "\$context_value";
 		}
 		'pop_list': {
-			if (self.current_context.type == 'list_context') {
+			if (self.current_context.context_type == 'list_context') {
 				return "pop \@\$context_value";
 			} else {
 				self.confess_at_current_line("use of pop in $self.current_context.type");
