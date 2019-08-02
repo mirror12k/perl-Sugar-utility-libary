@@ -137,6 +137,13 @@ sub context_root {
 			$save_tokens_index = $self->{tokens_index};
 			$context_value->{ignored_tokens} = $self->context_ignored_tokens_list([]);
 			$save_tokens_index = $self->{tokens_index};
+		} elsif (((($self->{tokens_index} = $save_tokens_index) + 5 <= @{$self->{tokens}}) and ($tokens[0] = $self->{tokens}[$self->{tokens_index}++])->[1] =~ /\A(item|list|object)\Z/ and ($tokens[1] = $self->{tokens}[$self->{tokens_index}++])->[1] =~ /\A(context|sub)\Z/ and ($tokens[2] = $self->{tokens}[$self->{tokens_index}++])->[0] eq 'identifier' and ($tokens[3] = $self->{tokens}[$self->{tokens_index}++])->[1] eq '=>' and ($tokens[4] = $self->context_match_list_specifier))) {
+			$save_tokens_index = $self->{tokens_index};
+			$save_tokens_index = $self->{tokens_index};
+			my $var_context = { type => 'context_definition', line_number => $tokens[0][2], context_type => $tokens[0][1], identifier => $tokens[2][1], block => [ { type => 'match_statement', line_number => $tokens[0][2], match_list => $tokens[4], }, { type => 'return_statement', line_number => $tokens[0][2], }, ], };
+			push @{$context_value->{contexts}}, $var_context;
+			$context_value->{contexts_by_name}{$tokens[2][1]} = $var_context;
+			$save_tokens_index = $self->{tokens_index};
 		} elsif (((($self->{tokens_index} = $save_tokens_index) + 4 <= @{$self->{tokens}}) and ($tokens[0] = $self->{tokens}[$self->{tokens_index}++])->[1] =~ /\A(item|list|object)\Z/ and ($tokens[1] = $self->{tokens}[$self->{tokens_index}++])->[1] =~ /\A(context|sub)\Z/ and ($tokens[2] = $self->{tokens}[$self->{tokens_index}++])->[0] eq 'identifier' and ($tokens[3] = $self->context_action_block))) {
 			$save_tokens_index = $self->{tokens_index};
 			$save_tokens_index = $self->{tokens_index};

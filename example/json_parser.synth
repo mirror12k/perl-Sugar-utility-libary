@@ -25,57 +25,10 @@ ignored_tokens {
 
 # root sub must be defined
 # it is the entry point to your syntax parser
-object sub root {
-	# parse a single json value, and return it
-	return !json_value
-}
+object sub root => $_ = !json_value
 
-# object sub json_value {
-# 	string_value->value = *string
-# 		| number_value->value = *number
-# 		| boolean_value->value = /true|false/
-# 		| 'null' null_value->value = undef
-# 		| '[' list_value->value = !json_list->[] ']'
-# 		| '{' object_value->value = !json_object->{} '}'
-# 		| die 'expected json value'
-# }
-
-# list sub json_list {
-# 	[ []=!json_value{value}
-# 		@[ ',' []=!json_value{value} ] ]
-# }
-
-# object sub json_object {
-# 	[ $key = *string ':' {$key} = !json_value{value}
-# 		@[ ',' $key = *string ':' {$key} = !json_value{value} ] ]
-# }
-
-# things we need for this:
-# - optional matching
-# - loop-matching
-
-# - immediate assignment
-# - immediate list assignment: [] =
-# - immediate object assignment: {$key} =
-# - immediate typed-object assignment: string_value->value =
-# - branch matching
-
-
-# a sub which is meant to match a json value
-object sub json_value {
-	match string_value:{value} = *string
-		| number_value:{value} = *number
-		| boolean_value:{value} = /true|false/
-		| 'null', null_value:{value} => undef
-		| '[', ']', list_value:{value} => []
-		| '[', list_value:{value} = !json_list->[], ']'
-		| '{', '}', object_value:{value} => {}
-		| '{', object_value:{value} = !json_object->{}, '}'
-		| die 'expected json value'
-	return
-}
-object sub json_value =>
-	string_value:{value} = *string
+object sub json_value
+	=> string_value:{value} = *string
 		| number_value:{value} = *number
 		| boolean_value:{value} = /true|false/
 		| 'null', null_value:{value} => undef
@@ -85,13 +38,9 @@ object sub json_value =>
 		| '{', object_value:{value} = !json_object->{}, '}'
 		| die 'expected json value'
 
-list sub json_list {
-	match [] = !json_value @[ ',', [] = !json_value ]
-	return
-}
+list sub json_list
+	=> [] = !json_value @[ ',', [] = !json_value ]
 
-object sub json_object {
-	match *string, ':', {$0} => !json_value @[ ',', *string, ':', {$3} => !json_value ]
-	return
-}
+object sub json_object
+	=> *string, ':', {$0} => !json_value @[ ',', *string, ':', {$3} => !json_value ]
 

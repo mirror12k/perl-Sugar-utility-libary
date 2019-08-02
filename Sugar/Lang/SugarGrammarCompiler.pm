@@ -322,7 +322,13 @@ sub compile_syntax_condition {
 		$self->confess_at_current_line("invalid syntax condition '$condition->{type}'");
 	}
 	if (exists($condition->{assign_variable})) {
-		my $variable = $self->add_variable($condition->{assign_variable});
+		my $variable;
+		if ($self->exists_variable($condition->{assign_variable})) {
+			$variable = $self->get_variable($condition->{assign_variable});
+		} else {
+			$variable = $self->add_variable($condition->{assign_variable});
+			$variable = "my $variable";
+		}
 		my $value_expression;
 		if (($condition->{type} eq 'function_match')) {
 			$value_expression = "\$tokens[$tokens_array_offset]";
@@ -333,7 +339,7 @@ sub compile_syntax_condition {
 		} else {
 			$value_expression = "\$tokens[$tokens_array_offset][1]";
 		}
-		$token_condition_string = "($token_condition_string and ((my $variable = $value_expression) or do { 1 }))";
+		$token_condition_string = "($token_condition_string and (($variable = $value_expression) or do { 1 }))";
 	}
 	if (exists($condition->{assign_object_value})) {
 		my $variable = $condition->{assign_object_value};

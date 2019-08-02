@@ -420,7 +420,14 @@ string sub compile_syntax_condition (tree condition, int offset) {
 	}
 
 	if (contains condition.assign_variable) {
-		string variable = self.add_variable(condition.assign_variable);
+		string variable;
+		if (self.exists_variable(condition.assign_variable)) {
+			variable = self.get_variable(condition.assign_variable);
+		} else {
+			variable = self.add_variable(condition.assign_variable);
+			variable = "my $variable";
+		}
+
 		string value_expression;
 		if (condition.type == 'function_match') {
 			value_expression = "\$tokens[$tokens_array_offset]";
@@ -431,7 +438,7 @@ string sub compile_syntax_condition (tree condition, int offset) {
 		} else {
 			value_expression = "\$tokens[$tokens_array_offset][1]";
 		}
-		token_condition_string = "($token_condition_string and ((my $variable = $value_expression) or do { 1 }))";
+		token_condition_string = "($token_condition_string and (($variable = $value_expression) or do { 1 }))";
 	}
 
 	if (contains condition.assign_object_value) {
