@@ -159,6 +159,7 @@ object context match_list_specifier_branch {
 	$_ = {
 		match_conditions => []
 		look_ahead_conditons => []
+		optional_match_conditions => []
 	}
 	if '(' => {
 		$_{look_ahead_conditons} = !match_conditions_list
@@ -170,6 +171,11 @@ object context match_list_specifier_branch {
 			match ')'
 		}
 	}
+	if '[' => {
+		$_{optional_match_conditions} = !match_conditions_list
+		match ']'
+	}
+	
 	return
 }
 
@@ -197,18 +203,54 @@ item context match_item {
 		}
 		'{', *identifier, '}', '=' => {
 			$_ = !match_item
-			$_{assign_object_value} = $0
+			$_{assign_object_value} = $1
+			return $_
+		}
+		'{', !spawn_expression, '}', '=' => {
+			$_ = !match_item
+			$_{assign_object_expression_value} = $1{value}
 			return $_
 		}
 		'[', ']', '=' => {
 			$_ = !match_item
-			$_{assign_list_value} = $0
+			$_{assign_list_value} = 'true'
 			return $_
 		}
 		*variable, '=' => {
 			$_ = !match_item
 			$_{assign_variable} = $0
 			return $_
+		}
+		*identifier, ':', '{', *identifier, '}', '=>', !spawn_expression => {
+			return assignment_nonmatch:{
+				assign_object_type => $0
+				assign_object_value => $3
+				expression => $6{value}
+			}
+		}
+		'{', *identifier, '}', '=>', !spawn_expression => {
+			return assignment_nonmatch:{
+				assign_object_value => $1
+				expression => $4{value}
+			}
+		}
+		'{', !spawn_expression, '}', '=>', !spawn_expression => {
+			return assignment_nonmatch:{
+				assign_object_expression_value => $1{value}
+				expression => $4{value}
+			}
+		}
+		'[', ']', '=>', !spawn_expression => {
+			return assignment_nonmatch:{
+				assign_list_value => 'true'
+				expression => $3{value}
+			}
+		}
+		*variable, '=>', !spawn_expression => {
+			return assignment_nonmatch:{
+				assign_variable => $0
+				expression => $2{value}
+			}
 		}
 		*function_reference, '->', !spawn_expression => {
 			return function_match:{ function => $0 argument => $2{value} }

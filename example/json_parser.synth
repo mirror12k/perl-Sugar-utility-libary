@@ -51,11 +51,11 @@ object sub root {
 # }
 
 # things we need for this:
-# - immediate list assignment: [] =
 # - optional matching
 # - loop-matching
 
 # - immediate assignment
+# - immediate list assignment: [] =
 # - immediate object assignment: {$key} =
 # - immediate typed-object assignment: string_value->value =
 # - branch matching
@@ -66,95 +66,34 @@ object sub json_value {
 	match string_value:{value} = *string
 		| number_value:{value} = *number
 		| boolean_value:{value} = /true|false/
-		| null_value:{text} = 'null'
+		| 'null', null_value:{value} => undef
+		| '[', ']', list_value:{value} => []
 		| '[', list_value:{value} = !json_list->[], ']'
+		| '{', '}', object_value:{value} => {}
 		| '{', object_value:{value} = !json_object->{}, '}'
 		| die 'expected json value'
 	return
-	# match $v = *string
-	# return string_value:{
-	# 	value => $v
-	# }
-	# semantic string_value:{value} = *string
-	# # switch a list of possible token matches
-	# switch {
-	# 	# match a string token by it's token type
-	# 	*string => {
-	# 		# return an object of type string_value, with a value of the string token we matched
-	# 		return string_value:{
-	# 			value => $0
-	# 		}
-	# 	}
-	# 	*number => {
-	# 		return number_value:{
-	# 			value => $0
-	# 		}
-	# 	}
-	# 	# match a boolean value by regex
-	# 	/true|false/ => {
-	# 		# return a boolean value
-	# 		return boolean_value:{
-	# 			value => $0
-	# 		}
-	# 	}
-	# 	# match a null value by exact token value
-	# 	'null' => {
-	# 		# return a null value
-	# 		return null_value:{}
-	# 	}
-	# 	# match a json list by the exact tokens and a json_list sub in the middle
-	# 	'[', !json_list->[], ']' => {
-	# 		# return a list_value with the values matched by json_list
-	# 		return list_value:{
-	# 			value => $1{value}
-	# 		}
-	# 	}
-	# 	'{', !json_object->{}, '}' => {
-	# 		# reutrn an object value
-	# 		return object_value:{
-	# 			value => $1{value}
-	# 		}
-	# 	}
-	# 	default {
-	# 		# if we couldn't match anything, throw an exception and kill the parser
-	# 		die 'expected json value'
-	# 	}
-	# }
 }
+# object sub json_value =>
+# 	string_value:{value} = *string
+# 		| number_value:{value} = *number
+# 		| boolean_value:{value} = /true|false/
+# 		| 'null', null_value:{value} => undef
+# 		| '[', ']', list_value:{value} => []
+# 		| '[', list_value:{value} = !json_list->[], ']'
+# 		| '{', '}', object_value:{value} => {}
+# 		| '{', object_value:{value} = !json_object->{}, '}'
+# 		| die 'expected json value'
 
 list sub json_list {
-	# peek the next token to see if we have to leave immediately
-	if (']') => {
-		return
-	}
-
-	# match a json value and push it into our list
 	match [] = !json_value
-	# look for a comma and match another json value if we find it
-	while ',', [] = !json_value => {
-		# push !json_value
-		# look for a comma again...
-	}
+	while ',', [] = !json_value => {}
 	return
 }
 
 object sub json_object {
-	# peek the next token to see if we have to leave immediately
-	if ('}') => {
-		return
-	}
-
-	# match the key string, a colon, and a json value
-	match *string, ':', !json_value
-	# assign the value by the string key
-	$_{$0} = $2{value}
-	# look for a comma and match another json value if we find it
-	while ',' => {
-		# match another key-value pair
-		match *string, ':', !json_value
-		$_{$4} = $6{value}
-		# look for a comma again...
-	}
+	match *string, ':', {$0} => !json_value
+	while ',', *string, ':', {$3} => !json_value => {}
 	return
 }
 

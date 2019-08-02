@@ -39,7 +39,7 @@ $verifier->expect_result(
 $verifier->expect_result(
 	'test null',
 	text => 'null',
-	expected_result => { type => 'null_value', text => "null" }
+	expected_result => { type => 'null_value', value => undef }
 );
 
 $verifier->expect_result(
@@ -66,7 +66,7 @@ $verifier->expect_result(
 		value => [
 			{ type => 'boolean_value', value => 'true' },
 			{ type => 'boolean_value', value => 'false' },
-			{ type => 'null_value', text => "null" },
+			{ type => 'null_value', value => undef },
 		],
 	}
 );
@@ -135,39 +135,39 @@ $verifier->expect_result(
 	}
 );
 
-# $verifier->expect_result(
-# 	'test object',
-# 	text => '
-# 		{"asdf":true, "qwer": false}
-# 	',
-# 	expected_result => {
-# 		type => 'object_value',
-# 		value => {
-# 			'"asdf"' => { type => 'boolean_value', value => 'true' },
-# 			'"qwer"' => { type => 'boolean_value', value => 'false' },
-# 		},
-# 	}
-# );
+$verifier->expect_result(
+	'test object',
+	text => '
+		{"asdf":true, "qwer": false}
+	',
+	expected_result => {
+		type => 'object_value',
+		value => {
+			'"asdf"' => { type => 'boolean_value', value => 'true' },
+			'"qwer"' => { type => 'boolean_value', value => 'false' },
+		},
+	}
+);
 
-# $verifier->expect_result(
-# 	'test object recursive',
-# 	text => '
-# 		{"a": {"asdf":true, "qwer": false}, "b":{}}
-# 	',
-# 	expected_result => {
-# 		type => 'object_value',
-# 		value => {
-# 			'"a"' => {
-# 				type => 'object_value',
-# 				value => {
-# 					'"asdf"' => { type => 'boolean_value', value => 'true' },
-# 					'"qwer"' => { type => 'boolean_value', value => 'false' },
-# 				},
-# 			},
-# 			'"b"' => { type => 'object_value', value => {} },
-# 		},
-# 	}
-# );
+$verifier->expect_result(
+	'test object recursive',
+	text => '
+		{"a": {"asdf":true, "qwer": false}, "b":{}}
+	',
+	expected_result => {
+		type => 'object_value',
+		value => {
+			'"a"' => {
+				type => 'object_value',
+				value => {
+					'"asdf"' => { type => 'boolean_value', value => 'true' },
+					'"qwer"' => { type => 'boolean_value', value => 'false' },
+				},
+			},
+			'"b"' => { type => 'object_value', value => {} },
+		},
+	}
+);
 
 
 

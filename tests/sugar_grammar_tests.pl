@@ -95,7 +95,8 @@ $verifier->expect_result(
 						'match_conditions' => [
 							{ 'type' => 'string_match', 'string' => '\')\'' }
 						],
-						'look_ahead_conditons' => []
+						'look_ahead_conditons' => [],
+						'optional_match_conditions' => [],
 					}],
 				},
 				{
@@ -143,6 +144,7 @@ $verifier->expect_result(
 									{ 'type' => 'token_type_match', 'value' => 'my_type' }
 								],
 								'look_ahead_conditons' => [],
+								'optional_match_conditions' => [],
 							}],
 
 							'block' => [
@@ -167,6 +169,7 @@ $verifier->expect_result(
 									{ 'type' => 'string_match', 'string' => "'asdf'" }
 								],
 								'look_ahead_conditons' => [],
+								'optional_match_conditions' => [],
 							}],
 							'block' => [],
 						},
@@ -177,6 +180,7 @@ $verifier->expect_result(
 									{ 'type' => 'regex_match', 'regex' => "/qwer/" }
 								],
 								'look_ahead_conditons' => [],
+								'optional_match_conditions' => [],
 							}],
 							'block' => [],
 						},
@@ -315,24 +319,28 @@ $verifier->expect_result(
 	expected_result => [
 		{
 			'type' => 'match_statement',
-			'match_list' => [{ 'match_conditions' => [
-				{
-					'type' => 'string_match',
-					'line_number' => 2,
-					'string' => '\'asdf\''
-				},
-				{
-					'line_number' => 2,
-					'identifier' => '!qwer',
-					'type' => 'context_match'
-				},
-				{
-					'line_number' => 2,
-					'identifier' => '!zxcv',
-					'type' => 'context_match',
-					'argument' => { 'type' => 'empty_list', }
-				},
-			], 'look_ahead_conditons' => [] }],
+			'match_list' => [{
+				'match_conditions' => [
+					{
+						'type' => 'string_match',
+						'line_number' => 2,
+						'string' => '\'asdf\''
+					},
+					{
+						'line_number' => 2,
+						'identifier' => '!qwer',
+						'type' => 'context_match'
+					},
+					{
+						'line_number' => 2,
+						'identifier' => '!zxcv',
+						'type' => 'context_match',
+						'argument' => { 'type' => 'empty_list', }
+					},
+				],
+				'look_ahead_conditons' => [],
+				'optional_match_conditions' => [],
+			}],
 		},
 	]);
 

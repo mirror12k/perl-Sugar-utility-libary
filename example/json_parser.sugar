@@ -56,7 +56,7 @@ object context json_value {
 		# match a null value by exact token value
 		'null' => {
 			# return a null value
-			return null_value:{}
+			return null_value:{ value => undef }
 		}
 		# match a json list by the exact tokens and a json_list context in the middle
 		'[', !json_list->[], ']' => {

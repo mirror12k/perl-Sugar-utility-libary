@@ -313,6 +313,8 @@ sub compile_syntax_condition {
 		my $token_expression = "\$self->{tokens}[\$self->{tokens_index}++]";
 		my $token_memory_expression = "(\$tokens[$tokens_array_offset] = $token_expression)";
 		$token_condition_string = "$token_memory_expression\->[0] eq '$condition->{value}'";
+	} elsif (($condition->{type} eq 'assignment_nonmatch')) {
+		$token_condition_string = "1";
 	} elsif (($condition->{type} eq 'death_match')) {
 		my $expression = $self->compile_syntax_spawn_expression($condition->{argument});
 		$token_condition_string = "\$self->confess_at_current_offset($expression)";
@@ -326,6 +328,8 @@ sub compile_syntax_condition {
 			$value_expression = "\$tokens[$tokens_array_offset]";
 		} elsif (($condition->{type} eq 'context_match')) {
 			$value_expression = "\$tokens[$tokens_array_offset]";
+		} elsif (($condition->{type} eq 'assignment_nonmatch')) {
+			$value_expression = $self->compile_syntax_spawn_expression($condition->{expression});
 		} else {
 			$value_expression = "\$tokens[$tokens_array_offset][1]";
 		}
@@ -338,10 +342,26 @@ sub compile_syntax_condition {
 			$value_expression = "\$tokens[$tokens_array_offset]";
 		} elsif (($condition->{type} eq 'context_match')) {
 			$value_expression = "\$tokens[$tokens_array_offset]";
+		} elsif (($condition->{type} eq 'assignment_nonmatch')) {
+			$value_expression = $self->compile_syntax_spawn_expression($condition->{expression});
 		} else {
 			$value_expression = "\$tokens[$tokens_array_offset][1]";
 		}
 		$token_condition_string = "($token_condition_string and do { \$context_value->{$variable} = $value_expression; 1 })";
+	}
+	if (exists($condition->{assign_object_expression_value})) {
+		my $key_expression = $self->compile_syntax_spawn_expression($condition->{assign_object_expression_value});
+		my $value_expression;
+		if (($condition->{type} eq 'function_match')) {
+			$value_expression = "\$tokens[$tokens_array_offset]";
+		} elsif (($condition->{type} eq 'context_match')) {
+			$value_expression = "\$tokens[$tokens_array_offset]";
+		} elsif (($condition->{type} eq 'assignment_nonmatch')) {
+			$value_expression = $self->compile_syntax_spawn_expression($condition->{expression});
+		} else {
+			$value_expression = "\$tokens[$tokens_array_offset][1]";
+		}
+		$token_condition_string = "($token_condition_string and do { \$context_value->{$key_expression} = $value_expression; 1 })";
 	}
 	if (exists($condition->{assign_list_value})) {
 		my $value_expression;
@@ -412,8 +432,8 @@ sub compile_syntax_match_list {
 sub compile_syntax_match_list_branch {
 	my ($self, $match_list) = @_;
 	my $compiled_conditions = [];
-	my $match_length = scalar(@{$match_list->{match_conditions}});
-	$match_length += scalar(@{$match_list->{look_ahead_conditons}});
+	my $match_length = $self->get_match_list_match_length($match_list->{match_conditions});
+	$match_length += $self->get_match_list_match_length($match_list->{look_ahead_conditons});
 	push @{$compiled_conditions}, "((\$self->{tokens_index} = \$save_tokens_index) + $match_length <= \@{\$self->{tokens}})";
 	my $i = 0;
 	foreach my $condition (@{$match_list->{match_conditions}}) {
@@ -425,14 +445,52 @@ sub compile_syntax_match_list_branch {
 		push @{$compiled_conditions}, $self->compile_syntax_look_ahead_condition($condition, $i);
 		$i += 1;
 	}
+	my $count = scalar(@{$match_list->{optional_match_conditions}});
+	if (($count > 0)) {
+		push @{$compiled_conditions}, $self->compile_syntax_match_list_optional_branch($match_list->{optional_match_conditions});
+	}
 	return join(' and ', @{$compiled_conditions});
+}
+
+sub compile_syntax_match_list_optional_branch {
+	my ($self, $optional_match_list) = @_;
+	my $compiled_conditions = [];
+	my $match_length = scalar(@{$optional_match_list});
+	push @{$compiled_conditions}, "((\$self->{tokens_index} = \$save_tokens_index) + $match_length <= \@{\$self->{tokens}})";
+	my $i = 0;
+	foreach my $condition (@{$optional_match_list}) {
+		push @{$compiled_conditions}, $self->compile_syntax_condition($condition, $i);
+		$i += 1;
+	}
+	my $main_condition = join(' and ', @{$compiled_conditions});
+	return "(do { \$save_tokens_index = \$self->{tokens_index}; 1 } and ($main_condition)
+						or do { \$self->{tokens_index} = \$save_tokens_index ; 1 })";
 }
 
 sub get_syntax_match_list_tokens_eaten {
 	my ($self, $match_list) = @_;
 	my $i = 0;
 	foreach my $branch (@{$match_list}) {
-		$i += scalar(@{$branch->{match_conditions}});
+		foreach my $condition (@{$branch->{match_conditions}}) {
+			if (($condition->{type} eq 'assignment_nonmatch')) {
+			} elsif (($condition->{type} eq 'death_match')) {
+			} else {
+				$i += 1;
+			}
+		}
+	}
+	return $i;
+}
+
+sub get_match_list_match_length {
+	my ($self, $match_list) = @_;
+	my $i = 0;
+	foreach my $condition (@{$match_list}) {
+		if (($condition->{type} eq 'assignment_nonmatch')) {
+		} elsif (($condition->{type} eq 'death_match')) {
+		} else {
+			$i += 1;
+		}
 	}
 	return $i;
 }
@@ -484,7 +542,9 @@ sub syntax_condition_as_string {
 	} elsif (($condition->{type} eq 'token_type_match')) {
 		return "$condition->{value} token";
 	} elsif (($condition->{type} eq 'death_match')) {
-		return "...";
+		return "";
+	} elsif (($condition->{type} eq 'assignment_nonmatch')) {
+		return "";
 	} else {
 		$self->confess_at_current_line("invalid syntax condition '$condition->{type}'");
 	}

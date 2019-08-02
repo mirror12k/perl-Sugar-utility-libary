@@ -407,6 +407,9 @@ string sub compile_syntax_condition (tree condition, int offset) {
 			string token_memory_expression = "(\$tokens[$tokens_array_offset] = $token_expression)";
 			token_condition_string = "$token_memory_expression\->[0] eq '$condition.value'";
 		}
+		'assignment_nonmatch': {
+			token_condition_string = "1";
+		}
 		'death_match': {
 			string expression = self.compile_syntax_spawn_expression(condition.argument);
 			token_condition_string = "\$self->confess_at_current_offset($expression)";
@@ -423,6 +426,8 @@ string sub compile_syntax_condition (tree condition, int offset) {
 			value_expression = "\$tokens[$tokens_array_offset]";
 		} elsif (condition.type == 'context_match') {
 			value_expression = "\$tokens[$tokens_array_offset]";
+		} elsif (condition.type == 'assignment_nonmatch') {
+			value_expression = self.compile_syntax_spawn_expression(condition.expression);
 		} else {
 			value_expression = "\$tokens[$tokens_array_offset][1]";
 		}
@@ -436,10 +441,27 @@ string sub compile_syntax_condition (tree condition, int offset) {
 			value_expression = "\$tokens[$tokens_array_offset]";
 		} elsif (condition.type == 'context_match') {
 			value_expression = "\$tokens[$tokens_array_offset]";
+		} elsif (condition.type == 'assignment_nonmatch') {
+			value_expression = self.compile_syntax_spawn_expression(condition.expression);
 		} else {
 			value_expression = "\$tokens[$tokens_array_offset][1]";
 		}
 		token_condition_string = "($token_condition_string and do { \$context_value->{$variable} = $value_expression; 1 })";
+	}
+
+	if (contains condition.assign_object_expression_value) {
+		string key_expression = self.compile_syntax_spawn_expression(condition.assign_object_expression_value);
+		string value_expression;
+		if (condition.type == 'function_match') {
+			value_expression = "\$tokens[$tokens_array_offset]";
+		} elsif (condition.type == 'context_match') {
+			value_expression = "\$tokens[$tokens_array_offset]";
+		} elsif (condition.type == 'assignment_nonmatch') {
+			value_expression = self.compile_syntax_spawn_expression(condition.expression);
+		} else {
+			value_expression = "\$tokens[$tokens_array_offset][1]";
+		}
+		token_condition_string = "($token_condition_string and do { \$context_value->{$key_expression} = $value_expression; 1 })";
 	}
 
 	if (contains condition.assign_list_value) {
@@ -527,8 +549,10 @@ string sub compile_syntax_match_list_branch (tree match_list) {
 	list compiled_conditions = [];
 	# push compiled_conditions, '$self->more_tokens';
 
-	int match_length = list length match_list.match_conditions;
-	match_length += list length match_list.look_ahead_conditons;
+	int match_length = self.get_match_list_match_length(match_list.match_conditions);
+	match_length += self.get_match_list_match_length(match_list.look_ahead_conditons);
+	# int match_length = list length match_list.match_conditions;
+	# match_length += list length match_list.look_ahead_conditons;
 	# push compiled_conditions, "((\$self->{tokens_index} = \$self->{save_tokens_index}) or 1)";
 	# push compiled_conditions, "((\$self->{tokens_index} = \$self->{save_tokens_index}) + $match_length <= \@{\$self->{tokens}})";
 	push compiled_conditions, "((\$self->{tokens_index} = \$save_tokens_index) + $match_length <= \@{\$self->{tokens}})";
@@ -544,13 +568,55 @@ string sub compile_syntax_match_list_branch (tree match_list) {
 		push compiled_conditions, self.compile_syntax_look_ahead_condition(condition, i);
 		i += 1;
 	}
+
+	int count = list length match_list.optional_match_conditions;
+	if (count > 0) {
+		push compiled_conditions, self.compile_syntax_match_list_optional_branch(match_list.optional_match_conditions);
+	}
+
 	return join ' and ', compiled_conditions;
+}
+
+string sub compile_syntax_match_list_optional_branch (list optional_match_list) {
+	list compiled_conditions = [];
+
+	int match_length = list length optional_match_list;
+	push compiled_conditions, "((\$self->{tokens_index} = \$save_tokens_index) + $match_length <= \@{\$self->{tokens}})";
+
+	int i = 0;
+	foreach (tree condition in optional_match_list) {
+		push compiled_conditions, self.compile_syntax_condition(condition, i);
+		i += 1;
+	}
+	string main_condition = join ' and ', compiled_conditions;
+	return "(do { \$save_tokens_index = \$self->{tokens_index}; 1 } and ($main_condition)
+						or do { \$self->{tokens_index} = \$save_tokens_index ; 1 })";
 }
 
 int sub get_syntax_match_list_tokens_eaten (tree match_list) {
 	int i = 0;
 	foreach (tree branch in match_list) {
-		i += list length branch.match_conditions;
+		foreach (tree condition in branch.match_conditions) {
+			if (condition.type == 'assignment_nonmatch') {
+			} elsif (condition.type == 'death_match') {
+			} else {
+				i += 1;
+			}
+		}
+		# i += list length branch.match_conditions;
+	}
+	return i;
+	# return list length match_list.match_conditions;
+}
+
+int sub get_match_list_match_length (list match_list) {
+	int i = 0;
+	foreach (tree condition in match_list) {
+		if (condition.type == 'assignment_nonmatch') {
+		} elsif (condition.type == 'death_match') {
+		} else {
+			i += 1;
+		}
 	}
 	return i;
 	# return list length match_list.match_conditions;
@@ -609,7 +675,10 @@ string sub syntax_condition_as_string (tree condition) {
 			return "$condition.value token";
 		}
 		'death_match': {
-			return "...";
+			return "";
+		}
+		'assignment_nonmatch': {
+			return "";
 		}
 		default: {
 			self.confess_at_current_line("invalid syntax condition '$condition.type'");
