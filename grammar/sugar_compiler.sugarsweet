@@ -414,6 +414,9 @@ string sub compile_syntax_condition (tree condition, int offset) {
 			string expression = self.compile_syntax_spawn_expression(condition.argument);
 			token_condition_string = "\$self->confess_at_current_offset($expression)";
 		}
+		'return_match': {
+			token_condition_string = "(return \$context_value)";
+		}
 		default: {
 			self.confess_at_current_line("invalid syntax condition '$condition.type'");
 		}
@@ -537,6 +540,9 @@ string sub compile_syntax_look_ahead_condition (tree condition, int offset) {
 			string expression = self.compile_syntax_spawn_expression(condition.argument);
 			return "\$self->confess_at_current_offset($expression)";
 		}
+		'return_match': {
+			return "(return \$context_value)";
+		}
 		default: {
 			self.confess_at_current_line("invalid syntax condition '$condition.type'");
 		}
@@ -630,6 +636,7 @@ int sub get_syntax_match_list_tokens_eaten (tree match_list) {
 		foreach (tree condition in branch.match_conditions) {
 			if (condition.type == 'assignment_nonmatch') {
 			} elsif (condition.type == 'death_match') {
+			} elsif (condition.type == 'return_match') {
 			} else {
 				i += 1;
 			}
@@ -645,6 +652,7 @@ int sub get_match_list_match_length (list match_list) {
 	foreach (tree condition in match_list) {
 		if (condition.type == 'assignment_nonmatch') {
 		} elsif (condition.type == 'death_match') {
+		} elsif (condition.type == 'return_match') {
 		} else {
 			i += 1;
 		}
@@ -706,6 +714,9 @@ string sub syntax_condition_as_string (tree condition) {
 			return "$condition.value token";
 		}
 		'death_match': {
+			return "";
+		}
+		'return_match': {
 			return "";
 		}
 		'assignment_nonmatch': {

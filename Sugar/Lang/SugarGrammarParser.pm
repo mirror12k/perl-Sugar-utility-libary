@@ -483,6 +483,11 @@ sub context_match_item {
 			$save_tokens_index = $self->{tokens_index};
 			return { type => 'death_match', line_number => $tokens[0][2], argument => $tokens[1], };
 			$save_tokens_index = $self->{tokens_index};
+		} elsif (((($self->{tokens_index} = $save_tokens_index) + 1 <= @{$self->{tokens}}) and ($tokens[0] = $self->{tokens}[$self->{tokens_index}++])->[1] eq 'return')) {
+			$save_tokens_index = $self->{tokens_index};
+			$save_tokens_index = $self->{tokens_index};
+			return { type => 'return_match', line_number => $tokens[0][2], };
+			$save_tokens_index = $self->{tokens_index};
 		} else {
 			$self->{tokens_index} = $save_tokens_index;
 			$self->confess_at_current_offset('expected match item');

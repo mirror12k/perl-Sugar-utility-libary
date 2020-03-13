@@ -318,6 +318,8 @@ sub compile_syntax_condition {
 	} elsif (($condition->{type} eq 'death_match')) {
 		my $expression = $self->compile_syntax_spawn_expression($condition->{argument});
 		$token_condition_string = "\$self->confess_at_current_offset($expression)";
+	} elsif (($condition->{type} eq 'return_match')) {
+		$token_condition_string = "(return \$context_value)";
 	} else {
 		$self->confess_at_current_line("invalid syntax condition '$condition->{type}'");
 	}
@@ -425,6 +427,8 @@ sub compile_syntax_look_ahead_condition {
 	} elsif (($condition->{type} eq 'death_match')) {
 		my $expression = $self->compile_syntax_spawn_expression($condition->{argument});
 		return "\$self->confess_at_current_offset($expression)";
+	} elsif (($condition->{type} eq 'return_match')) {
+		return "(return \$context_value)";
 	} else {
 		$self->confess_at_current_line("invalid syntax condition '$condition->{type}'");
 	}
@@ -499,6 +503,7 @@ sub get_syntax_match_list_tokens_eaten {
 		foreach my $condition (@{$branch->{match_conditions}}) {
 			if (($condition->{type} eq 'assignment_nonmatch')) {
 			} elsif (($condition->{type} eq 'death_match')) {
+			} elsif (($condition->{type} eq 'return_match')) {
 			} else {
 				$i += 1;
 			}
@@ -513,6 +518,7 @@ sub get_match_list_match_length {
 	foreach my $condition (@{$match_list}) {
 		if (($condition->{type} eq 'assignment_nonmatch')) {
 		} elsif (($condition->{type} eq 'death_match')) {
+		} elsif (($condition->{type} eq 'return_match')) {
 		} else {
 			$i += 1;
 		}
@@ -567,6 +573,8 @@ sub syntax_condition_as_string {
 	} elsif (($condition->{type} eq 'token_type_match')) {
 		return "$condition->{value} token";
 	} elsif (($condition->{type} eq 'death_match')) {
+		return "";
+	} elsif (($condition->{type} eq 'return_match')) {
 		return "";
 	} elsif (($condition->{type} eq 'assignment_nonmatch')) {
 		return "";

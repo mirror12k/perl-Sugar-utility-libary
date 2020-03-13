@@ -48,7 +48,7 @@ ignored_tokens {
 }
 
 # context definitions
-object context root {
+object sub root {
 	switch {
 		'class', !class_identifier->[] => {
 			$_{classes}[] = !class_definition->class_declaration:{
@@ -62,7 +62,7 @@ object context root {
 	}
 }
 
-list context class_identifier {
+list sub class_identifier {
 	match *identifier
 	push $0
 	while '::' => {
@@ -74,14 +74,14 @@ list context class_identifier {
 	return
 }
 
-object context class_definition {
+object sub class_definition {
 	match '{' or die '"{" expected before code block'
 	$_ = !class_definition_block->$_
 	match '}' or die '"}" expected after code block'
 	return
 }
 
-object context class_definition_block {
+object sub class_definition_block {
 	switch {
 		'sub', '_constructor', '(' => {
 			$argument_list = !method_argument_list
@@ -119,14 +119,14 @@ object context class_definition_block {
 	}
 }
 
-list context statements_block {
+list sub statements_block {
 	match '{' or die '"{" expected before code block'
 	$_ = !statements_block_list->[]
 	match '}' or die '"}" expected after code block'
 	return
 }
 
-list context statements_block_list {
+list sub statements_block_list {
 	switch {
 		'foreach', '(', *identifier, *identifier, 'in' => {
 			$expression = !expression
@@ -272,7 +272,7 @@ list context statements_block_list {
 	}
 }
 
-object context more_statement {
+object sub more_statement {
 	switch {
 		'unless' => {
 			return if_statement:{
@@ -292,14 +292,14 @@ object context more_statement {
 	}
 }
 
-list context switch_statements_block {
+list sub switch_statements_block {
 	match '{' or die '"{" expected before code block'
 	$_ = !switch_block_list->[]
 	match '}' or die '"}" expected after code block'
 	return
 }
 
-list context switch_block_list {
+list sub switch_block_list {
 	switch {
 		('}') => {
 			return
@@ -318,7 +318,7 @@ list context switch_block_list {
 	}
 }
 
-list context switch_case_list {
+list sub switch_case_list {
 	switch {
 		*integer, ':' => {
 			push integer_case:{
@@ -336,7 +336,7 @@ list context switch_case_list {
 	}
 }
 
-item context expression {
+item sub expression {
 	switch {
 		*integer => {
 			return !more_expression->integer_expression:{
@@ -488,7 +488,7 @@ item context expression {
 	}
 }
 
-item context more_expression {
+item sub more_expression {
 	switch {
 		'.', *identifier, '(' => {
 			$_ = access_call_expression:{
@@ -582,11 +582,11 @@ item context more_expression {
 	}
 }
 
-list context method_argument_list {
+list sub method_argument_list {
 	return !argument_list->[{ variable_type => 'self' identifier => 'self' }]
 }
 
-list context argument_list {
+list sub argument_list {
 	if (')') => {
 		return $_
 	}
@@ -613,7 +613,7 @@ list context argument_list {
 	return $_
 }
 
-list context expression_list {
+list sub expression_list {
 	if (')') => {
 		return $_
 	} elsif (']') => {
@@ -628,7 +628,7 @@ list context expression_list {
 	return
 }
 
-list context tree_constructor {
+list sub tree_constructor {
 	if ('}') => {
 		return $_
 	}

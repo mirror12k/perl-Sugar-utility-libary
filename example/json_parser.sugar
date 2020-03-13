@@ -25,13 +25,13 @@ ignored_tokens {
 
 # root context must be defined
 # it is the entry point to your syntax parser
-object context root {
+object sub root {
 	# parse a single json value, and return it
 	return !json_value
 }
 
 # a context which is meant to match a json value
-object context json_value {
+object sub json_value {
 	# switch a list of possible token matches
 	switch {
 		# match a string token by it's token type
@@ -78,7 +78,7 @@ object context json_value {
 	}
 }
 
-list context json_list {
+list sub json_list {
 	# peek the next token to see if we have to leave immediately
 	if (']') => {
 		return
@@ -94,7 +94,7 @@ list context json_list {
 	return
 }
 
-object context json_object {
+object sub json_object {
 	# peek the next token to see if we have to leave immediately
 	if ('}') => {
 		return

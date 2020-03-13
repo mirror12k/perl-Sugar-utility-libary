@@ -42,7 +42,7 @@ ignored_tokens {
 }
 
 # context definitions
-object context root {
+object sub root {
 	switch {
 		*identifier, '=' => {
 			$_{global_variable_names}[] = $0
@@ -93,7 +93,7 @@ object context root {
 	}
 }
 
-item context def_value {
+item sub def_value {
 	switch {
 		*string => {
 			return string_value:{ value => $0 }
@@ -113,7 +113,7 @@ item context def_value {
 	}
 }
 
-list context token_definition {
+list sub token_definition {
 	switch {
 		'}' => {
 			return
@@ -130,7 +130,7 @@ list context token_definition {
 	}
 }
 
-list context ignored_tokens_list {
+list sub ignored_tokens_list {
 	switch {
 		'}' => {
 			return
@@ -144,7 +144,7 @@ list context ignored_tokens_list {
 	}
 }
 
-list context match_list_specifier {
+list sub match_list_specifier {
 	push !match_list_specifier_branch
 	while '|' => {
 		push !match_list_specifier_branch
@@ -152,7 +152,7 @@ list context match_list_specifier {
 	return
 }
 
-object context match_list_specifier_branch {
+object sub match_list_specifier_branch {
 	$_ = {
 		match_conditions => []
 		look_ahead_conditons => []
@@ -180,7 +180,7 @@ object context match_list_specifier_branch {
 	return
 }
 
-list context match_conditions_list {
+list sub match_conditions_list {
 	push !match_item
 	while ',' => {
 		push !match_item
@@ -188,13 +188,13 @@ list context match_conditions_list {
 	return
 }
 
-list context match_list_arrow {
+list sub match_list_arrow {
 	$_ = !match_list_specifier
 	match '=>'
 	return
 }
 
-item context match_item {
+item sub match_item {
 	switch {
 		*identifier, ':', '{', *identifier, '}', '=' => {
 			$_ = !match_item
@@ -280,20 +280,23 @@ item context match_item {
 		'die', !spawn_expression => {
 			return death_match:{ argument => $1{value} }
 		}
+		'return' => {
+			return return_match:{}
+		}
 		default {
 			die 'expected match item'
 		}
 	}
 }
 
-item context action_block {
+item sub action_block {
 	match '{' or die '"{" expected for code block'
 	$_ = !match_action->[]
 	match '}' or die '"}" expected after code block'
 	return
 }
 
-list context match_action {
+list sub match_action {
 	switch {
 		*variable, '=' => {
 			push assign_item_statement:{
@@ -397,7 +400,7 @@ list context match_action {
 }
 
 
-list context switch_blocks {
+list sub switch_blocks {
 	switch {
 		'}' => {
 			return
@@ -420,7 +423,7 @@ list context switch_blocks {
 
 
 
-object context if_chain {
+object sub if_chain {
 	switch {
 		'elsif' => {
 			$_{'branch'} = !if_chain->elsif_statement:{
@@ -441,7 +444,7 @@ object context if_chain {
 	}
 }
 
-item context spawn_expression {
+item sub spawn_expression {
 	switch {
 		/\$\d++/ => {
 			if '{', 'line_number', '}' => {
@@ -548,7 +551,7 @@ item context spawn_expression {
 	}
 }
 
-object context more_spawn_expression {
+object sub more_spawn_expression {
 	switch {
 		'{' => {
 			$_ = access:{
@@ -563,7 +566,7 @@ object context more_spawn_expression {
 	}
 }
 
-list context spawn_expression_list {
+list sub spawn_expression_list {
 	switch {
 		']' => {
 			return
@@ -581,7 +584,7 @@ list context spawn_expression_list {
 	}
 }
 
-list context spawn_expression_hash {
+list sub spawn_expression_hash {
 	switch {
 		'}' => {
 			return
