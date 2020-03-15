@@ -175,14 +175,14 @@ list sub match_list_arrow {
 
 item sub match_item {
 	switch {
-		'@', '[', !match_conditions_list, ']' => {
+		'@', '[', !match_list_specifier, ']' => {
 			return optional_loop_matchgroup:{
-				match_list => $2{value}
+				branching_match_list => $2{value}
 			}
 		}
-		'?', '[', !match_conditions_list, ']' => {
+		'?', '[', !match_list_specifier, ']' => {
 			return optional_matchgroup:{
-				match_list => $2{value}
+				branching_match_list => $2{value}
 			}
 		}
 		'(', !match_conditions_list, ')' => {

@@ -1,5 +1,5 @@
 
-all: sugar_grammar sugar_compiler sugarsweet_grammar sugarsweet_compiler test_sugar_grammar
+all: sugar_grammar sugar_compiler sugarsweet_grammar sugarsweet_compiler test_sugar_grammar test_json_example
 
 sugar_grammar:
 	./Sugar/Lang/SugarGrammarCompiler.pm grammar/sugar_grammar.sugar > temp_compiled_file

@@ -216,4 +216,30 @@ list sub thing
 	expected_result => [[qw/a c b/], [qw/c b b/], [qw/b b/], [qw/b/]]
 );
 
+$verifier->expect_result(
+	'test optional branching',
+	parser_code => q#
+package __test::test7
+tokens {
+	identifier => /[a-zA-Z_][a-zA-Z0-9_]*+/
+	symbol => /\\{|\\}|\\[|\\]|,|:/
+	whitespace => /\\s++/s
+}
+ignored_tokens { whitespace }
+
+item sub root
+	=> '[', $_ = !list_stuff->[], ']'
+		| $_ = *identifier
+
+list sub list_stuff
+	=> @[ (']'), return
+		| [] = !root, ?[ ',' | return ] ]
+
+	#,
+	text => '
+	[[] , a, b, [b,], [b,b], [[],], c,[c,c,c,] ]
+',
+	expected_result => [[] , 'a', 'b', ['b',], ['b','b'], [[],], 'c',['c','c','c',] ]
+);
+
 $verifier->run;

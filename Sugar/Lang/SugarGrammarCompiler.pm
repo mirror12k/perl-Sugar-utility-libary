@@ -265,31 +265,23 @@ sub compile_syntax_condition {
 	$tokens_array_offset += $self->{tokens_scope_count};
 	my $token_condition_string;
 	if (($condition->{type} eq 'optional_loop_matchgroup')) {
-		my $compiled_conditions = [];
-		my $match_length = $self->get_match_list_match_length($condition->{match_list});
-		push @{$compiled_conditions}, "((\$self->{tokens_index} = \$loop_tokens_index) + $match_length <= \@{\$self->{tokens}})";
-		push @{$compiled_conditions}, @{$self->compile_syntax_match_list_specific($condition->{match_list}, $tokens_array_offset)};
-		my $main_condition = join(' and ', @{$compiled_conditions});
-		return "(do { my \$loop_tokens_index = \$self->{tokens_index}; while ($main_condition)
-								{ \$loop_tokens_index = \$self->{tokens_index}; }
-								\$self->{tokens_index} = \$loop_tokens_index; 1; })";
+		my $main_condition = $self->compile_syntax_branching_match_list_offset($condition->{branching_match_list}, $offset);
+		return "(do { my \$save_tokens_index = \$self->{tokens_index}; while ($main_condition)
+								{ \$save_tokens_index = \$self->{tokens_index}; }
+								\$self->{tokens_index} = \$save_tokens_index; 1; })";
 	} elsif (($condition->{type} eq 'optional_matchgroup')) {
-		my $compiled_conditions = [];
-		my $match_length = $self->get_match_list_match_length($condition->{match_list});
-		push @{$compiled_conditions}, "((\$self->{tokens_index} = \$optional_tokens_index) + $match_length <= \@{\$self->{tokens}})";
-		push @{$compiled_conditions}, @{$self->compile_syntax_match_list_specific($condition->{match_list}, $tokens_array_offset)};
-		my $main_condition = join(' and ', @{$compiled_conditions});
-		return "(do { my \$optional_tokens_index = \$self->{tokens_index}; if ($main_condition)
-								{ \$optional_tokens_index = \$self->{tokens_index}; }
-								\$self->{tokens_index} = \$optional_tokens_index; 1; })";
+		my $main_condition = $self->compile_syntax_branching_match_list_offset($condition->{branching_match_list}, $offset);
+		return "(do { my \$save_tokens_index = \$self->{tokens_index}; if ($main_condition)
+								{ \$save_tokens_index = \$self->{tokens_index}; }
+								\$self->{tokens_index} = \$save_tokens_index; 1; })";
 	} elsif (($condition->{type} eq 'lookahead_matchgroup')) {
 		my $compiled_conditions = [];
 		my $match_length = $self->get_match_list_match_length($condition->{match_list});
-		push @{$compiled_conditions}, "((\$self->{tokens_index} = \$lookahead_tokens_index) + $match_length <= \@{\$self->{tokens}})";
+		push @{$compiled_conditions}, "((\$self->{tokens_index} = \$save_tokens_index) + $match_length <= \@{\$self->{tokens}})";
 		push @{$compiled_conditions}, @{$self->compile_syntax_match_list_specific($condition->{match_list}, $tokens_array_offset)};
 		my $main_condition = join(' and ', @{$compiled_conditions});
-		return "(do { my \$lookahead_tokens_index = \$self->{tokens_index}; my \$lookahead_result = ($main_condition);
-								\$self->{tokens_index} = \$lookahead_tokens_index; \$lookahead_result; })";
+		return "(do { my \$save_tokens_index = \$self->{tokens_index}; my \$lookahead_result = ($main_condition);
+								\$self->{tokens_index} = \$save_tokens_index; \$lookahead_result; })";
 	} elsif (($condition->{type} eq 'function_match')) {
 		my $function = $self->get_function_by_name($condition->{function});
 		if (exists($condition->{argument})) {
@@ -415,9 +407,23 @@ sub compile_syntax_condition {
 	return $token_condition_string;
 }
 
-sub compile_syntax_match_list {
-	my ($self, $match_list) = @_;
-	return join(" \n\t\t\t\tor ", @{[ map { "($_)" } @{[ map { $self->compile_syntax_match_list_branch($_) } @{$match_list} ]} ]});
+sub compile_syntax_branching_match_list {
+	my ($self, $branching_match_list) = @_;
+	return join(" \n\t\t\t\tor ", @{[ map { "($_)" } @{[ map { $self->compile_syntax_match_list_branch($_, 0) } @{$branching_match_list} ]} ]});
+}
+
+sub compile_syntax_branching_match_list_offset {
+	my ($self, $branching_match_list, $offset) = @_;
+	return join(" \n\t\t\t\tor ", @{[ map { "($_)" } @{[ map { $self->compile_syntax_match_list_branch($_, $offset) } @{$branching_match_list} ]} ]});
+}
+
+sub compile_syntax_match_list_branch {
+	my ($self, $match_list_branches, $offset) = @_;
+	my $compiled_conditions = [];
+	my $match_length = $self->get_match_list_match_length($match_list_branches->{match_conditions});
+	push @{$compiled_conditions}, "((\$self->{tokens_index} = \$save_tokens_index) + $match_length <= \@{\$self->{tokens}})";
+	push @{$compiled_conditions}, @{$self->compile_syntax_match_list_specific($match_list_branches->{match_conditions}, $offset)};
+	return join(' and ', @{$compiled_conditions});
 }
 
 sub compile_syntax_match_list_specific {
@@ -428,15 +434,6 @@ sub compile_syntax_match_list_specific {
 		$i += 1;
 	}
 	return $compiled_conditions;
-}
-
-sub compile_syntax_match_list_branch {
-	my ($self, $match_list_branches) = @_;
-	my $compiled_conditions = [];
-	my $match_length = $self->get_match_list_match_length($match_list_branches->{match_conditions});
-	push @{$compiled_conditions}, "((\$self->{tokens_index} = \$save_tokens_index) + $match_length <= \@{\$self->{tokens}})";
-	push @{$compiled_conditions}, @{$self->compile_syntax_match_list_specific($match_list_branches->{match_conditions}, 0)};
-	return join(' and ', @{$compiled_conditions});
 }
 
 sub get_syntax_match_list_tokens_eaten {
@@ -466,6 +463,8 @@ sub get_match_list_match_length {
 		} elsif (($condition->{type} eq 'optional_matchgroup')) {
 		} elsif (($condition->{type} eq 'lookahead_matchgroup')) {
 		} elsif (($condition->{type} eq 'assignment_nonmatch')) {
+		} elsif (($condition->{type} eq 'function_match')) {
+		} elsif (($condition->{type} eq 'context_match')) {
 		} elsif (($condition->{type} eq 'death_match')) {
 		} elsif (($condition->{type} eq 'return_match')) {
 		} else {
@@ -598,7 +597,7 @@ sub compile_syntax_action {
 				my $match_description = $self->syntax_match_list_as_string($action->{match_list});
 				$death_expression = "'expected $match_description'";
 			}
-			my $match_expression = $self->compile_syntax_match_list($action->{match_list});
+			my $match_expression = $self->compile_syntax_branching_match_list($action->{match_list});
 			push @{$code}, "\$save_tokens_index = \$self->{tokens_index};";
 			push @{$code}, "\$self->confess_at_offset($death_expression, \$save_tokens_index)";
 			push @{$code}, "\tunless $match_expression;";
@@ -608,7 +607,7 @@ sub compile_syntax_action {
 				$self->{tokens_scope_count} += $count;
 			}
 		} elsif (($action->{type} eq 'if_statement')) {
-			my $condition_code = $self->compile_syntax_match_list($action->{match_list});
+			my $condition_code = $self->compile_syntax_branching_match_list($action->{match_list});
 			my $action_code = $self->compile_syntax_action($action->{match_list}, $action->{block});
 			push @{$code}, "\$save_tokens_index = \$self->{tokens_index};";
 			push @{$code}, "if ($condition_code) {";
@@ -619,7 +618,7 @@ sub compile_syntax_action {
 			while (exists($branch->{branch})) {
 				$branch = $branch->{branch};
 				if (($branch->{type} eq 'elsif_statement')) {
-					my $condition_code = $self->compile_syntax_match_list($branch->{match_list});
+					my $condition_code = $self->compile_syntax_branching_match_list($branch->{match_list});
 					my $action_code = $self->compile_syntax_action($branch->{match_list}, $branch->{block});
 					push @{$code}, "} elsif ($condition_code) {";
 					push @{$code}, "\t\$save_tokens_index = \$self->{tokens_index};";
@@ -640,7 +639,7 @@ sub compile_syntax_action {
 			foreach my $case (@{$action->{switch_cases}}) {
 				$self->{current_line} = $case->{line_number};
 				if (($case->{type} eq 'match_case')) {
-					my $condition_code = $self->compile_syntax_match_list($case->{match_list});
+					my $condition_code = $self->compile_syntax_branching_match_list($case->{match_list});
 					my $action_code = $self->compile_syntax_action($case->{match_list}, $case->{block});
 					if ($first) {
 						push @{$code}, "\$save_tokens_index = \$self->{tokens_index};";
@@ -670,7 +669,7 @@ sub compile_syntax_action {
 			}
 			push @{$code}, "\$self->{tokens_index} = \$save_tokens_index;";
 		} elsif (($action->{type} eq 'while_statement')) {
-			my $condition_code = $self->compile_syntax_match_list($action->{match_list});
+			my $condition_code = $self->compile_syntax_branching_match_list($action->{match_list});
 			my $action_code = $self->compile_syntax_action($action->{match_list}, $action->{block});
 			push @{$code}, "\$save_tokens_index = \$self->{tokens_index};";
 			push @{$code}, "while ($condition_code) {";
