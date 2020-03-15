@@ -140,4 +140,30 @@ item sub thing
 	expected_result => [qw/a a b c "asdf" _234/]
 );
 
+$verifier->expect_result(
+	'test optional parsing',
+	parser_code => q#
+package __test::test4
+tokens {
+	string => /"(?:[^"\\\\]|\\\\["\\\\\\/bfnrt])*"/s
+	identifier => /[a-zA-Z_][a-zA-Z0-9_]*+/
+	symbol => /\\{|\\}|\\[|\\]|,|:/
+	whitespace => /\\s++/s
+}
+ignored_tokens { whitespace }
+
+list sub root
+	=> @[ [] = !thing ]
+
+item sub thing
+	=> $_ = *identifier, ?[ $_ = *string ]
+		| return
+
+	#,
+	text => '
+	asdf qwer "qqer" zxcv "z" asfd
+',
+	expected_result => [qw/asdf "qqer" "z" asfd/]
+);
+
 $verifier->run;

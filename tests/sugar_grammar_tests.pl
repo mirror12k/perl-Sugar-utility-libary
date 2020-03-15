@@ -97,8 +97,6 @@ $verifier->expect_result(
 							{ 'type' => 'string_match', 'string' => '\')\'' }
 						],
 						'look_ahead_conditons' => [],
-						'optional_match_conditions' => [],
-						'optional_loop_conditions' => [],
 					}],
 				},
 				{
@@ -147,8 +145,6 @@ $verifier->expect_result(
 									{ 'type' => 'token_type_match', 'value' => 'my_type' }
 								],
 								'look_ahead_conditons' => [],
-								'optional_match_conditions' => [],
-								'optional_loop_conditions' => [],
 							}],
 
 							'block' => [
@@ -173,8 +169,6 @@ $verifier->expect_result(
 									{ 'type' => 'string_match', 'string' => "'asdf'" }
 								],
 								'look_ahead_conditons' => [],
-								'optional_match_conditions' => [],
-								'optional_loop_conditions' => [],
 							}],
 							'block' => [],
 						},
@@ -185,8 +179,6 @@ $verifier->expect_result(
 									{ 'type' => 'regex_match', 'regex' => "/qwer/" }
 								],
 								'look_ahead_conditons' => [],
-								'optional_match_conditions' => [],
-								'optional_loop_conditions' => [],
 							}],
 							'block' => [],
 						},
@@ -346,8 +338,6 @@ $verifier->expect_result(
 					},
 				],
 				'look_ahead_conditons' => [],
-				'optional_match_conditions' => [],
-				'optional_loop_conditions' => [],
 			}],
 		},
 	]);

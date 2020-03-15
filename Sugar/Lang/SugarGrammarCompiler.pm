@@ -273,6 +273,15 @@ sub compile_syntax_condition {
 		return "(do { my \$loop_tokens_index = \$self->{tokens_index}; while ($main_condition)
 								{ \$loop_tokens_index = \$self->{tokens_index}; }
 								\$self->{tokens_index} = \$loop_tokens_index; 1; })";
+	} elsif (($condition->{type} eq 'optional_matchgroup')) {
+		my $compiled_conditions = [];
+		my $match_length = $self->get_match_list_match_length($condition->{match_list});
+		push @{$compiled_conditions}, "((\$self->{tokens_index} = \$loop_tokens_index) + $match_length <= \@{\$self->{tokens}})";
+		push @{$compiled_conditions}, @{$self->compile_syntax_match_list_specific($condition->{match_list}, $tokens_array_offset)};
+		my $main_condition = join(' and ', @{$compiled_conditions});
+		return "(do { my \$loop_tokens_index = \$self->{tokens_index}; if ($main_condition)
+								{ \$loop_tokens_index = \$self->{tokens_index}; }
+								\$self->{tokens_index} = \$loop_tokens_index; 1; })";
 	} elsif (($condition->{type} eq 'function_match')) {
 		my $function = $self->get_function_by_name($condition->{function});
 		if (exists($condition->{argument})) {
@@ -409,6 +418,15 @@ sub compile_syntax_look_ahead_condition {
 		return "(do { my \$loop_tokens_index = \$self->{tokens_index}; while ($main_condition)
 								{ \$loop_tokens_index = \$self->{tokens_index}; }
 								\$self->{tokens_index} = \$loop_tokens_index; 1; })";
+	} elsif (($condition->{type} eq 'optional_matchgroup')) {
+		my $compiled_conditions = [];
+		my $match_length = $self->get_match_list_match_length($condition->{match_list});
+		push @{$compiled_conditions}, "((\$self->{tokens_index} = \$loop_tokens_index) + $match_length <= \@{\$self->{tokens}})";
+		push @{$compiled_conditions}, @{$self->compile_syntax_match_list_specific($condition->{match_list}, $offset)};
+		my $main_condition = join(' and ', @{$compiled_conditions});
+		return "(do { my \$loop_tokens_index = \$self->{tokens_index}; if ($main_condition)
+								{ \$loop_tokens_index = \$self->{tokens_index}; }
+								\$self->{tokens_index} = \$loop_tokens_index; 1; })";
 	} elsif (($condition->{type} eq 'function_match')) {
 		my $function = $self->get_function_by_name($condition->{function});
 		if (exists($condition->{argument})) {
@@ -479,23 +497,7 @@ sub compile_syntax_match_list_branch {
 		push @{$compiled_conditions}, $self->compile_syntax_look_ahead_condition($condition, $i);
 		$i += 1;
 	}
-	my $offset = $self->get_match_list_match_length($match_list_branches->{match_conditions});
-	my $count = scalar(@{$match_list_branches->{optional_match_conditions}});
-	if (($count > 0)) {
-		push @{$compiled_conditions}, $self->compile_syntax_match_list_optional_branch($match_list_branches->{optional_match_conditions}, $offset);
-	}
 	return join(' and ', @{$compiled_conditions});
-}
-
-sub compile_syntax_match_list_optional_branch {
-	my ($self, $optional_match_list, $i) = @_;
-	my $compiled_conditions = [];
-	my $match_length = scalar(@{$optional_match_list});
-	push @{$compiled_conditions}, "((\$self->{tokens_index} = \$save_tokens_index) + $match_length <= \@{\$self->{tokens}})";
-	push @{$compiled_conditions}, @{$self->compile_syntax_match_list_specific($optional_match_list, $i)};
-	my $main_condition = join(' and ', @{$compiled_conditions});
-	return "(do { \$save_tokens_index = \$self->{tokens_index}; 1 } and ($main_condition)
-						or do { \$self->{tokens_index} = \$save_tokens_index ; 1 })";
 }
 
 sub get_syntax_match_list_tokens_eaten {
@@ -504,6 +506,7 @@ sub get_syntax_match_list_tokens_eaten {
 	foreach my $branch (@{$match_list}) {
 		foreach my $condition (@{$branch->{match_conditions}}) {
 			if (($condition->{type} eq 'optional_loop_matchgroup')) {
+			} elsif (($condition->{type} eq 'optional_matchgroup')) {
 			} elsif (($condition->{type} eq 'assignment_nonmatch')) {
 			} elsif (($condition->{type} eq 'death_match')) {
 			} elsif (($condition->{type} eq 'return_match')) {
@@ -520,6 +523,7 @@ sub get_match_list_match_length {
 	my $i = 0;
 	foreach my $condition (@{$match_list}) {
 		if (($condition->{type} eq 'optional_loop_matchgroup')) {
+		} elsif (($condition->{type} eq 'optional_matchgroup')) {
 		} elsif (($condition->{type} eq 'assignment_nonmatch')) {
 		} elsif (($condition->{type} eq 'death_match')) {
 		} elsif (($condition->{type} eq 'return_match')) {
@@ -565,6 +569,8 @@ sub syntax_match_list_branch_as_string {
 sub syntax_condition_as_string {
 	my ($self, $condition) = @_;
 	if (($condition->{type} eq 'optional_loop_matchgroup')) {
+		return join(', ', @{[ map { $self->syntax_condition_as_string($_) } @{$condition->{match_list}} ]});
+	} elsif (($condition->{type} eq 'optional_matchgroup')) {
 		return join(', ', @{[ map { $self->syntax_condition_as_string($_) } @{$condition->{match_list}} ]});
 	} elsif (($condition->{type} eq 'function_match')) {
 		return "$condition->{function}";
