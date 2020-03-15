@@ -39,8 +39,8 @@ object sub json_value
 		| die 'expected json value'
 
 list sub json_list
-	=> [] = !json_value @[ ',', [] = !json_value ]
+	=> [] = !json_value, @[ ',', [] = !json_value ]
 
 object sub json_object
-	=> *string, ':', {$0} => !json_value @[ ',', *string, ':', {$3} => !json_value ]
+	=> *string, ':', {$0} => !json_value, @[ ',', *string, ':', {$4} => !json_value ]
 

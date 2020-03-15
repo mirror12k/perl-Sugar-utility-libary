@@ -196,6 +196,11 @@ list sub match_list_arrow {
 
 item sub match_item {
 	switch {
+		'@', '[', !match_conditions_list, ']' => {
+			return optional_loop_matchgroup:{
+				match_list => $2{value}
+			}
+		}
 		*identifier, ':', '{', *identifier, '}', '=' => {
 			$_ = !match_item
 			$_{assign_object_type} = $0

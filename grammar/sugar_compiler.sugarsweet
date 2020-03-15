@@ -352,6 +352,18 @@ string sub compile_syntax_condition (tree condition, int offset) {
 	string token_condition_string;
 
 	string switch (condition.type) {
+		'optional_loop_matchgroup': {
+			list compiled_conditions = [];
+
+			int match_length = self.get_match_list_match_length(condition.match_list);
+			push compiled_conditions, "((\$self->{tokens_index} = \$loop_tokens_index) + $match_length <= \@{\$self->{tokens}})";
+			list push compiled_conditions, self.compile_syntax_match_list_specific(condition.match_list, tokens_array_offset);
+
+			string main_condition = join ' and ', compiled_conditions;
+			return "(do { my \$loop_tokens_index = \$self->{tokens_index}; while ($main_condition)
+								{ \$loop_tokens_index = \$self->{tokens_index}; }
+								\$self->{tokens_index} = \$loop_tokens_index; 1; })";
+		}
 		'function_match': {
 			string function = self.get_function_by_name(condition.function);
 			if (contains condition.argument) {
@@ -497,6 +509,18 @@ string sub compile_syntax_condition (tree condition, int offset) {
 string sub compile_syntax_look_ahead_condition (tree condition, int offset) {
 	# my ($self, $context_type, $condition, $offset) = @_;
 	string switch (condition.type) {
+		'optional_loop_matchgroup': {
+			list compiled_conditions = [];
+
+			int match_length = self.get_match_list_match_length(condition.match_list);
+			push compiled_conditions, "((\$self->{tokens_index} = \$loop_tokens_index) + $match_length <= \@{\$self->{tokens}})";
+			list push compiled_conditions, self.compile_syntax_match_list_specific(condition.match_list, offset);
+
+			string main_condition = join ' and ', compiled_conditions;
+			return "(do { my \$loop_tokens_index = \$self->{tokens_index}; while ($main_condition)
+								{ \$loop_tokens_index = \$self->{tokens_index}; }
+								\$self->{tokens_index} = \$loop_tokens_index; 1; })";
+		}
 		'function_match': {
 			string function = self.get_function_by_name(condition.function);
 			if (contains condition.argument) {
@@ -553,7 +577,18 @@ string sub compile_syntax_match_list (list match_list) {
 	return join " \n\t\t\t\tor ", map { "($_)" } map { self.compile_syntax_match_list_branch(_) } match_list;
 }
 
-string sub compile_syntax_match_list_branch (tree match_list) {
+list sub compile_syntax_match_list_specific (list match_list, int i) {
+	list compiled_conditions = [];
+
+	foreach (tree condition in match_list) {
+		push compiled_conditions, self.compile_syntax_condition(condition, i);
+		i += 1;
+	}
+
+	return compiled_conditions;
+}
+
+string sub compile_syntax_match_list_branch (tree match_list_branches) {
 
 	# list conditions = [];
 	# list push conditions, match_list.match_conditions;
@@ -562,38 +597,39 @@ string sub compile_syntax_match_list_branch (tree match_list) {
 	list compiled_conditions = [];
 	# push compiled_conditions, '$self->more_tokens';
 
-	int match_length = self.get_match_list_match_length(match_list.match_conditions);
-	match_length += self.get_match_list_match_length(match_list.look_ahead_conditons);
-	# int match_length = list length match_list.match_conditions;
-	# match_length += list length match_list.look_ahead_conditons;
+	int match_length = self.get_match_list_match_length(match_list_branches.match_conditions);
+	match_length += self.get_match_list_match_length(match_list_branches.look_ahead_conditons);
+	# int match_length = list length match_list_branches.match_conditions;
+	# match_length += list length match_list_branches.look_ahead_conditons;
 	# push compiled_conditions, "((\$self->{tokens_index} = \$self->{save_tokens_index}) or 1)";
 	# push compiled_conditions, "((\$self->{tokens_index} = \$self->{save_tokens_index}) + $match_length <= \@{\$self->{tokens}})";
 	push compiled_conditions, "((\$self->{tokens_index} = \$save_tokens_index) + $match_length <= \@{\$self->{tokens}})";
 	# push compiled_conditions, "\$self->{tokens_index} + $match_length <= \@{\$self->{tokens}}";
 
+	# int i = 0;
+	list push compiled_conditions, self.compile_syntax_match_list_specific(match_list_branches.match_conditions, 0);
+	# foreach (tree condition in match_list_branches.match_conditions) {
+	# 	push compiled_conditions, self.compile_syntax_condition(condition, i);
+	# 	i += 1;
+	# }
 	int i = 0;
-	foreach (tree condition in match_list.match_conditions) {
-		push compiled_conditions, self.compile_syntax_condition(condition, i);
-		i += 1;
-	}
-	i = 0;
-	foreach (tree condition in match_list.look_ahead_conditons) {
+	foreach (tree condition in match_list_branches.look_ahead_conditons) {
 		push compiled_conditions, self.compile_syntax_look_ahead_condition(condition, i);
 		i += 1;
 	}
 
-	int offset = self.get_match_list_match_length(match_list.match_conditions);
+	int offset = self.get_match_list_match_length(match_list_branches.match_conditions);
 
-	int count = list length match_list.optional_match_conditions;
+	int count = list length match_list_branches.optional_match_conditions;
 	if (count > 0) {
 		push compiled_conditions,
-				self.compile_syntax_match_list_optional_branch(match_list.optional_match_conditions, offset);
+				self.compile_syntax_match_list_optional_branch(match_list_branches.optional_match_conditions, offset);
 	}
 
-	count = list length match_list.optional_loop_conditions;
+	count = list length match_list_branches.optional_loop_conditions;
 	if (count > 0) {
 		push compiled_conditions,
-				self.compile_syntax_match_list_optional_loop(match_list.optional_loop_conditions, offset);
+				self.compile_syntax_match_list_optional_loop(match_list_branches.optional_loop_conditions, offset);
 	}
 
 	return join ' and ', compiled_conditions;
@@ -605,10 +641,11 @@ string sub compile_syntax_match_list_optional_branch (list optional_match_list, 
 	int match_length = list length optional_match_list;
 	push compiled_conditions, "((\$self->{tokens_index} = \$save_tokens_index) + $match_length <= \@{\$self->{tokens}})";
 
-	foreach (tree condition in optional_match_list) {
-		push compiled_conditions, self.compile_syntax_condition(condition, i);
-		i += 1;
-	}
+	list push compiled_conditions, self.compile_syntax_match_list_specific(optional_match_list, i);
+	# foreach (tree condition in optional_match_list) {
+	# 	push compiled_conditions, self.compile_syntax_condition(condition, i);
+	# 	i += 1;
+	# }
 	string main_condition = join ' and ', compiled_conditions;
 	return "(do { \$save_tokens_index = \$self->{tokens_index}; 1 } and ($main_condition)
 						or do { \$self->{tokens_index} = \$save_tokens_index ; 1 })";
@@ -620,21 +657,23 @@ string sub compile_syntax_match_list_optional_loop (list optional_loop_match_lis
 	int match_length = list length optional_loop_match_list;
 	push compiled_conditions, "((\$self->{tokens_index} = \$save_tokens_index) + $match_length <= \@{\$self->{tokens}})";
 
-	foreach (tree condition in optional_loop_match_list) {
-		push compiled_conditions, self.compile_syntax_condition(condition, i);
-		i += 1;
-	}
+	list push compiled_conditions, self.compile_syntax_match_list_specific(optional_loop_match_list, i);
+	# foreach (tree condition in optional_loop_match_list) {
+	# 	push compiled_conditions, self.compile_syntax_condition(condition, i);
+	# 	i += 1;
+	# }
 	string main_condition = join ' and ', compiled_conditions;
 	return "(do { \$save_tokens_index = \$self->{tokens_index}; while ($main_condition)
 						{ \$save_tokens_index = \$self->{tokens_index}; }
 						\$self->{tokens_index} = \$save_tokens_index; 1; })";
 }
 
-int sub get_syntax_match_list_tokens_eaten (tree match_list) {
+int sub get_syntax_match_list_tokens_eaten (list match_list) {
 	int i = 0;
-	foreach (tree branch in match_list) {
+	foreach (list branch in match_list) {
 		foreach (tree condition in branch.match_conditions) {
-			if (condition.type == 'assignment_nonmatch') {
+			if (condition.type == 'optional_loop_matchgroup') {
+			} elsif (condition.type == 'assignment_nonmatch') {
 			} elsif (condition.type == 'death_match') {
 			} elsif (condition.type == 'return_match') {
 			} else {
@@ -650,7 +689,8 @@ int sub get_syntax_match_list_tokens_eaten (tree match_list) {
 int sub get_match_list_match_length (list match_list) {
 	int i = 0;
 	foreach (tree condition in match_list) {
-		if (condition.type == 'assignment_nonmatch') {
+		if (condition.type == 'optional_loop_matchgroup') {
+		} elsif (condition.type == 'assignment_nonmatch') {
 		} elsif (condition.type == 'death_match') {
 		} elsif (condition.type == 'return_match') {
 		} else {
@@ -695,6 +735,9 @@ string sub syntax_match_list_branch_as_string (tree match_list) {
 
 string sub syntax_condition_as_string (tree condition) {
 	string switch (condition.type) {
+		'optional_loop_matchgroup': {
+			return join ', ', map { self.syntax_condition_as_string(_) } condition.match_list;
+		}
 		'function_match': {
 			return "$condition.function";
 		}
