@@ -309,7 +309,7 @@ string sub compile_syntax_context (tree context) {
 		}
 	}
 
-	# $code .= "\t\tsay 'in context $context_name';\n"; # DEBUG INLINE TREE BUILDER
+	# push code, "warn 'in context $context.identifier';\n"; # DEBUG INLINE TREE BUILDER
 	if (is_linear_context) {
 		push code, "my \@tokens;";
 		push code, "my \$save_tokens_index = \$self->{tokens_index};";
