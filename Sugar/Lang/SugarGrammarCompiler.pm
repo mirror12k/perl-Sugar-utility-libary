@@ -484,10 +484,6 @@ sub compile_syntax_match_list_branch {
 	if (($count > 0)) {
 		push @{$compiled_conditions}, $self->compile_syntax_match_list_optional_branch($match_list_branches->{optional_match_conditions}, $offset);
 	}
-	$count = scalar(@{$match_list_branches->{optional_loop_conditions}});
-	if (($count > 0)) {
-		push @{$compiled_conditions}, $self->compile_syntax_match_list_optional_loop($match_list_branches->{optional_loop_conditions}, $offset);
-	}
 	return join(' and ', @{$compiled_conditions});
 }
 
@@ -500,18 +496,6 @@ sub compile_syntax_match_list_optional_branch {
 	my $main_condition = join(' and ', @{$compiled_conditions});
 	return "(do { \$save_tokens_index = \$self->{tokens_index}; 1 } and ($main_condition)
 						or do { \$self->{tokens_index} = \$save_tokens_index ; 1 })";
-}
-
-sub compile_syntax_match_list_optional_loop {
-	my ($self, $optional_loop_match_list, $i) = @_;
-	my $compiled_conditions = [];
-	my $match_length = scalar(@{$optional_loop_match_list});
-	push @{$compiled_conditions}, "((\$self->{tokens_index} = \$save_tokens_index) + $match_length <= \@{\$self->{tokens}})";
-	push @{$compiled_conditions}, @{$self->compile_syntax_match_list_specific($optional_loop_match_list, $i)};
-	my $main_condition = join(' and ', @{$compiled_conditions});
-	return "(do { \$save_tokens_index = \$self->{tokens_index}; while ($main_condition)
-						{ \$save_tokens_index = \$self->{tokens_index}; }
-						\$self->{tokens_index} = \$save_tokens_index; 1; })";
 }
 
 sub get_syntax_match_list_tokens_eaten {

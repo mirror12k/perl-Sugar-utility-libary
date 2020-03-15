@@ -172,9 +172,6 @@ object sub match_list_specifier_branch {
 	if '[' => {
 		$_{optional_match_conditions} = !match_conditions_list
 		match ']'
-	} elsif '@', '[' => {
-		$_{optional_loop_conditions} = !match_conditions_list
-		match ']'
 	}
 	
 	return

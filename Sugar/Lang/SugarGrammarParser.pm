@@ -325,15 +325,6 @@ sub context_match_list_specifier_branch {
 			unless ((($self->{tokens_index} = $save_tokens_index) + 1 <= @{$self->{tokens}}) and ($tokens[1] = $self->{tokens}[$self->{tokens_index}++])->[1] eq ']');
 		$save_tokens_index = $self->{tokens_index};
 		$save_tokens_index = $self->{tokens_index};
-	} elsif (((($self->{tokens_index} = $save_tokens_index) + 2 <= @{$self->{tokens}}) and ($tokens[0] = $self->{tokens}[$self->{tokens_index}++])->[1] eq '@' and ($tokens[1] = $self->{tokens}[$self->{tokens_index}++])->[1] eq '[')) {
-		$save_tokens_index = $self->{tokens_index};
-		$save_tokens_index = $self->{tokens_index};
-		$context_value->{optional_loop_conditions} = $self->context_match_conditions_list;
-		$save_tokens_index = $self->{tokens_index};
-		$self->confess_at_offset('expected \']\'', $save_tokens_index)
-			unless ((($self->{tokens_index} = $save_tokens_index) + 1 <= @{$self->{tokens}}) and ($tokens[2] = $self->{tokens}[$self->{tokens_index}++])->[1] eq ']');
-		$save_tokens_index = $self->{tokens_index};
-		$save_tokens_index = $self->{tokens_index};
 	}
 	$self->{tokens_index} = $save_tokens_index;
 	return $context_value;
