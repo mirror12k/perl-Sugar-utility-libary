@@ -286,23 +286,8 @@ sub context_match_list_specifier_branch {
 	my @tokens;
 	my $save_tokens_index = $self->{tokens_index};
 
-	$context_value = { match_conditions => [], look_ahead_conditons => [], };
-	$save_tokens_index = $self->{tokens_index};
-	if (((($self->{tokens_index} = $save_tokens_index) + 1 <= @{$self->{tokens}}) and ($tokens[0] = $self->{tokens}[$self->{tokens_index}++])->[1] eq '(')) {
-		$save_tokens_index = $self->{tokens_index};
-		$save_tokens_index = $self->{tokens_index};
-		$context_value->{look_ahead_conditons} = $self->context_match_conditions_list;
-		$save_tokens_index = $self->{tokens_index};
-		$self->confess_at_offset('expected \')\'', $save_tokens_index)
-			unless ((($self->{tokens_index} = $save_tokens_index) + 1 <= @{$self->{tokens}}) and ($tokens[1] = $self->{tokens}[$self->{tokens_index}++])->[1] eq ')');
-		$save_tokens_index = $self->{tokens_index};
-		$save_tokens_index = $self->{tokens_index};
-	} else {
-		$self->{tokens_index} = $save_tokens_index;
-		$context_value->{match_conditions} = $self->context_match_conditions_list;
-		$save_tokens_index = $self->{tokens_index};
-	}
-	$self->{tokens_index} = $save_tokens_index;
+	$context_value = { match_conditions => [], };
+	$context_value->{match_conditions} = $self->context_match_conditions_list;
 	return $context_value;
 }
 sub context_match_conditions_list {
@@ -559,7 +544,8 @@ sub context_match_action {
 			$save_tokens_index = $self->{tokens_index};
 			$save_tokens_index = $self->{tokens_index};
 			$save_tokens_index = $self->{tokens_index};
-			if (((($self->{tokens_index} = $save_tokens_index) + 1 <= @{$self->{tokens}}) and $self->{tokens}[$self->{tokens_index} + 0]->[1] eq '}')) {
+			if (((($self->{tokens_index} = $save_tokens_index) + 0 <= @{$self->{tokens}}) and (do { my $lookahead_tokens_index = $self->{tokens_index}; my $lookahead_result = ((($self->{tokens_index} = $lookahead_tokens_index) + 1 <= @{$self->{tokens}}) and ($tokens[2] = $self->{tokens}[$self->{tokens_index}++])->[1] eq '}');
+								$self->{tokens_index} = $lookahead_tokens_index; $lookahead_result; }))) {
 				$save_tokens_index = $self->{tokens_index};
 				push @$context_value, { type => 'return_statement', line_number => $tokens[0][2], };
 				$save_tokens_index = $self->{tokens_index};

@@ -401,7 +401,8 @@ sub context_statements_block_list {
 				unless ((($self->{tokens_index} = $save_tokens_index) + 1 <= @{$self->{tokens}}) and ($tokens[2] = $self->{tokens}[$self->{tokens_index}++])->[1] eq ';');
 			$save_tokens_index = $self->{tokens_index};
 			$save_tokens_index = $self->{tokens_index};
-		} elsif (((($self->{tokens_index} = $save_tokens_index) + 1 <= @{$self->{tokens}}) and $self->{tokens}[$self->{tokens_index} + 0]->[1] eq '}')) {
+		} elsif (((($self->{tokens_index} = $save_tokens_index) + 0 <= @{$self->{tokens}}) and (do { my $lookahead_tokens_index = $self->{tokens_index}; my $lookahead_result = ((($self->{tokens_index} = $lookahead_tokens_index) + 1 <= @{$self->{tokens}}) and ($tokens[0] = $self->{tokens}[$self->{tokens_index}++])->[1] eq '}');
+								$self->{tokens_index} = $lookahead_tokens_index; $lookahead_result; }))) {
 			$save_tokens_index = $self->{tokens_index};
 			return $context_value;
 			$save_tokens_index = $self->{tokens_index};
@@ -475,7 +476,8 @@ sub context_switch_block_list {
 	my $save_tokens_index = $self->{tokens_index};
 	
 		$save_tokens_index = $self->{tokens_index};
-		if (((($self->{tokens_index} = $save_tokens_index) + 1 <= @{$self->{tokens}}) and $self->{tokens}[$self->{tokens_index} + 0]->[1] eq '}')) {
+		if (((($self->{tokens_index} = $save_tokens_index) + 0 <= @{$self->{tokens}}) and (do { my $lookahead_tokens_index = $self->{tokens_index}; my $lookahead_result = ((($self->{tokens_index} = $lookahead_tokens_index) + 1 <= @{$self->{tokens}}) and ($tokens[0] = $self->{tokens}[$self->{tokens_index}++])->[1] eq '}');
+								$self->{tokens_index} = $lookahead_tokens_index; $lookahead_result; }))) {
 			$save_tokens_index = $self->{tokens_index};
 			return $context_value;
 			$save_tokens_index = $self->{tokens_index};
@@ -789,7 +791,8 @@ sub context_argument_list {
 	my $save_tokens_index = $self->{tokens_index};
 
 	$save_tokens_index = $self->{tokens_index};
-	if (((($self->{tokens_index} = $save_tokens_index) + 1 <= @{$self->{tokens}}) and $self->{tokens}[$self->{tokens_index} + 0]->[1] eq ')')) {
+	if (((($self->{tokens_index} = $save_tokens_index) + 0 <= @{$self->{tokens}}) and (do { my $lookahead_tokens_index = $self->{tokens_index}; my $lookahead_result = ((($self->{tokens_index} = $lookahead_tokens_index) + 1 <= @{$self->{tokens}}) and ($tokens[0] = $self->{tokens}[$self->{tokens_index}++])->[1] eq ')');
+								$self->{tokens_index} = $lookahead_tokens_index; $lookahead_result; }))) {
 		$save_tokens_index = $self->{tokens_index};
 		return $context_value;
 		$save_tokens_index = $self->{tokens_index};
@@ -828,11 +831,13 @@ sub context_expression_list {
 	my $save_tokens_index = $self->{tokens_index};
 
 	$save_tokens_index = $self->{tokens_index};
-	if (((($self->{tokens_index} = $save_tokens_index) + 1 <= @{$self->{tokens}}) and $self->{tokens}[$self->{tokens_index} + 0]->[1] eq ')')) {
+	if (((($self->{tokens_index} = $save_tokens_index) + 0 <= @{$self->{tokens}}) and (do { my $lookahead_tokens_index = $self->{tokens_index}; my $lookahead_result = ((($self->{tokens_index} = $lookahead_tokens_index) + 1 <= @{$self->{tokens}}) and ($tokens[0] = $self->{tokens}[$self->{tokens_index}++])->[1] eq ')');
+								$self->{tokens_index} = $lookahead_tokens_index; $lookahead_result; }))) {
 		$save_tokens_index = $self->{tokens_index};
 		return $context_value;
 		$save_tokens_index = $self->{tokens_index};
-	} elsif (((($self->{tokens_index} = $save_tokens_index) + 1 <= @{$self->{tokens}}) and $self->{tokens}[$self->{tokens_index} + 0]->[1] eq ']')) {
+	} elsif (((($self->{tokens_index} = $save_tokens_index) + 0 <= @{$self->{tokens}}) and (do { my $lookahead_tokens_index = $self->{tokens_index}; my $lookahead_result = ((($self->{tokens_index} = $lookahead_tokens_index) + 1 <= @{$self->{tokens}}) and ($tokens[0] = $self->{tokens}[$self->{tokens_index}++])->[1] eq ']');
+								$self->{tokens_index} = $lookahead_tokens_index; $lookahead_result; }))) {
 		$save_tokens_index = $self->{tokens_index};
 		return $context_value;
 		$save_tokens_index = $self->{tokens_index};
@@ -855,7 +860,8 @@ sub context_tree_constructor {
 	my $save_tokens_index = $self->{tokens_index};
 
 	$save_tokens_index = $self->{tokens_index};
-	if (((($self->{tokens_index} = $save_tokens_index) + 1 <= @{$self->{tokens}}) and $self->{tokens}[$self->{tokens_index} + 0]->[1] eq '}')) {
+	if (((($self->{tokens_index} = $save_tokens_index) + 0 <= @{$self->{tokens}}) and (do { my $lookahead_tokens_index = $self->{tokens_index}; my $lookahead_result = ((($self->{tokens_index} = $lookahead_tokens_index) + 1 <= @{$self->{tokens}}) and ($tokens[0] = $self->{tokens}[$self->{tokens_index}++])->[1] eq '}');
+								$self->{tokens_index} = $lookahead_tokens_index; $lookahead_result; }))) {
 		$save_tokens_index = $self->{tokens_index};
 		return $context_value;
 		$save_tokens_index = $self->{tokens_index};

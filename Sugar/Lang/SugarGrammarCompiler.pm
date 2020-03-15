@@ -505,14 +505,8 @@ sub compile_syntax_match_list_branch {
 	my ($self, $match_list_branches) = @_;
 	my $compiled_conditions = [];
 	my $match_length = $self->get_match_list_match_length($match_list_branches->{match_conditions});
-	$match_length += $self->get_match_list_match_length($match_list_branches->{look_ahead_conditons});
 	push @{$compiled_conditions}, "((\$self->{tokens_index} = \$save_tokens_index) + $match_length <= \@{\$self->{tokens}})";
 	push @{$compiled_conditions}, @{$self->compile_syntax_match_list_specific($match_list_branches->{match_conditions}, 0)};
-	my $i = 0;
-	foreach my $condition (@{$match_list_branches->{look_ahead_conditons}}) {
-		push @{$compiled_conditions}, $self->compile_syntax_look_ahead_condition($condition, $i);
-		$i += 1;
-	}
 	return join(' and ', @{$compiled_conditions});
 }
 
@@ -572,14 +566,6 @@ sub syntax_match_list_as_string {
 sub syntax_match_list_branch_as_string {
 	my ($self, $match_list) = @_;
 	my $conditions_string = join(', ', @{[ map { $self->syntax_condition_as_string($_) } @{$match_list->{match_conditions}} ]});
-	if ((0 < scalar(@{$match_list->{look_ahead_conditons}}))) {
-		my $look_ahead_string = join(', ', @{[ map { $self->syntax_condition_as_string($_) } @{$match_list->{look_ahead_conditons}} ]});
-		if ((0 < length($conditions_string))) {
-			$conditions_string = "$conditions_string, (look-ahead: $look_ahead_string)";
-		} else {
-			$conditions_string = "(look-ahead: $look_ahead_string)";
-		}
-	}
 	$conditions_string = ($conditions_string =~ s/([\\'])/\\$1/gr);
 	return $conditions_string;
 }

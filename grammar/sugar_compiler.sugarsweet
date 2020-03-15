@@ -644,7 +644,7 @@ string sub compile_syntax_match_list_branch (tree match_list_branches) {
 	# push compiled_conditions, '$self->more_tokens';
 
 	int match_length = self.get_match_list_match_length(match_list_branches.match_conditions);
-	match_length += self.get_match_list_match_length(match_list_branches.look_ahead_conditons);
+	# match_length += self.get_match_list_match_length(match_list_branches.look_ahead_conditons);
 	# int match_length = list length match_list_branches.match_conditions;
 	# match_length += list length match_list_branches.look_ahead_conditons;
 	# push compiled_conditions, "((\$self->{tokens_index} = \$self->{save_tokens_index}) or 1)";
@@ -658,11 +658,11 @@ string sub compile_syntax_match_list_branch (tree match_list_branches) {
 	# 	push compiled_conditions, self.compile_syntax_condition(condition, i);
 	# 	i += 1;
 	# }
-	int i = 0;
-	foreach (tree condition in match_list_branches.look_ahead_conditons) {
-		push compiled_conditions, self.compile_syntax_look_ahead_condition(condition, i);
-		i += 1;
-	}
+	# int i = 0;
+	# foreach (tree condition in match_list_branches.look_ahead_conditons) {
+	# 	push compiled_conditions, self.compile_syntax_look_ahead_condition(condition, i);
+	# 	i += 1;
+	# }
 
 	return join ' and ', compiled_conditions;
 }
@@ -721,16 +721,6 @@ string sub syntax_match_list_as_string (list match_list) {
 
 string sub syntax_match_list_branch_as_string (tree match_list) {
 	string conditions_string = join ', ', map { self.syntax_condition_as_string(_) } match_list.match_conditions;
-
-	if (0 < list length match_list.look_ahead_conditons) {
-		string look_ahead_string = join ', ', map { self.syntax_condition_as_string(_) } match_list.look_ahead_conditons;
-		if (0 < length conditions_string) {
-			conditions_string = "$conditions_string, (look-ahead: $look_ahead_string)";
-		} else {
-			conditions_string = "(look-ahead: $look_ahead_string)";
-		}
-	}
-
 	conditions_string = conditions_string =~ s/([\\'])/\\$1/g;
 
 	return conditions_string;
