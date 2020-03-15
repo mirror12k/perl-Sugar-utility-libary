@@ -36,6 +36,7 @@ trial_sugarsweet_compiler:
 
 test_sugar_grammar:
 	./tests/sugar_grammar_tests.pl
+	./tests/sugar_grammar_endtoend_tests.pl
 
 test_json_example:
 	./Sugar/Lang/SugarGrammarCompiler.pm example/json_parser.sugar > example/JSONParser.pm
