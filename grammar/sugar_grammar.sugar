@@ -154,20 +154,8 @@ list sub match_list_specifier {
 
 object sub match_list_specifier_branch {
 	$_ = {
-		match_conditions => []
-		# look_ahead_conditons => []
+		match_conditions => !match_conditions_list
 	}
-	# if '(' => {
-	# 	$_{look_ahead_conditons} = !match_conditions_list
-	# 	match ')'
-	# } else {
-		$_{match_conditions} = !match_conditions_list
-		# if '(' => {
-		# 	$_{look_ahead_conditons} = !match_conditions_list
-		# 	match ')'
-		# }
-	# }
-	
 	return
 }
 

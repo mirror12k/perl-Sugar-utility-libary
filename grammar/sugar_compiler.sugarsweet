@@ -529,96 +529,6 @@ string sub compile_syntax_condition (tree condition, int offset) {
 	return token_condition_string;
 }
 
-string sub compile_syntax_look_ahead_condition (tree condition, int offset) {
-	# my ($self, $context_type, $condition, $offset) = @_;
-	string switch (condition.type) {
-		'optional_loop_matchgroup': {
-			list compiled_conditions = [];
-
-			int match_length = self.get_match_list_match_length(condition.match_list);
-			push compiled_conditions, "((\$self->{tokens_index} = \$loop_tokens_index) + $match_length <= \@{\$self->{tokens}})";
-			list push compiled_conditions, self.compile_syntax_match_list_specific(condition.match_list, offset);
-
-			string main_condition = join ' and ', compiled_conditions;
-			return "(do { my \$loop_tokens_index = \$self->{tokens_index}; while ($main_condition)
-								{ \$loop_tokens_index = \$self->{tokens_index}; }
-								\$self->{tokens_index} = \$loop_tokens_index; 1; })";
-		}
-		'optional_matchgroup': {
-			list compiled_conditions = [];
-
-			int match_length = self.get_match_list_match_length(condition.match_list);
-			push compiled_conditions, "((\$self->{tokens_index} = \$loop_tokens_index) + $match_length <= \@{\$self->{tokens}})";
-			list push compiled_conditions, self.compile_syntax_match_list_specific(condition.match_list, offset);
-
-			string main_condition = join ' and ', compiled_conditions;
-			return "(do { my \$loop_tokens_index = \$self->{tokens_index}; if ($main_condition)
-								{ \$loop_tokens_index = \$self->{tokens_index}; }
-								\$self->{tokens_index} = \$loop_tokens_index; 1; })";
-		}
-		'lookahead_matchgroup': {
-			list compiled_conditions = [];
-
-			int match_length = self.get_match_list_match_length(condition.match_list);
-			push compiled_conditions, "((\$self->{tokens_index} = \$loop_tokens_index) + $match_length <= \@{\$self->{tokens}})";
-			list push compiled_conditions, self.compile_syntax_match_list_specific(condition.match_list, offset);
-
-			string main_condition = join ' and ', compiled_conditions;
-			return "(do { my \$lookahead_tokens_index = \$self->{tokens_index}; my \$lookahead_result = $main_condition;
-								\$self->{tokens_index} = \$lookahead_tokens_index; \$lookahead_result; })";
-		}
-		'function_match': {
-			string function = self.get_function_by_name(condition.function);
-			if (contains condition.argument) {
-				string expression_code = self.compile_syntax_spawn_expression(condition.argument);
-				string token_expression = "\$self->$function(\$self->{tokens_index} + $offset, $expression_code)";
-				return token_expression;
-			} else {
-				string token_expression = "\$self->$function(\$self->{tokens_index} + $offset)";
-				return token_expression;
-			}
-		}
-		'context_match': {
-			die "context matches are not allowed in look ahead (for now)";
-		}
-		'variable_match': {
-			if (condition.variable =~ /\A\$(\w++)\Z/s) {
-				string variable = self.get_variable(match[1]);
-				string token_expression = "\$self->{tokens}[\$self->{tokens_index} + $offset]";
-				return "$token_expression\->[1] =~ /\\A($variable)\\Z/";
-			} else {
-				self.confess_at_current_line("invalid variable condition value: $condition.variable");
-			}
-		}
-		'regex_match': {
-			if (condition.regex =~ /\A\/(.*)\/([msixpodualn]*)\Z/s) {
-				string token_expression = "\$self->{tokens}[\$self->{tokens_index} + $offset]";
-				return "$token_expression\->[1] =~ /\\A($1)\\Z/$2";
-			} else {
-				self.confess_at_current_line("invalid regex condition value: $condition.regex");
-			}
-		}
-		'string_match': {
-			string token_expression = "\$self->{tokens}[\$self->{tokens_index} + $offset]";
-			return "$token_expression\->[1] eq $condition.string";
-		}
-		'token_type_match': {
-			string token_expression = "\$self->{tokens}[\$self->{tokens_index} + $offset]";
-			return "$token_expression\->[0] eq '$condition.value'";
-		}
-		'death_match': {
-			string expression = self.compile_syntax_spawn_expression(condition.argument);
-			return "\$self->confess_at_current_offset($expression)";
-		}
-		'return_match': {
-			return "(return \$context_value)";
-		}
-		default: {
-			self.confess_at_current_line("invalid syntax condition '$condition.type'");
-		}
-	}
-}
-
 string sub compile_syntax_match_list (list match_list) {
 	return join " \n\t\t\t\tor ", map { "($_)" } map { self.compile_syntax_match_list_branch(_) } match_list;
 }
@@ -635,34 +545,11 @@ list sub compile_syntax_match_list_specific (list match_list, int i) {
 }
 
 string sub compile_syntax_match_list_branch (tree match_list_branches) {
-
-	# list conditions = [];
-	# list push conditions, match_list.match_conditions;
-	# list push conditions, match_list.look_ahead_conditons;
-
 	list compiled_conditions = [];
-	# push compiled_conditions, '$self->more_tokens';
 
 	int match_length = self.get_match_list_match_length(match_list_branches.match_conditions);
-	# match_length += self.get_match_list_match_length(match_list_branches.look_ahead_conditons);
-	# int match_length = list length match_list_branches.match_conditions;
-	# match_length += list length match_list_branches.look_ahead_conditons;
-	# push compiled_conditions, "((\$self->{tokens_index} = \$self->{save_tokens_index}) or 1)";
-	# push compiled_conditions, "((\$self->{tokens_index} = \$self->{save_tokens_index}) + $match_length <= \@{\$self->{tokens}})";
 	push compiled_conditions, "((\$self->{tokens_index} = \$save_tokens_index) + $match_length <= \@{\$self->{tokens}})";
-	# push compiled_conditions, "\$self->{tokens_index} + $match_length <= \@{\$self->{tokens}}";
-
-	# int i = 0;
 	list push compiled_conditions, self.compile_syntax_match_list_specific(match_list_branches.match_conditions, 0);
-	# foreach (tree condition in match_list_branches.match_conditions) {
-	# 	push compiled_conditions, self.compile_syntax_condition(condition, i);
-	# 	i += 1;
-	# }
-	# int i = 0;
-	# foreach (tree condition in match_list_branches.look_ahead_conditons) {
-	# 	push compiled_conditions, self.compile_syntax_look_ahead_condition(condition, i);
-	# 	i += 1;
-	# }
 
 	return join ' and ', compiled_conditions;
 }

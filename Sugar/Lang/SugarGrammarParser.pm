@@ -286,8 +286,7 @@ sub context_match_list_specifier_branch {
 	my @tokens;
 	my $save_tokens_index = $self->{tokens_index};
 
-	$context_value = { match_conditions => [], };
-	$context_value->{match_conditions} = $self->context_match_conditions_list;
+	$context_value = { match_conditions => $self->context_match_conditions_list, };
 	return $context_value;
 }
 sub context_match_conditions_list {
