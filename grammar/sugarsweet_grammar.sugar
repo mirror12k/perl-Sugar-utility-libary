@@ -203,7 +203,7 @@ list sub statements_block_list {
 				block => !statements_block
 			}
 		}
-		'return' (/;|if|unless/) => {
+		'return', (/;|if|unless/) => {
 			push !more_statement->void_return_statement:{}
 			match ';' or die 'expected ";" after expression'
 		}

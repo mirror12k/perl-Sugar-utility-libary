@@ -166,4 +166,29 @@ item sub thing
 	expected_result => [qw/asdf "qqer" "z" asfd/]
 );
 
+$verifier->expect_result(
+	'test lookahead parsing',
+	parser_code => q#
+package __test::test5
+tokens {
+	identifier => /[a-zA-Z_][a-zA-Z0-9_]*+/
+	symbol => /\\{|\\}|\\[|\\]|,|:/
+	whitespace => /\\s++/s
+}
+ignored_tokens { whitespace }
+
+list sub root
+	=> @[ [] = !thing ]
+
+list sub thing
+	=> [] = *identifier, ?[ ( [] = *identifier ) ]
+		| return
+
+	#,
+	text => '
+	a c b b
+',
+	expected_result => [[qw/a c/], [qw/c b/], [qw/b b/], [qw/b/]]
+);
+
 $verifier->run;

@@ -162,10 +162,10 @@ object sub match_list_specifier_branch {
 		match ')'
 	} else {
 		$_{match_conditions} = !match_conditions_list
-		if '(' => {
-			$_{look_ahead_conditons} = !match_conditions_list
-			match ')'
-		}
+		# if '(' => {
+		# 	$_{look_ahead_conditons} = !match_conditions_list
+		# 	match ')'
+		# }
 	}
 	
 	return
@@ -195,6 +195,11 @@ item sub match_item {
 		'?', '[', !match_conditions_list, ']' => {
 			return optional_matchgroup:{
 				match_list => $2{value}
+			}
+		}
+		'(', !match_conditions_list, ')' => {
+			return lookahead_matchgroup:{
+				match_list => $1{value}
 			}
 		}
 		*identifier, ':', '{', *identifier, '}', '=' => {

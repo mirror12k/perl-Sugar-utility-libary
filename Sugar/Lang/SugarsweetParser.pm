@@ -320,7 +320,8 @@ sub context_statements_block_list {
 			$save_tokens_index = $self->{tokens_index};
 			push @$context_value, { type => 'while_statement', line_number => $tokens[0][2], expression => $var_expression, block => $self->context_statements_block, };
 			$save_tokens_index = $self->{tokens_index};
-		} elsif (((($self->{tokens_index} = $save_tokens_index) + 2 <= @{$self->{tokens}}) and ($tokens[0] = $self->{tokens}[$self->{tokens_index}++])->[1] eq 'return' and $self->{tokens}[$self->{tokens_index} + 0]->[1] =~ /\A(;|if|unless)\Z/)) {
+		} elsif (((($self->{tokens_index} = $save_tokens_index) + 1 <= @{$self->{tokens}}) and ($tokens[0] = $self->{tokens}[$self->{tokens_index}++])->[1] eq 'return' and (do { my $lookahead_tokens_index = $self->{tokens_index}; my $lookahead_result = ((($self->{tokens_index} = $lookahead_tokens_index) + 1 <= @{$self->{tokens}}) and ($tokens[1] = $self->{tokens}[$self->{tokens_index}++])->[1] =~ /\A(;|if|unless)\Z/);
+								$self->{tokens_index} = $lookahead_tokens_index; $lookahead_result; }))) {
 			$save_tokens_index = $self->{tokens_index};
 			$save_tokens_index = $self->{tokens_index};
 			push @$context_value, $self->context_more_statement({ type => 'void_return_statement', line_number => $tokens[0][2], });
