@@ -6,6 +6,7 @@ use feature 'say';
 
 use Term::ANSIColor;
 use Data::Dumper;
+use Sugar::IO::File;
 
 
 
@@ -41,6 +42,7 @@ sub execute_parser {
 	$compiler->compile_syntax_intermediate;
 	my $code = $compiler->to_package;
 	# say "debug code: $code";
+	Sugar::IO::File->new('dump.pl')->write($code);
 
 	eval "$code";
 	die "error evaling: $@" if $@;

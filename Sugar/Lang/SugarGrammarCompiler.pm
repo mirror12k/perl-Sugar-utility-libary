@@ -275,11 +275,7 @@ sub compile_syntax_condition {
 								{ \$save_tokens_index = \$self->{tokens_index}; }
 								\$self->{tokens_index} = \$save_tokens_index; 1; })";
 	} elsif (($condition->{type} eq 'lookahead_matchgroup')) {
-		my $compiled_conditions = [];
-		my $match_length = $self->get_match_list_match_length($condition->{match_list});
-		push @{$compiled_conditions}, "((\$self->{tokens_index} = \$save_tokens_index) + $match_length <= \@{\$self->{tokens}})";
-		push @{$compiled_conditions}, @{$self->compile_syntax_match_list_specific($condition->{match_list}, $tokens_array_offset)};
-		my $main_condition = join(' and ', @{$compiled_conditions});
+		my $main_condition = $self->compile_syntax_branching_match_list_offset($condition->{branching_match_list}, $offset);
 		return "(do { my \$save_tokens_index = \$self->{tokens_index}; my \$lookahead_result = ($main_condition);
 								\$self->{tokens_index} = \$save_tokens_index; \$lookahead_result; })";
 	} elsif (($condition->{type} eq 'function_match')) {
@@ -494,19 +490,18 @@ sub syntax_match_list_as_string {
 sub syntax_match_list_branch_as_string {
 	my ($self, $match_list) = @_;
 	my $conditions_string = join(', ', @{[ map { $self->syntax_condition_as_string($_) } @{$match_list->{match_conditions}} ]});
-	$conditions_string = ($conditions_string =~ s/([\\'])/\\$1/gr);
 	return $conditions_string;
 }
 
 sub syntax_condition_as_string {
 	my ($self, $condition) = @_;
 	if (($condition->{type} eq 'optional_loop_matchgroup')) {
-		return join(', ', @{[ map { $self->syntax_condition_as_string($_) } @{$condition->{match_list}} ]});
+		return $self->syntax_match_list_as_string($condition->{branching_match_list});
 	} elsif (($condition->{type} eq 'optional_matchgroup')) {
-		my $condition_string = join(', ', @{[ map { $self->syntax_condition_as_string($_) } @{$condition->{match_list}} ]});
+		my $condition_string = $self->syntax_match_list_as_string($condition->{branching_match_list});
 		return "[ $condition_string ]";
 	} elsif (($condition->{type} eq 'lookahead_matchgroup')) {
-		my $condition_string = join(', ', @{[ map { $self->syntax_condition_as_string($_) } @{$condition->{match_list}} ]});
+		my $condition_string = $self->syntax_match_list_as_string($condition->{branching_match_list});
 		return "( $condition_string )";
 	} elsif (($condition->{type} eq 'function_match')) {
 		return "$condition->{function}";
@@ -515,9 +510,9 @@ sub syntax_condition_as_string {
 	} elsif (($condition->{type} eq 'variable_match')) {
 		return $self->get_variable($condition->{variable});
 	} elsif (($condition->{type} eq 'regex_match')) {
-		return "$condition->{regex}";
+		return ("$condition->{regex}" =~ s/([\\'])/\\$1/gr);
 	} elsif (($condition->{type} eq 'string_match')) {
-		return "$condition->{string}";
+		return ("$condition->{string}" =~ s/([\\'])/\\$1/gr);
 	} elsif (($condition->{type} eq 'token_type_match')) {
 		return "$condition->{value} token";
 	} elsif (($condition->{type} eq 'death_match')) {

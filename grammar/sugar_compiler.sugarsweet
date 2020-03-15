@@ -377,13 +377,14 @@ string sub compile_syntax_condition (tree condition, int offset) {
 								\$self->{tokens_index} = \$save_tokens_index; 1; })";
 		}
 		'lookahead_matchgroup': {
-			list compiled_conditions = [];
+			# list compiled_conditions = [];
 
-			int match_length = self.get_match_list_match_length(condition.match_list);
-			push compiled_conditions, "((\$self->{tokens_index} = \$save_tokens_index) + $match_length <= \@{\$self->{tokens}})";
-			list push compiled_conditions, self.compile_syntax_match_list_specific(condition.match_list, tokens_array_offset);
+			# int match_length = self.get_match_list_match_length(condition.match_list);
+			# push compiled_conditions, "((\$self->{tokens_index} = \$save_tokens_index) + $match_length <= \@{\$self->{tokens}})";
+			# list push compiled_conditions, self.compile_syntax_match_list_specific(condition.match_list, tokens_array_offset);
 
-			string main_condition = join ' and ', compiled_conditions;
+			# string main_condition = join ' and ', compiled_conditions;
+			string main_condition = self.compile_syntax_branching_match_list_offset(condition.branching_match_list, offset);
 			return "(do { my \$save_tokens_index = \$self->{tokens_index}; my \$lookahead_result = ($main_condition);
 								\$self->{tokens_index} = \$save_tokens_index; \$lookahead_result; })";
 		}
@@ -616,7 +617,7 @@ string sub syntax_match_list_as_string (list match_list) {
 
 string sub syntax_match_list_branch_as_string (tree match_list) {
 	string conditions_string = join ', ', map { self.syntax_condition_as_string(_) } match_list.match_conditions;
-	conditions_string = conditions_string =~ s/([\\'])/\\$1/g;
+	# conditions_string = conditions_string =~ s/([\\'])/\\$1/g;
 
 	return conditions_string;
 }
@@ -624,14 +625,14 @@ string sub syntax_match_list_branch_as_string (tree match_list) {
 string sub syntax_condition_as_string (tree condition) {
 	string switch (condition.type) {
 		'optional_loop_matchgroup': {
-			return join ', ', map { self.syntax_condition_as_string(_) } condition.match_list;
+			return self.syntax_match_list_as_string(condition.branching_match_list);
 		}
 		'optional_matchgroup': {
-			string condition_string = join ', ', map { self.syntax_condition_as_string(_) } condition.match_list;
+			string condition_string = self.syntax_match_list_as_string(condition.branching_match_list);
 			return "[ $condition_string ]";
 		}
 		'lookahead_matchgroup': {
-			string condition_string = join ', ', map { self.syntax_condition_as_string(_) } condition.match_list;
+			string condition_string = self.syntax_match_list_as_string(condition.branching_match_list);
 			return "( $condition_string )";
 		}
 		'function_match': {
@@ -644,10 +645,10 @@ string sub syntax_condition_as_string (tree condition) {
 			return self.get_variable(condition.variable);
 		}
 		'regex_match': {
-			return "$condition.regex";
+			return "$condition.regex" =~ s/([\\'])/\\$1/g;
 		}
 		'string_match': {
-			return "$condition.string";
+			return "$condition.string" =~ s/([\\'])/\\$1/g;
 		}
 		'token_type_match': {
 			return "$condition.value token";

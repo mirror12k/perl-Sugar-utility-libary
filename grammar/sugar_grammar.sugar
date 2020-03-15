@@ -185,9 +185,9 @@ item sub match_item {
 				branching_match_list => $2{value}
 			}
 		}
-		'(', !match_conditions_list, ')' => {
+		'(', !match_list_specifier, ')' => {
 			return lookahead_matchgroup:{
-				match_list => $1{value}
+				branching_match_list => $1{value}
 			}
 		}
 		*identifier, ':', '{', *identifier, '}', '=' => {
