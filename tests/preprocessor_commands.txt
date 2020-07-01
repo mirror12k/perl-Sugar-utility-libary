@@ -1,0 +1,6 @@
+#sugar_define {/\bdo:(\w+)/} I will do $1!
+#sugar_define {/\bmy_call\((\w+),(\w+)\)/i} this is a call for $1 and $2
+#sugar_define {/multiline/} my\
+multi-line\
+comment\
+lol

@@ -17,6 +17,10 @@ sugarsweet_compiler:
 	./Sugar/Lang/SugarsweetCompiler.pm grammar/sugarsweet_compiler.sugarsweet > temp_compiled_file
 	chmod +x temp_compiled_file
 	mv temp_compiled_file Sugar/Lang/SugarsweetCompiler.pm
+sugar_preprocessor:
+	./Sugar/Lang/SugarsweetCompiler.pm grammar/sugar_preprocessor.sugarsweet > temp_compiled_file
+	chmod +x temp_compiled_file
+	mv temp_compiled_file Sugar/Lang/SugarPreprocessor.pm
 
 
 all_trial: trial_sugar_grammar trial_sugar_compiler trial_sugarsweet_grammar trial_sugarsweet_compiler
@@ -33,6 +37,9 @@ trial_sugarsweet_grammar:
 trial_sugarsweet_compiler:
 	./Sugar/Lang/SugarsweetCompiler.pm grammar/sugarsweet_compiler.sugarsweet > SugarsweetCompiler.pm
 	chmod +x SugarsweetCompiler.pm
+trial_sugar_preprocessor:
+	./Sugar/Lang/SugarsweetCompiler.pm grammar/sugar_preprocessor.sugarsweet > SugarPreprocessor.pm
+	chmod +x SugarPreprocessor.pm
 
 test_sugar_grammar:
 	./tests/sugar_grammar_tests.pl

@@ -1,0 +1,74 @@
+
+
+class Sugar::Lang::SugarPreprocessor {
+
+
+sub _constructor(tree args) {
+	self.registered_commands = [];
+}
+
+string sub preprocess_lines(list lines) {
+	string remaining_text = '';
+	while (0 < length lines) {
+		string v = shift lines;
+		if (v =~ /\A\#\s*sugar_define\b/s) {
+			while (v =~ /\\\Z/s) {
+				if (0 == length lines) {
+					die "incomplete command at the end of a file: $v";
+				}
+				v = v =~ s/\\\Z//s;
+				v += "\n";
+				v += shift lines;
+			}
+			if (v =~ /\A\#\s*sugar_define\b\s+\{\/(.*?)\/([msixgcpodualn]*)\}\s+(.*)\Z/s) {
+				push self.registered_commands, {
+					what => match[1],
+					flags => match[2],
+					into => match[3],
+				};
+			} else {
+				die "invalid sugar_define: $v";
+			}
+		} else {
+			remaining_text += "$v\n";
+		}
+	}
+
+	foreach (var command in self.registered_commands) {
+		string regex = "(?$command.flags:$command.what)";
+		list matched_stuff = [remaining_text =~ /$regex/];
+		while (0 < length matched_stuff) {
+			string into = command.into;
+			int i = 1;
+			foreach (string sub_to in matched_stuff) {
+				into = into =~ s/\$$i/$sub_to/gs;
+				i += 1;
+			}
+			remaining_text = remaining_text =~ s/$regex/$into/s;
+			matched_stuff = [remaining_text =~ /$regex/];
+		}
+	}
+
+	return remaining_text;
+}
+
+void sub yes (string txt) native:perl5 {{ say $_[1]; }}
+
+void sub main () native:perl5 {{
+	my ($files_list) = @_;
+
+	use Data::Dumper;
+	require Sugar::IO::File;
+
+	my $preprocessor = __PACKAGE__->new;
+	foreach my $file (@$files_list) {
+		my @lines = Sugar::IO::File->new($file)->readlines;
+		# say Dumper \@lines;
+
+		say $preprocessor->preprocess_lines(\@lines);
+		# say Dumper $preprocessor->{registered_commands};
+	}
+}}
+
+}
+
