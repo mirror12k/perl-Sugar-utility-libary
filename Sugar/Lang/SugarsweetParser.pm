@@ -378,6 +378,15 @@ sub context_statements_block_list {
 				unless ((($self->{tokens_index} = $save_tokens_index) + 1 <= @{$self->{tokens}}) and ($tokens[1] = $self->{tokens}[$self->{tokens_index}++])->[1] eq ';');
 			$save_tokens_index = $self->{tokens_index};
 			$save_tokens_index = $self->{tokens_index};
+		} elsif (((($self->{tokens_index} = $save_tokens_index) + 1 <= @{$self->{tokens}}) and ($tokens[0] = $self->{tokens}[$self->{tokens_index}++])->[1] eq 'print')) {
+			$save_tokens_index = $self->{tokens_index};
+			$save_tokens_index = $self->{tokens_index};
+			push @$context_value, $self->context_more_statement({ type => 'print_statement', line_number => $tokens[0][2], expression => $self->context_expression, });
+			$save_tokens_index = $self->{tokens_index};
+			$self->confess_at_offset('expected ";" after expression', $save_tokens_index)
+				unless ((($self->{tokens_index} = $save_tokens_index) + 1 <= @{$self->{tokens}}) and ($tokens[1] = $self->{tokens}[$self->{tokens_index}++])->[1] eq ';');
+			$save_tokens_index = $self->{tokens_index};
+			$save_tokens_index = $self->{tokens_index};
 		} elsif (((($self->{tokens_index} = $save_tokens_index) + 3 <= @{$self->{tokens}}) and ($tokens[0] = $self->{tokens}[$self->{tokens_index}++])->[0] eq 'identifier' and ($tokens[1] = $self->{tokens}[$self->{tokens_index}++])->[0] eq 'identifier' and ($tokens[2] = $self->{tokens}[$self->{tokens_index}++])->[1] eq ';')) {
 			$save_tokens_index = $self->{tokens_index};
 			$save_tokens_index = $self->{tokens_index};

@@ -52,8 +52,6 @@ string sub preprocess_lines(list lines) {
 	return remaining_text;
 }
 
-void sub yes (string txt) native:perl5 {{ say $_[1]; }}
-
 void sub main () native:perl5 {{
 	my ($files_list) = @_;
 

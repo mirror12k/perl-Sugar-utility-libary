@@ -183,6 +183,9 @@ sub compile_statement {
 	} elsif (($statement->{type} eq 'die_statement')) {
 		my $expression = $self->compile_expression($statement->{expression});
 		push @{$code}, "die $expression;";
+	} elsif (($statement->{type} eq 'print_statement')) {
+		my $expression = $self->compile_expression($statement->{expression});
+		push @{$code}, "say $expression;";
 	} elsif (($statement->{type} eq 'variable_declaration_statement')) {
 		$self->{variable_scope}->{$statement->{identifier}} = $statement->{variable_type};
 		push @{$code}, "my \$$statement->{identifier};";

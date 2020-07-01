@@ -239,6 +239,12 @@ list sub statements_block_list {
 			}
 			match ';' or die 'expected ";" after expression'
 		}
+		'print' => {
+			push !more_statement->print_statement:{
+				expression => !expression
+			}
+			match ';' or die 'expected ";" after expression'
+		}
 		*identifier, *identifier, ';' => {
 			push variable_declaration_statement:{
 				variable_type => $0
