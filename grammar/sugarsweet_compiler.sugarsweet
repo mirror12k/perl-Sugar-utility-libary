@@ -7,126 +7,120 @@ sub _constructor(tree args) {
 }
 
 string sub compile_file(tree syntax_tree) {
-	# my ($self, $tree) = @_;
-
 	list code = [];
-	# my @code;
 
-	push code, "#!/usr/bin/env perl";
-	push code, "use strict;";
-	push code, "use warnings;";
-	push code, "use feature 'say';";
-	push code, "";
-	# push @code, "use strict;";
-	# push @code, "use warnings;";
-	# push @code, "use feature 'say';";
-	# push @code, "";
-
+	list push code, self.code_file_preamble();
 	list push code, flatten map { self.compile_class(_) } syntax_tree.classes;
-	# foreach (tree class_tree in syntax_tree.classes) {
-	# 	list push code, self.compile_class(class_tree);
-	# }
-	# foreach my $class (@{$tree->{classes}}) {
-	# 	push @code, $self->compile_class($class);
-	# }
-
-	push code, "";
-	# push @code, "";
+	list push code, self.code_file_postamble();
 
 	return join "\n", code;
-	# return join "\n", @code;
+}
+
+list sub code_file_preamble() {
+	return [
+		"#!/usr/bin/env perl",
+		"use strict;",
+		"use warnings;",
+		"use feature 'say';",
+		""
+	];
+}
+
+list sub code_file_postamble() {
+	return [
+		""
+	];
 }
 
 list sub compile_class(tree class_tree) {
-	# my ($self, $class) = @_;
-
 	list code = [];
-	# my @code;
 
-	string class_name = join '::', class_tree.name;
-	push code, "package $class_name;";
-	# push @code, "package $class->{name};";
-
+	list push code, self.code_class_preamble(class_tree);
 	list push code, flatten map { self.compile_constructor(_) } class_tree.constructors;
 	list push code, flatten map { self.compile_function(_) } class_tree.functions;
 	list push code, flatten map { self.compile_native_function(_) } grep { _.native_type == 'perl5' } class_tree.native_functions;
-	# push @code, map $self->compile_function($_), @{$class->{functions}};
+	list push code, self.code_class_postamble(class_tree);
 
 	return code;
-	# return @code;
+}
+
+list sub code_class_preamble(tree class_tree) {
+	string class_name = join '::', class_tree.name;
+	return [
+		"package $class_name;"
+	];
+}
+
+list sub code_class_postamble(tree class_tree) {
+	return [];
 }
 
 list sub compile_constructor(tree function_tree) {
-	# my ($self, $function) = @_;
+	list code = [];
 
+	self.variable_scope = {};
+
+	list push code, self.code_constructor_preamble(function_tree);
+	list push code, self.compile_statements_block(function_tree.block, function_tree.argument_list);
+	list push code, self.code_constructor_postamble(function_tree);
+
+	return code;
+}
+
+list sub code_constructor_preamble(tree function_tree) {
 	list code = [];
 	push code, "sub new {";
-	# my @code;
-	# push @code, "sub $function->{name} {";
 
 	if (0 < list length function_tree.argument_list) {
 		string argument_list = self.compile_argument_list(function_tree.argument_list);
 		push code, "\tmy ($argument_list) = \@_;";
 	}
+
 	push code, "\t\$self = bless {}, \$self;";
 
-	# push @code, "\tmy (" . $self->compile_argument_list($function->{argument_list}) . ") = \@_;"
-	# 		if @{$function->{argument_list}} > 0;
-
-	self.variable_scope = {};
-	# $self->{variable_scope} = {};
-	# foreach my $argument (@{$function->{argument_list}}) {
-	# 	$self->{variable_scope}{$argument->{identifier}} = $argument->{variable_type};
-	# }
-	list push code, self.compile_statements_block(function_tree.block, function_tree.argument_list);
-	# push @code, $self->compile_statements_block($function->{block}, $function->{argument_list});
-
-	push code, "\treturn \$self;";
-	push code, "}";
-	push code, "";
-	# push @code, "}";
-	# push @code, "";
-
 	return code;
-	# return @code;
+}
+
+list sub code_constructor_postamble(tree function_tree) {
+	return [
+		"\treturn \$self;",
+		"}",
+		""
+	];
 }
 
 list sub compile_function(tree function_tree) {
-	# my ($self, $function) = @_;
+	list code = [];
 
+	self.variable_scope = {};
+
+	list push code, self.code_function_preamble(function_tree);
+	list push code, self.compile_statements_block(function_tree.block, function_tree.argument_list);
+	list push code, self.code_function_postamble(function_tree);
+
+	return code;
+}
+
+list sub code_function_preamble(tree function_tree) {
 	list code = [];
 	push code, "sub $function_tree.name {";
-	# my @code;
-	# push @code, "sub $function->{name} {";
 
 	if (0 < list length function_tree.argument_list) {
 		string argument_list = self.compile_argument_list(function_tree.argument_list);
 		push code, "\tmy ($argument_list) = \@_;";
 	}
 
-	# push @code, "\tmy (" . $self->compile_argument_list($function->{argument_list}) . ") = \@_;"
-	# 		if @{$function->{argument_list}} > 0;
-
-	self.variable_scope = {};
-	# $self->{variable_scope} = {};
-	# foreach my $argument (@{$function->{argument_list}}) {
-	# 	$self->{variable_scope}{$argument->{identifier}} = $argument->{variable_type};
-	# }
-	list push code, self.compile_statements_block(function_tree.block, function_tree.argument_list);
-	# push @code, $self->compile_statements_block($function->{block}, $function->{argument_list});
-
-	push code, "}";
-	push code, "";
-	# push @code, "}";
-	# push @code, "";
-
 	return code;
-	# return @code;
+}
+
+list sub code_function_postamble(tree function_tree) {
+	return [
+		"}",
+		""
+	];
 }
 
 list sub compile_native_function(tree function_tree) {
-	# my ($self, $function) = @_;
-
 	list code = [];
 	push code, "sub $function_tree.name {";
 
@@ -153,27 +147,18 @@ list sub compile_native_function(tree function_tree) {
 }
 
 list sub compile_statements_block(list block, list with_variables) {
-	# my ($self, $block, $with_variables) = @_;
 
 	tree previous_scope = self.variable_scope;
 	self.variable_scope = clone previous_scope;
-	# my $previous_scope = $self->{variable_scope};
-	# $self->{variable_scope} = { %$previous_scope };
 
 	foreach (tree var in with_variables) {
 		self.variable_scope[var.identifier] = var.variable_type;
 	}
-	# foreach my $var (@$with_variables) {
-	# 	$self->{variable_scope}{$var->{identifier}} = $var->{variable_type};
-	# }
 
 	list code = map { "\t$_" } flatten map { self.compile_statement(_) } block;
 	self.variable_scope = previous_scope;
-	# my @code = map "\t$_", map $self->compile_statement($_), @$block;
-	# $self->{variable_scope} = $previous_scope;
 
 	return code;
-	# return @code;
 }
 
 
@@ -669,12 +654,9 @@ string sub get_expression_type (tree expression) {
 }
 
 string sub compile_expression_with_variables(tree expression, list with_variables) {
-	# my ($self, $expression, $with_variables) = @_;
 
 	tree previous_scope = self.variable_scope;
 	self.variable_scope = clone previous_scope;
-	# my $previous_scope = $self->{variable_scope};
-	# $self->{variable_scope} = { %$previous_scope };
 
 	foreach (tree var in with_variables) {
 		self.variable_scope[var.identifier] = var.variable_type;
@@ -683,14 +665,6 @@ string sub compile_expression_with_variables(tree expression, list with_variable
 	self.variable_scope = previous_scope;
 
 	return code;
-	# foreach my $var (@$with_variables) {
-	# 	$self->{variable_scope}{$var->{identifier}} = $var->{variable_type};
-	# }
-
-	# my $code = $self->compile_expression($expression);
-	# $self->{variable_scope} = $previous_scope;
-
-	# return $code;
 }
 
 
@@ -709,10 +683,6 @@ void sub main () native:perl5 {{
 		# say Dumper $tree;
 
 		say $compiler->compile_file($tree);
-
-
-		# my $compiler = Sugar::Lang::SyntaxIntermediateCompiler->new(syntax_definition_intermediate => $tree);
-		# say $compiler->to_package;
 	}
 }}
 

@@ -14,28 +14,55 @@ sub new {
 sub compile_file {
 	my ($self, $syntax_tree) = @_;
 	my $code = [];
-	push @{$code}, "#!/usr/bin/env perl";
-	push @{$code}, "use strict;";
-	push @{$code}, "use warnings;";
-	push @{$code}, "use feature 'say';";
-	push @{$code}, "";
+	push @{$code}, @{$self->code_file_preamble()};
 	push @{$code}, @{[ map @$_, @{[ map { $self->compile_class($_) } @{$syntax_tree->{classes}} ]} ]};
-	push @{$code}, "";
+	push @{$code}, @{$self->code_file_postamble()};
 	return join("\n", @{$code});
+}
+
+sub code_file_preamble {
+	my ($self) = @_;
+	return [ "#!/usr/bin/env perl", "use strict;", "use warnings;", "use feature 'say';", "" ];
+}
+
+sub code_file_postamble {
+	my ($self) = @_;
+	return [ "" ];
 }
 
 sub compile_class {
 	my ($self, $class_tree) = @_;
 	my $code = [];
-	my $class_name = join('::', @{$class_tree->{name}});
-	push @{$code}, "package $class_name;";
+	push @{$code}, @{$self->code_class_preamble($class_tree)};
 	push @{$code}, @{[ map @$_, @{[ map { $self->compile_constructor($_) } @{$class_tree->{constructors}} ]} ]};
 	push @{$code}, @{[ map @$_, @{[ map { $self->compile_function($_) } @{$class_tree->{functions}} ]} ]};
 	push @{$code}, @{[ map @$_, @{[ map { $self->compile_native_function($_) } @{[ grep { ($_->{native_type} eq 'perl5') } @{$class_tree->{native_functions}} ]} ]} ]};
+	push @{$code}, @{$self->code_class_postamble($class_tree)};
 	return $code;
 }
 
+sub code_class_preamble {
+	my ($self, $class_tree) = @_;
+	my $class_name = join('::', @{$class_tree->{name}});
+	return [ "package $class_name;" ];
+}
+
+sub code_class_postamble {
+	my ($self, $class_tree) = @_;
+	return [];
+}
+
 sub compile_constructor {
+	my ($self, $function_tree) = @_;
+	my $code = [];
+	$self->{variable_scope} = {};
+	push @{$code}, @{$self->code_constructor_preamble($function_tree)};
+	push @{$code}, @{$self->compile_statements_block($function_tree->{block}, $function_tree->{argument_list})};
+	push @{$code}, @{$self->code_constructor_postamble($function_tree)};
+	return $code;
+}
+
+sub code_constructor_preamble {
 	my ($self, $function_tree) = @_;
 	my $code = [];
 	push @{$code}, "sub new {";
@@ -44,15 +71,25 @@ sub compile_constructor {
 		push @{$code}, "\tmy ($argument_list) = \@_;";
 	}
 	push @{$code}, "\t\$self = bless {}, \$self;";
-	$self->{variable_scope} = {};
-	push @{$code}, @{$self->compile_statements_block($function_tree->{block}, $function_tree->{argument_list})};
-	push @{$code}, "\treturn \$self;";
-	push @{$code}, "}";
-	push @{$code}, "";
 	return $code;
 }
 
+sub code_constructor_postamble {
+	my ($self, $function_tree) = @_;
+	return [ "\treturn \$self;", "}", "" ];
+}
+
 sub compile_function {
+	my ($self, $function_tree) = @_;
+	my $code = [];
+	$self->{variable_scope} = {};
+	push @{$code}, @{$self->code_function_preamble($function_tree)};
+	push @{$code}, @{$self->compile_statements_block($function_tree->{block}, $function_tree->{argument_list})};
+	push @{$code}, @{$self->code_function_postamble($function_tree)};
+	return $code;
+}
+
+sub code_function_preamble {
 	my ($self, $function_tree) = @_;
 	my $code = [];
 	push @{$code}, "sub $function_tree->{name} {";
@@ -60,11 +97,12 @@ sub compile_function {
 		my $argument_list = $self->compile_argument_list($function_tree->{argument_list});
 		push @{$code}, "\tmy ($argument_list) = \@_;";
 	}
-	$self->{variable_scope} = {};
-	push @{$code}, @{$self->compile_statements_block($function_tree->{block}, $function_tree->{argument_list})};
-	push @{$code}, "}";
-	push @{$code}, "";
 	return $code;
+}
+
+sub code_function_postamble {
+	my ($self, $function_tree) = @_;
+	return [ "}", "" ];
 }
 
 sub compile_native_function {
@@ -526,10 +564,6 @@ sub main {
 		# say Dumper $tree;
 
 		say $compiler->compile_file($tree);
-
-
-		# my $compiler = Sugar::Lang::SyntaxIntermediateCompiler->new(syntax_definition_intermediate => $tree);
-		# say $compiler->to_package;
 	}
 
 }
