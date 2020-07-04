@@ -50,9 +50,10 @@ ignored_tokens {
 # context definitions
 object sub root {
 	switch {
-		'class', !class_identifier->[] => {
+		'class', !class_identifier->[], ?[ 'extends', !class_identifier->[] ] => {
 			$_{classes}[] = !class_definition->class_declaration:{
 				name => $1{value}
+				parent_name => $3{value}
 			}
 		}
 		default {

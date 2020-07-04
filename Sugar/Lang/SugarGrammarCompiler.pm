@@ -4,6 +4,7 @@ use warnings;
 use feature 'say';
 
 package Sugar::Lang::SugarGrammarCompiler;
+
 sub new {
 	my ($self, $args) = @_;
 	$self = bless {}, $self;
@@ -975,4 +976,6 @@ sub main {
 
 caller or main(\@ARGV);
 
+
+1;
 

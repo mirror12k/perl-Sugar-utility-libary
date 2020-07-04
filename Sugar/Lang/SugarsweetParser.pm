@@ -104,10 +104,12 @@ sub context_root {
 	my $save_tokens_index = $self->{tokens_index};
 	
 		$save_tokens_index = $self->{tokens_index};
-		if (((($self->{tokens_index} = $save_tokens_index) + 1 <= @{$self->{tokens}}) and ($tokens[0] = $self->{tokens}[$self->{tokens_index}++])->[1] eq 'class' and ($tokens[1] = $self->context_class_identifier([])))) {
+		if (((($self->{tokens_index} = $save_tokens_index) + 1 <= @{$self->{tokens}}) and ($tokens[0] = $self->{tokens}[$self->{tokens_index}++])->[1] eq 'class' and ($tokens[1] = $self->context_class_identifier([])) and (do { my $save_tokens_index = $self->{tokens_index}; if (((($self->{tokens_index} = $save_tokens_index) + 1 <= @{$self->{tokens}}) and ($tokens[2] = $self->{tokens}[$self->{tokens_index}++])->[1] eq 'extends' and ($tokens[3] = $self->context_class_identifier([]))))
+								{ $save_tokens_index = $self->{tokens_index}; }
+								$self->{tokens_index} = $save_tokens_index; 1; }))) {
 			$save_tokens_index = $self->{tokens_index};
 			$save_tokens_index = $self->{tokens_index};
-			push @{$context_value->{classes}}, $self->context_class_definition({ type => 'class_declaration', line_number => $tokens[0][2], name => $tokens[1], });
+			push @{$context_value->{classes}}, $self->context_class_definition({ type => 'class_declaration', line_number => $tokens[0][2], name => $tokens[1], parent_name => $tokens[3], });
 			$save_tokens_index = $self->{tokens_index};
 		} else {
 			$self->{tokens_index} = $save_tokens_index;

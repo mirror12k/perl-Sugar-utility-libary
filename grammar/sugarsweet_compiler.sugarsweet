@@ -16,44 +16,25 @@ string sub compile_file(tree syntax_tree) {
 	return join "\n", code;
 }
 
-list sub code_file_preamble() {
-	return [
-		"#!/usr/bin/env perl",
-		"use strict;",
-		"use warnings;",
-		"use feature 'say';",
-		""
-	];
-}
-
-list sub code_file_postamble() {
-	return [
-		""
-	];
-}
+list sub code_file_preamble() { die "unimplemented code_file_preamble"; }
+list sub code_file_postamble() { die "unimplemented code_file_postamble"; }
 
 list sub compile_class(tree class_tree) {
 	list code = [];
 
+	self.current_class_tree = class_tree;
+
 	list push code, self.code_class_preamble(class_tree);
 	list push code, flatten map { self.compile_constructor(_) } class_tree.constructors;
 	list push code, flatten map { self.compile_function(_) } class_tree.functions;
-	list push code, flatten map { self.compile_native_function(_) } grep { _.native_type == 'perl5' } class_tree.native_functions;
+	list push code, flatten map { self.compile_native_function(_) } grep { self.is_my_native_function(_) } class_tree.native_functions;
 	list push code, self.code_class_postamble(class_tree);
 
 	return code;
 }
 
-list sub code_class_preamble(tree class_tree) {
-	string class_name = join '::', class_tree.name;
-	return [
-		"package $class_name;"
-	];
-}
-
-list sub code_class_postamble(tree class_tree) {
-	return [];
-}
+list sub code_class_preamble(tree class_tree) { die "unimplemented code_class_preamble"; }
+list sub code_class_postamble(tree class_tree) { die "unimplemented code_class_postamble"; }
 
 list sub compile_constructor(tree function_tree) {
 	list code = [];
@@ -67,27 +48,8 @@ list sub compile_constructor(tree function_tree) {
 	return code;
 }
 
-list sub code_constructor_preamble(tree function_tree) {
-	list code = [];
-	push code, "sub new {";
-
-	if (0 < list length function_tree.argument_list) {
-		string argument_list = self.compile_argument_list(function_tree.argument_list);
-		push code, "\tmy ($argument_list) = \@_;";
-	}
-
-	push code, "\t\$self = bless {}, \$self;";
-
-	return code;
-}
-
-list sub code_constructor_postamble(tree function_tree) {
-	return [
-		"\treturn \$self;",
-		"}",
-		""
-	];
-}
+list sub code_constructor_preamble(tree function_tree) { die "unimplemented code_constructor_preamble"; }
+list sub code_constructor_postamble(tree function_tree) { die "unimplemented code_constructor_postamble"; }
 
 list sub compile_function(tree function_tree) {
 	list code = [];
@@ -101,50 +63,11 @@ list sub compile_function(tree function_tree) {
 	return code;
 }
 
-list sub code_function_preamble(tree function_tree) {
-	list code = [];
-	push code, "sub $function_tree.name {";
+list sub code_function_preamble(tree function_tree) { die "unimplemented code_function_preamble"; }
+list sub code_function_postamble(tree function_tree) { die "unimplemented code_function_postamble"; }
 
-	if (0 < list length function_tree.argument_list) {
-		string argument_list = self.compile_argument_list(function_tree.argument_list);
-		push code, "\tmy ($argument_list) = \@_;";
-	}
-
-	return code;
-}
-
-list sub code_function_postamble(tree function_tree) {
-	return [
-		"}",
-		""
-	];
-}
-
-list sub compile_native_function(tree function_tree) {
-	list code = [];
-	push code, "sub $function_tree.name {";
-
-	if (0 < list length function_tree.argument_list) {
-		string argument_list = self.compile_argument_list(function_tree.argument_list);
-		push code, "\tmy ($argument_list) = \@_;";
-	}
-
-	if (function_tree.block =~ /\A\{\{(.*?)\}\}\Z/s) {
-		push code, match[1];
-	} else {
-		die "failed to compile native block: $function_tree.block";
-	}
-
-	push code, "}";
-	push code, "";
-
-	if (function_tree.name == 'main') {
-		push code, 'caller or main(\@ARGV);';
-		push code, '';
-	}
-
-	return code;
-}
+list sub is_my_native_function(tree function_tree) { die "unimplemented is_my_native_function"; }
+list sub compile_native_function(tree function_tree) { die "unimplemented compile_native_function"; }
 
 list sub compile_statements_block(list block, list with_variables) {
 
@@ -666,25 +589,6 @@ string sub compile_expression_with_variables(tree expression, list with_variable
 
 	return code;
 }
-
-
-void sub main () native:perl5 {{
-	my ($files_list) = @_;
-
-	# require Data::Dumper;
-	require Sugar::IO::File;
-	use Sugar::Lang::SugarsweetParser;
-
-	my $parser = Sugar::Lang::SugarsweetParser->new;
-	my $compiler = __PACKAGE__->new;
-	foreach my $file (@$files_list) {
-		$parser->{filepath} = Sugar::IO::File->new($file);
-		my $tree = $parser->parse;
-		# say Dumper $tree;
-
-		say $compiler->compile_file($tree);
-	}
-}}
 
 }
 

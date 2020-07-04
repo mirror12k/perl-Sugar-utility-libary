@@ -1,0 +1,142 @@
+
+
+
+class Sugar::Lang::SugarsweetCompiler::Perl extends Sugar::Lang::SugarsweetCompiler {
+
+# code file
+list sub code_file_preamble() {
+	return [
+		"#!/usr/bin/env perl",
+		"use strict;",
+		"use warnings;",
+		"use feature 'say';",
+		""
+	];
+}
+
+list sub code_file_postamble() {
+	return [
+		"",
+		"1;",
+		""
+	];
+}
+
+# class
+list sub code_class_preamble(tree class_tree) {
+	string class_name = join '::', class_tree.name;
+	list code = [];
+	push code, "package $class_name;";
+
+	if (class_tree.parent_name) {
+		string parent_name = join '::', class_tree.parent_name;
+		push code, "use parent '$parent_name';";
+	}
+
+	push code, "";
+
+	return code;
+}
+
+list sub code_class_postamble(tree class_tree) {
+	return [];
+}
+
+# constructors
+list sub code_constructor_preamble(tree function_tree) {
+	list code = [];
+	push code, "sub new {";
+
+	if (0 < list length function_tree.argument_list) {
+		string argument_list = self.compile_argument_list(function_tree.argument_list);
+		push code, "\tmy ($argument_list) = \@_;";
+	}
+
+	if (self.current_class_tree.parent_name) {
+		push code, "\t\$self = \$self->SUPER::new(\@_[1 .. \$#_]);";
+	} else {
+		push code, "\t\$self = bless {}, \$self;";
+	}
+
+	return code;
+}
+
+list sub code_constructor_postamble(tree function_tree) {
+	return [
+		"\treturn \$self;",
+		"}",
+		""
+	];
+}
+
+# functions
+list sub code_function_preamble(tree function_tree) {
+	list code = [];
+	push code, "sub $function_tree.name {";
+
+	if (0 < list length function_tree.argument_list) {
+		string argument_list = self.compile_argument_list(function_tree.argument_list);
+		push code, "\tmy ($argument_list) = \@_;";
+	}
+
+	return code;
+}
+
+list sub code_function_postamble(tree function_tree) {
+	return [
+		"}",
+		""
+	];
+}
+
+# native function
+bool sub is_my_native_function(tree function_tree) {
+	return function_tree.native_type == 'perl5';
+}
+
+list sub compile_native_function(tree function_tree) {
+	list code = [];
+	push code, "sub $function_tree.name {";
+
+	if (0 < list length function_tree.argument_list) {
+		string argument_list = self.compile_argument_list(function_tree.argument_list);
+		push code, "\tmy ($argument_list) = \@_;";
+	}
+
+	if (function_tree.block =~ /\A\{\{(.*?)\}\}\Z/s) {
+		push code, match[1];
+	} else {
+		die "failed to compile native block: $function_tree.block";
+	}
+
+	push code, "}";
+	push code, "";
+
+	if (function_tree.name == 'main') {
+		push code, 'caller or main(\@ARGV);';
+		push code, '';
+	}
+
+	return code;
+}
+
+# main
+void sub main () native:perl5 {{
+	my ($files_list) = @_;
+
+	# require Data::Dumper;
+	require Sugar::IO::File;
+	use Sugar::Lang::SugarsweetParser;
+
+	my $parser = Sugar::Lang::SugarsweetParser->new;
+	my $compiler = __PACKAGE__->new;
+	foreach my $file (@$files_list) {
+		$parser->{filepath} = Sugar::IO::File->new($file);
+		my $tree = $parser->parse;
+		# say Dumper $tree;
+
+		say $compiler->compile_file($tree);
+	}
+}}
+
+}

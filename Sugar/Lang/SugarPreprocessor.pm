@@ -4,9 +4,11 @@ use warnings;
 use feature 'say';
 
 package Sugar::Lang::SugarPreprocessor;
+use parent 'Sugar::Lang::Awesome';
+
 sub new {
 	my ($self, $args) = @_;
-	$self = bless {}, $self;
+	$self = $self->SUPER::new(@_[1 .. $#_]);
 	$self->{registered_commands} = [];
 	return $self;
 }
@@ -56,7 +58,7 @@ sub main {
 
 	my ($files_list) = @_;
 
-	use Data::Dumper;
+	# use Data::Dumper;
 	require Sugar::IO::File;
 
 	my $preprocessor = __PACKAGE__->new;
@@ -72,4 +74,6 @@ sub main {
 
 caller or main(\@ARGV);
 
+
+1;
 

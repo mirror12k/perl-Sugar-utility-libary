@@ -1,6 +1,6 @@
 
 
-class Sugar::Lang::SugarPreprocessor {
+class Sugar::Lang::SugarPreprocessor extends Sugar::Lang::Awesome {
 
 
 sub _constructor(tree args) {
@@ -55,7 +55,7 @@ string sub preprocess_lines(list lines) {
 void sub main () native:perl5 {{
 	my ($files_list) = @_;
 
-	use Data::Dumper;
+	# use Data::Dumper;
 	require Sugar::IO::File;
 
 	my $preprocessor = __PACKAGE__->new;

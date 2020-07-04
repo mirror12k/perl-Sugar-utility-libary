@@ -1,12 +1,12 @@
 
-all: sugar_grammar sugar_compiler sugarsweet_grammar sugarsweet_compiler test_sugar_grammar test_json_example
+all: sugar_grammar sugar_compiler sugarsweet_grammar sugarsweet_compiler sugar_preprocessor test_sugar_grammar test_json_example
 
 sugar_grammar:
 	./Sugar/Lang/SugarGrammarCompiler.pm grammar/sugar_grammar.sugar > temp_compiled_file
 	chmod +x temp_compiled_file
 	mv temp_compiled_file Sugar/Lang/SugarGrammarParser.pm
 sugar_compiler:
-	./Sugar/Lang/SugarsweetCompiler.pm grammar/sugar_compiler.sugarsweet > temp_compiled_file
+	./Sugar/Lang/SugarsweetCompiler/Perl.pm grammar/sugar_compiler.sugarsweet > temp_compiled_file
 	chmod +x temp_compiled_file
 	mv temp_compiled_file Sugar/Lang/SugarGrammarCompiler.pm
 sugarsweet_grammar:
@@ -14,11 +14,14 @@ sugarsweet_grammar:
 	chmod +x temp_compiled_file
 	mv temp_compiled_file Sugar/Lang/SugarsweetParser.pm
 sugarsweet_compiler:
-	./Sugar/Lang/SugarsweetCompiler.pm grammar/sugarsweet_compiler.sugarsweet > temp_compiled_file
-	chmod +x temp_compiled_file
+	./Sugar/Lang/SugarsweetCompiler/Perl.pm grammar/sugarsweet_compiler.sugarsweet > temp_compiled_file
 	mv temp_compiled_file Sugar/Lang/SugarsweetCompiler.pm
+sugarsweet_perl_compiler:
+	./Sugar/Lang/SugarsweetCompiler/Perl.pm grammar/sugarsweet_perl_compiler.sugarsweet > temp_compiled_file
+	chmod +x temp_compiled_file
+	mv temp_compiled_file Sugar/Lang/SugarsweetCompiler/Perl.pm
 sugar_preprocessor:
-	./Sugar/Lang/SugarsweetCompiler.pm grammar/sugar_preprocessor.sugarsweet > temp_compiled_file
+	./Sugar/Lang/SugarsweetCompiler/Perl.pm grammar/sugar_preprocessor.sugarsweet > temp_compiled_file
 	chmod +x temp_compiled_file
 	mv temp_compiled_file Sugar/Lang/SugarPreprocessor.pm
 
@@ -29,16 +32,16 @@ trial_sugar_grammar:
 	./Sugar/Lang/SugarGrammarCompiler.pm grammar/sugar_grammar.sugar > SugarGrammarParser.pm
 	chmod +x SugarGrammarParser.pm
 trial_sugar_compiler:
-	./Sugar/Lang/SugarsweetCompiler.pm grammar/sugar_compiler.sugarsweet > SugarGrammarCompiler.pm
+	./Sugar/Lang/SugarsweetCompiler/Perl.pm grammar/sugar_compiler.sugarsweet > SugarGrammarCompiler.pm
 	chmod +x SugarGrammarCompiler.pm
 trial_sugarsweet_grammar:
 	./Sugar/Lang/SugarGrammarCompiler.pm grammar/sugarsweet_grammar.sugar > SugarsweetParser.pm
 	chmod +x SugarsweetParser.pm
 trial_sugarsweet_compiler:
-	./Sugar/Lang/SugarsweetCompiler.pm grammar/sugarsweet_compiler.sugarsweet > SugarsweetCompiler.pm
-	chmod +x SugarsweetCompiler.pm
+	./Sugar/Lang/SugarsweetCompiler/Perl.pm grammar/sugarsweet_compiler.sugarsweet > SugarsweetCompiler/Perl.pm
+	chmod +x SugarsweetCompiler/Perl.pm
 trial_sugar_preprocessor:
-	./Sugar/Lang/SugarsweetCompiler.pm grammar/sugar_preprocessor.sugarsweet > SugarPreprocessor.pm
+	./Sugar/Lang/SugarsweetCompiler/Perl.pm grammar/sugar_preprocessor.sugarsweet > SugarPreprocessor.pm
 	chmod +x SugarPreprocessor.pm
 
 test_sugar_grammar:
