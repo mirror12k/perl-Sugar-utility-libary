@@ -68,7 +68,12 @@ sub code_function_preamble {
 
 sub code_function_postamble {
 	my ($self, $function_tree) = @_;
-	return [ "}", "" ];
+	my $code = [ "}", "" ];
+	if (($function_tree->{name} eq 'main')) {
+		push @{$code}, 'caller or main(\@ARGV);';
+		push @{$code}, '';
+	}
+	return $code;
 }
 
 sub is_my_native_function {

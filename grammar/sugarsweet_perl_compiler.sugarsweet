@@ -83,10 +83,14 @@ list sub code_function_preamble(tree function_tree) {
 }
 
 list sub code_function_postamble(tree function_tree) {
-	return [
-		"}",
-		""
-	];
+	list code = ["}", ""];
+
+	if (function_tree.name == 'main') {
+		push code, 'caller or main(\@ARGV);';
+		push code, '';
+	}
+
+	return code;
 }
 
 # native function
