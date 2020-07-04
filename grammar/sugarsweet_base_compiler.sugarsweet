@@ -1,0 +1,139 @@
+
+
+class Sugar::Lang::SugarsweetBaseCompiler {
+
+sub _constructor(tree args) {
+	self.type = args.asdf;
+}
+
+string sub compile_file(tree syntax_tree) {
+	list code = [];
+
+	list push code, self.code_file_preamble();
+	list push code, flatten map { self.compile_class(_) } syntax_tree.classes;
+	list push code, self.code_file_postamble();
+
+	return join "\n", code;
+}
+
+list sub code_file_preamble() { die "unimplemented code_file_preamble"; }
+list sub code_file_postamble() { die "unimplemented code_file_postamble"; }
+
+list sub compile_class(tree class_tree) {
+	list code = [];
+
+	self.current_class_tree = class_tree;
+
+	list push code, self.code_class_preamble(class_tree);
+	list push code, flatten map { self.compile_constructor(_) } class_tree.constructors;
+	list push code, flatten map { self.compile_function(_) } class_tree.functions;
+	list push code, flatten map { self.compile_native_function(_) } grep { self.is_my_native_function(_) } class_tree.native_functions;
+	list push code, self.code_class_postamble(class_tree);
+
+	return code;
+}
+
+list sub code_class_preamble(tree class_tree) { die "unimplemented code_class_preamble"; }
+list sub code_class_postamble(tree class_tree) { die "unimplemented code_class_postamble"; }
+
+list sub compile_constructor(tree function_tree) {
+	list code = [];
+
+	self.variable_scope = {};
+
+	list push code, self.code_constructor_preamble(function_tree);
+	list push code, self.compile_statements_block(function_tree.block, function_tree.argument_list);
+	list push code, self.code_constructor_postamble(function_tree);
+
+	return code;
+}
+
+list sub code_constructor_preamble(tree function_tree) { die "unimplemented code_constructor_preamble"; }
+list sub code_constructor_postamble(tree function_tree) { die "unimplemented code_constructor_postamble"; }
+
+list sub compile_function(tree function_tree) {
+	list code = [];
+
+	self.variable_scope = {};
+
+	list push code, self.code_function_preamble(function_tree);
+	list push code, self.compile_statements_block(function_tree.block, function_tree.argument_list);
+	list push code, self.code_function_postamble(function_tree);
+
+	return code;
+}
+
+list sub code_function_preamble(tree function_tree) { die "unimplemented code_function_preamble"; }
+list sub code_function_postamble(tree function_tree) { die "unimplemented code_function_postamble"; }
+
+list sub is_my_native_function(tree function_tree) { die "unimplemented is_my_native_function"; }
+list sub compile_native_function(tree function_tree) { die "unimplemented compile_native_function"; }
+
+list sub compile_statements_block(list block, list with_variables) {
+
+	tree previous_scope = self.variable_scope;
+	self.variable_scope = clone previous_scope;
+
+	foreach (tree var in with_variables) {
+		self.variable_scope[var.identifier] = var.variable_type;
+	}
+
+	list code = map { "\t$_" } flatten map { self.compile_statement(_) } block;
+	self.variable_scope = previous_scope;
+
+	return code;
+}
+
+list sub compile_statement(tree statement) { die "unimplemented compile_statement"; }
+string sub compile_expression (tree expression) { die "unimplemented compile_expression"; }
+string sub compile_substitution_expression (string regex_token) { die "unimplemented compile_substitution_expression"; }
+string sub compile_string_expression (string string_token) { die "unimplemented compile_string_expression"; }
+
+string sub infer_expression_type (tree expression) {
+
+	if (contains expression.static_type) {
+		return expression.static_type;
+	}
+	if (contains expression.left_expression) {
+		string expression_type = self.get_expression_type(expression.left_expression);
+		if (expression_type) {
+			return expression_type;
+		}
+	}
+	if (contains expression.right_expression) {
+		string expression_type = self.get_expression_type(expression.right_expression);
+		if (expression_type) {
+			return expression_type;
+		}
+	}
+	return;
+}
+
+string sub get_expression_type (tree expression) {
+	if (contains expression.expression_type) {
+		return expression.expression_type;
+	} elsif (expression.type == 'variable_expression') {
+		unless (contains self.variable_scope[expression.identifier]) {
+			die "undefined variable referenced: $expression.identifier";
+		}
+		return self.variable_scope[expression.identifier];
+	}
+	return;
+}
+
+string sub compile_expression_with_variables(tree expression, list with_variables) {
+
+	tree previous_scope = self.variable_scope;
+	self.variable_scope = clone previous_scope;
+
+	foreach (tree var in with_variables) {
+		self.variable_scope[var.identifier] = var.variable_type;
+	}
+	string code = self.compile_expression(expression);
+	self.variable_scope = previous_scope;
+
+	return code;
+}
+
+}
+
