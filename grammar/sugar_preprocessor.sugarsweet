@@ -1,10 +1,11 @@
 
 
-class Sugar::Lang::SugarPreprocessor extends Sugar::Lang::Awesome {
+class Sugar::Lang::SugarPreprocessor {
 
 
 sub _constructor(tree args) {
 	self.registered_commands = [];
+	self.cached_defines = {};
 }
 
 string sub preprocess_lines(list lines) {
@@ -20,11 +21,12 @@ string sub preprocess_lines(list lines) {
 				v += "\n";
 				v += shift lines;
 			}
-			if (v =~ /\A\#\s*sugar_define\b\s+\{\/(.*?)\/([msixgcpodualn]*)\}\s+(.*)\Z/s) {
+			if (v =~ /\A\#\s*sugar_define\b\s*(?:\#(\w+)\s*)?\{\/(.*?)\/([msixgcpodualn]*)\}\s*(.*)\Z/s) {
 				push self.registered_commands, {
-					what => match[1],
-					flags => match[2],
-					into => match[3],
+					define_key => match[1],
+					what => match[2],
+					flags => match[3],
+					into => match[4],
 				};
 			} else {
 				die "invalid sugar_define: $v";
@@ -38,18 +40,49 @@ string sub preprocess_lines(list lines) {
 		string regex = "(?$command.flags:$command.what)";
 		list matched_stuff = [remaining_text =~ /$regex/];
 		while (0 < length matched_stuff) {
-			string into = command.into;
-			int i = 1;
-			foreach (string sub_to in matched_stuff) {
-				into = into =~ s/\$$i/$sub_to/gs;
-				i += 1;
+			if (command.define_key) {
+				self.cache_match(command.define_key, matched_stuff);
 			}
+
+			string into = self.sub_into(command.into, matched_stuff);
+
 			remaining_text = remaining_text =~ s/$regex/$into/s;
 			matched_stuff = [remaining_text =~ /$regex/];
 		}
 	}
 
 	return remaining_text;
+}
+
+void sub cache_match(string key, list matched_stuff) {
+	if (not self.cached_defines[key]) {
+		self.cached_defines[key] = [];
+	}
+	push self.cached_defines[key], matched_stuff;
+}
+
+string sub sub_into(string into, list matched_stuff) {
+	int i = 1;
+	foreach (string sub_to in matched_stuff) {
+		into = into =~ s/\$$i/$sub_to/gs;
+		i += 1;
+	}
+
+	while (into =~ /\#foreach\b\s*\#(\w+)\s*\{\{(.*?)\}\}/s) {
+		string cache_key = match[1];
+		string looped_into = match[2];
+
+		looped_into = looped_into =~ s/\$l(\d+)/\$$1/gs;
+
+		if (contains self.cached_defines[cache_key]) {
+			string nested_into = join '', map { self.sub_into(looped_into, _) } self.cached_defines[cache_key];
+			into = into =~ s/\#foreach\b\s*\#(\w+)\s*\{\{(.*?)\}\}/$nested_into/s;
+		} else {
+			into = into =~ s/\#foreach\b\s*\#(\w+)\s*\{\{(.*?)\}\}//s;
+		}
+	}
+
+	return into;
 }
 
 void sub main () native:perl5 {{
@@ -64,7 +97,7 @@ void sub main () native:perl5 {{
 		# say Dumper \@lines;
 
 		say $preprocessor->preprocess_lines(\@lines);
-		# say Dumper $preprocessor->{registered_commands};
+		# say Dumper $preprocessor->{cached_defines};
 	}
 }}
 

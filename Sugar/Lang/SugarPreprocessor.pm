@@ -4,12 +4,12 @@ use warnings;
 use feature 'say';
 
 package Sugar::Lang::SugarPreprocessor;
-use parent 'Sugar::Lang::Awesome';
 
 sub new {
 	my ($self, $args) = @_;
-	$self = $self->SUPER::new(@_[1 .. $#_]);
+	$self = bless {}, $self;
 	$self->{registered_commands} = [];
+	$self->{cached_defines} = {};
 	return $self;
 }
 
@@ -27,8 +27,8 @@ sub preprocess_lines {
 				$v .= "\n";
 				$v .= shift(@{$lines});
 			}
-			if (($v =~ /\A\#\s*sugar_define\b\s+\{\/(.*?)\/([msixgcpodualn]*)\}\s+(.*)\Z/s)) {
-				push @{$self->{registered_commands}}, { what => ($1), flags => ($2), into => ($3) };
+			if (($v =~ /\A\#\s*sugar_define\b\s*(?:\#(\w+)\s*)?\{\/(.*?)\/([msixgcpodualn]*)\}\s*(.*)\Z/s)) {
+				push @{$self->{registered_commands}}, { define_key => ($1), what => ($2), flags => ($3), into => ($4) };
 			} else {
 				die "invalid sugar_define: $v";
 			}
@@ -40,17 +40,44 @@ sub preprocess_lines {
 		my $regex = "(?$command->{flags}:$command->{what})";
 		my $matched_stuff = [ ($remaining_text =~ /$regex/) ];
 		while ((0 < scalar(@{$matched_stuff}))) {
-			my $into = $command->{into};
-			my $i = 1;
-			foreach my $sub_to (@{$matched_stuff}) {
-				$into = ($into =~ s/\$$i/$sub_to/gsr);
-				$i += 1;
+			if ($command->{define_key}) {
+				$self->cache_match($command->{define_key}, $matched_stuff);
 			}
+			my $into = $self->sub_into($command->{into}, $matched_stuff);
 			$remaining_text = ($remaining_text =~ s/$regex/$into/sr);
 			$matched_stuff = [ ($remaining_text =~ /$regex/) ];
 		}
 	}
 	return $remaining_text;
+}
+
+sub cache_match {
+	my ($self, $key, $matched_stuff) = @_;
+	if (not ($self->{cached_defines}->{$key})) {
+		$self->{cached_defines}->{$key} = [];
+	}
+	push @{$self->{cached_defines}->{$key}}, $matched_stuff;
+}
+
+sub sub_into {
+	my ($self, $into, $matched_stuff) = @_;
+	my $i = 1;
+	foreach my $sub_to (@{$matched_stuff}) {
+		$into = ($into =~ s/\$$i/$sub_to/gsr);
+		$i += 1;
+	}
+	while (($into =~ /\#foreach\b\s*\#(\w+)\s*\{\{(.*?)\}\}/s)) {
+		my $cache_key = $1;
+		my $looped_into = $2;
+		$looped_into = ($looped_into =~ s/\$l(\d+)/\$$1/gsr);
+		if (exists($self->{cached_defines}->{$cache_key})) {
+			my $nested_into = join('', @{[ map { $self->sub_into($looped_into, $_) } @{$self->{cached_defines}->{$cache_key}} ]});
+			$into = ($into =~ s/\#foreach\b\s*\#(\w+)\s*\{\{(.*?)\}\}/$nested_into/sr);
+		} else {
+			$into = ($into =~ s/\#foreach\b\s*\#(\w+)\s*\{\{(.*?)\}\}//sr);
+		}
+	}
+	return $into;
 }
 
 sub main {
@@ -67,7 +94,7 @@ sub main {
 		# say Dumper \@lines;
 
 		say $preprocessor->preprocess_lines(\@lines);
-		# say Dumper $preprocessor->{registered_commands};
+		# say Dumper $preprocessor->{cached_defines};
 	}
 
 }
