@@ -42,7 +42,7 @@ sub compile_project_directory {
 
 			foreach my $source_path (@all_files) {
 				my $relative_path = $source_path =~ s/\A$src_dir\/*//r;
-				if (my @matched_stuff = $relative_path =~ /$filematch/) {
+				if (my @matched_stuff = $relative_path =~ /\A$filematch\Z/) {
 					my $destination_path = "$bin_dir/$outpath";
 
 					foreach my $i (1 .. @matched_stuff) {
