@@ -77,6 +77,8 @@ sub main {
 		my $arg = shift;
 		if ($arg eq '--project_file') {
 			$options{project_file} = shift;
+		} elsif ($arg eq '--watch_directory') {
+			$options{watch_directory} = 1;
 		} else {
 			die "invalid option: $arg";
 		}
@@ -84,7 +86,17 @@ sub main {
 
 	$options{project_file} //= "$_[0]/project_file";
 
-	compile_project_directory($_[0], $_[1], %options);
+	my $src_dir = $_[0];
+	my $bin_dir = $_[1];
+	compile_project_directory($src_dir, $bin_dir, %options);
+
+	if ($options{watch_directory}) {
+		require File::Hotfolder;
+		File::Hotfolder::watch($src_dir,
+			fork => 0,
+			callback => sub { compile_project_directory($src_dir, $bin_dir, %options); },
+		)->loop;
+	}
 }
 
 caller or main(@ARGV);
