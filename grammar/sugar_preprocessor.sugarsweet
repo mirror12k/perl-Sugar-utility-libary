@@ -68,6 +68,30 @@ string sub sub_into(string into, list matched_stuff) {
 		i += 1;
 	}
 
+	list inner_cache_keys = [];
+	while (into =~ /\#\s*sugar_inner_define\b\s*(?:\#(\w+)\s*)?\{\/(.*?)\/([msixgcpodualn]*)\}\s*\{\{(.*?)\}\}/s) {
+		dict inner_command = {
+			define_key => match[1],
+			what => match[2],
+			flags => match[3],
+			into => match[4],
+		};
+		inner_command.into = inner_command.into =~ s/\$l(\d+)/\$$1/gs;
+		into = into =~ s/\#\s*sugar_inner_define\b\s*(?:\#(\w+)\s*)?\{\/(.*?)\/([msixgcpodualn]*)\}\s*\{\{(.*?)\}\}//s;
+		string regex = "(?$inner_command.flags:$inner_command.what)";
+		list matched_stuff = [into =~ /$regex/];
+		while (0 < length matched_stuff) {
+			if (inner_command.define_key) {
+				push inner_cache_keys, inner_command.define_key;
+				self.cache_match(inner_command.define_key, matched_stuff);
+			}
+
+			string inner_into = self.sub_into(inner_command.into, matched_stuff);
+			into = into =~ s/$regex/$inner_into/s;
+			matched_stuff = [into =~ /$regex/];
+		}
+	}
+
 	while (into =~ /\#foreach\b\s*\#(\w+)\s*\{\{(.*?)\}\}/s) {
 		string cache_key = match[1];
 		string looped_into = match[2];
@@ -80,6 +104,10 @@ string sub sub_into(string into, list matched_stuff) {
 		} else {
 			into = into =~ s/\#foreach\b\s*\#(\w+)\s*\{\{(.*?)\}\}//s;
 		}
+	}
+
+	foreach (string inner_cache_key in inner_cache_keys) {
+		self.cached_defines[inner_cache_key] = [];
 	}
 
 	return into;

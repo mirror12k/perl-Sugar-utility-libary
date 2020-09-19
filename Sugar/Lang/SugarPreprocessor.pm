@@ -66,6 +66,23 @@ sub sub_into {
 		$into = ($into =~ s/\$$i/$sub_to/gsr);
 		$i += 1;
 	}
+	my $inner_cache_keys = [];
+	while (($into =~ /\#\s*sugar_inner_define\b\s*(?:\#(\w+)\s*)?\{\/(.*?)\/([msixgcpodualn]*)\}\s*\{\{(.*?)\}\}/s)) {
+		my $inner_command = { define_key => ($1), what => ($2), flags => ($3), into => ($4) };
+		$inner_command->{into} = ($inner_command->{into} =~ s/\$l(\d+)/\$$1/gsr);
+		$into = ($into =~ s/\#\s*sugar_inner_define\b\s*(?:\#(\w+)\s*)?\{\/(.*?)\/([msixgcpodualn]*)\}\s*\{\{(.*?)\}\}//sr);
+		my $regex = "(?$inner_command->{flags}:$inner_command->{what})";
+		my $matched_stuff = [ ($into =~ /$regex/) ];
+		while ((0 < scalar(@{$matched_stuff}))) {
+			if ($inner_command->{define_key}) {
+				push @{$inner_cache_keys}, $inner_command->{define_key};
+				$self->cache_match($inner_command->{define_key}, $matched_stuff);
+			}
+			my $inner_into = $self->sub_into($inner_command->{into}, $matched_stuff);
+			$into = ($into =~ s/$regex/$inner_into/sr);
+			$matched_stuff = [ ($into =~ /$regex/) ];
+		}
+	}
 	while (($into =~ /\#foreach\b\s*\#(\w+)\s*\{\{(.*?)\}\}/s)) {
 		my $cache_key = $1;
 		my $looped_into = $2;
@@ -76,6 +93,9 @@ sub sub_into {
 		} else {
 			$into = ($into =~ s/\#foreach\b\s*\#(\w+)\s*\{\{(.*?)\}\}//sr);
 		}
+	}
+	foreach my $inner_cache_key (@{$inner_cache_keys}) {
+		$self->{cached_defines}->{$inner_cache_key} = [];
 	}
 	return $into;
 }
