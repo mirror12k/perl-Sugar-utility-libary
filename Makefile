@@ -20,6 +20,18 @@ sugarsweet_perl_compiler:
 	./Sugar/Lang/SugarsweetCompiler/Perl.pm grammar/sugarsweet_perl_compiler.sugarsweet > temp_compiled_file
 	chmod +x temp_compiled_file
 	mv temp_compiled_file Sugar/Lang/SugarsweetCompiler/Perl.pm
+sugarsweet_php_compiler:
+	./Sugar/Lang/SugarsweetCompiler/Perl.pm grammar/sugarsweet_php_compiler.sugarsweet > temp_compiled_file
+	chmod +x temp_compiled_file
+	mv temp_compiled_file Sugar/Lang/SugarsweetCompiler/PHP.pm
+sugarsweet_python_compiler:
+	./Sugar/Lang/SugarsweetCompiler/Perl.pm grammar/sugarsweet_python_compiler.sugarsweet > temp_compiled_file
+	chmod +x temp_compiled_file
+	mv temp_compiled_file Sugar/Lang/SugarsweetCompiler/Python.pm
+sugarsweet_javascript_compiler:
+	./Sugar/Lang/SugarsweetCompiler/Perl.pm grammar/sugarsweet_javascript_compiler.sugarsweet > temp_compiled_file
+	chmod +x temp_compiled_file
+	mv temp_compiled_file Sugar/Lang/SugarsweetCompiler/JavaScript.pm
 
 sugar_preprocessor:
 	./Sugar/Lang/SugarsweetCompiler/Perl.pm grammar/sugar_preprocessor.sugarsweet > temp_compiled_file
@@ -58,3 +70,17 @@ test_json_example:
 profile_sugar_compiler:
 	perl -d:NYTProf Sugar/Lang/SugarGrammarParser.pm grammar/sugar_grammar.sugar > temp_compiled_file
 	rm temp_compiled_file
+
+test_sugarsweet:
+	make sugarsweet_base_compiler
+	make sugarsweet_php_compiler
+	make sugarsweet_python_compiler
+	make sugarsweet_javascript_compiler
+	Sugar/Lang/SugarsweetCompiler/Perl.pm tests/test_class.sugarsweet > tests/TestClass.pm
+	perl tests/TestClass.pm
+	Sugar/Lang/SugarsweetCompiler/PHP.pm tests/test_class.sugarsweet > tests/TestClass.php
+	php tests/TestClass.php
+	Sugar/Lang/SugarsweetCompiler/Python.pm tests/test_class.sugarsweet > tests/TestClass.py
+	python tests/TestClass.py
+	Sugar/Lang/SugarsweetCompiler/JavaScript.pm tests/test_class.sugarsweet > tests/TestClass.js
+	nodejs tests/TestClass.js

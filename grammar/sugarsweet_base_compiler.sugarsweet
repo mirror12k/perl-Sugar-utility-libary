@@ -25,9 +25,9 @@ list sub compile_class(tree class_tree) {
 	self.current_class_tree = class_tree;
 
 	list push code, self.code_class_preamble(class_tree);
-	list push code, flatten map { self.compile_constructor(_) } class_tree.constructors;
-	list push code, flatten map { self.compile_function(_) } class_tree.functions;
-	list push code, flatten map { self.compile_native_function(_) } grep { self.is_my_native_function(_) } class_tree.native_functions;
+	list push code, map { "\t$_" } flatten map { self.compile_constructor(_) } class_tree.constructors;
+	list push code, map { "\t$_" } flatten map { self.compile_function(_) } class_tree.functions;
+	list push code, map { "\t$_" } flatten map { self.compile_native_function(_) } grep { self.is_my_native_function(_) } class_tree.native_functions;
 	list push code, self.code_class_postamble(class_tree);
 
 	return code;
