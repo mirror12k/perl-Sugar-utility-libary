@@ -241,12 +241,12 @@ list sub compile_statement(tree statement) {
 		'list_push_statement': {
 			string left_expression = self.compile_expression(statement.left_expression);
 			string right_expression = self.compile_expression(statement.right_expression);
-			push code, "push \@{$left_expression}, \@{$right_expression};";
+			push code, "$left_expression += $right_expression;";
 		}
 		'push_statement': {
 			string left_expression = self.compile_expression(statement.left_expression);
 			string right_expression = self.compile_expression(statement.right_expression);
-			push code, "push \@{$left_expression}, $right_expression;";
+			push code, "$left_expression\[] = $right_expression;";
 		}
 		'die_statement': {
 			string expression = self.compile_expression(statement.expression);
@@ -333,7 +333,7 @@ string sub compile_expression (tree expression) {
 		'join_expression': {
 			string left_expression = self.compile_expression(expression.left_expression);
 			string right_expression = self.compile_expression(expression.right_expression);
-			return "join($left_expression, \@{$right_expression})";
+			return "join($left_expression, $right_expression)";
 		}
 		'split_expression': {
 			string left_expression = self.compile_expression(expression.left_expression);

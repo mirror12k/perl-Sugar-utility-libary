@@ -187,11 +187,11 @@ use parent 'Sugar::Lang::SugarsweetBaseCompiler';
 		} elsif (($statement->{type} eq 'list_push_statement')) {
 			my $left_expression = $self->compile_expression($statement->{left_expression});
 			my $right_expression = $self->compile_expression($statement->{right_expression});
-			push @{$code}, "push \@{$left_expression}, \@{$right_expression};";
+			push @{$code}, "$left_expression += $right_expression;";
 		} elsif (($statement->{type} eq 'push_statement')) {
 			my $left_expression = $self->compile_expression($statement->{left_expression});
 			my $right_expression = $self->compile_expression($statement->{right_expression});
-			push @{$code}, "push \@{$left_expression}, $right_expression;";
+			push @{$code}, "$left_expression\[] = $right_expression;";
 		} elsif (($statement->{type} eq 'die_statement')) {
 			my $expression = $self->compile_expression($statement->{expression});
 			push @{$code}, "die $expression;";
@@ -254,7 +254,7 @@ use parent 'Sugar::Lang::SugarsweetBaseCompiler';
 		} elsif (($expression->{type} eq 'join_expression')) {
 			my $left_expression = $self->compile_expression($expression->{left_expression});
 			my $right_expression = $self->compile_expression($expression->{right_expression});
-			return "join($left_expression, \@{$right_expression})";
+			return "join($left_expression, $right_expression)";
 		} elsif (($expression->{type} eq 'split_expression')) {
 			my $left_expression = $self->compile_expression($expression->{left_expression});
 			my $right_expression = $self->compile_expression($expression->{right_expression});
