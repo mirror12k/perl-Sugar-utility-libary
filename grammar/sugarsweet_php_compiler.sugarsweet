@@ -155,7 +155,7 @@ list sub compile_statement(tree statement) {
 	string switch (statement.type) {
 		"foreach_statement": {
 			string expression = self.compile_expression(statement.expression);
-			push code, "foreach my \$$statement.identifier (\@{$expression}) {";
+			push code, "foreach ($expression as \$$statement.identifier) {";
 			list push code, self.compile_statements_block(statement.block, [ statement ]);
 			push code, "}";
 		}
@@ -177,10 +177,10 @@ list sub compile_statement(tree statement) {
 				foreach  (tree match_case in case.case_list) {
 					string switch (match_case.type) {
 						"integer_case": {
-							push expression_list_strings, "($expression == $match_case.value)";
+							push expression_list_strings, "$expression === $match_case.value";
 						}
 						"string_case": {
-							push expression_list_strings, "($expression eq $match_case.value)";
+							push expression_list_strings, "$expression === $match_case.value";
 						}
 						default: {
 							die "unimplemented: $match_case.type";
@@ -192,7 +192,7 @@ list sub compile_statement(tree statement) {
 				# push code, "${prefix}if ($expression eq $case.value) {";
 				list push code, self.compile_statements_block(case.block, []);
 
-				prefix = "} els";
+				prefix = "} else ";
 			}
 			foreach  (tree case in default_blocks) {
 				push code, "} else {";
@@ -212,7 +212,7 @@ list sub compile_statement(tree statement) {
 				while (branch) {
 					if (branch.type == 'elsif_statement') {
 						string expression = self.compile_expression(branch.expression);
-						push code, "} elsif ($expression) {";
+						push code, "} else if ($expression) {";
 						list push code, self.compile_statements_block(branch.block, []);
 					} else {
 						push code, "} else {";
@@ -324,7 +324,7 @@ string sub compile_expression (tree expression) {
 		}
 		'tree_constructor_expression': {
 			string expression_list = self.compile_tree_constructor(expression.expression_list);
-			return "{ $expression_list }";
+			return "[ $expression_list ]";
 		}
 		'not_expression': {
 			string sub_expression = self.compile_expression(expression.expression);
@@ -436,7 +436,7 @@ string sub compile_expression (tree expression) {
 		}
 		'access_expression': {
 			string sub_expression = self.compile_expression(expression.expression);
-			return "$sub_expression\->{$expression.identifier}";
+			return "$sub_expression\->$expression.identifier";
 		}
 		'expression_access_expression': {
 			string left_expression = self.compile_expression(expression.left_expression);
@@ -471,9 +471,9 @@ string sub compile_expression (tree expression) {
 			if (expression_type == 'string') {
 				string operator;
 				if (expression.operator == '==') {
-					operator = 'eq';
+					operator = '===';
 				} else {
-					operator = 'ne';
+					operator = '!==';
 				}
 				return "($left_expression $operator $right_expression)";
 			} else {
@@ -618,7 +618,7 @@ string sub compile_tree_constructor (list tree_constructor_list) {
 }
 
 string sub compile_tree_constructor_pair(string key, string expression) {
-	return "$key => ($expression)";
+	return "'$key' => $expression";
 }
 
 # main

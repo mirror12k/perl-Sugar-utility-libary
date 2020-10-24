@@ -138,9 +138,8 @@ list sub compile_statement(tree statement) {
 	string switch (statement.type) {
 		"foreach_statement": {
 			string expression = self.compile_expression(statement.expression);
-			push code, "foreach my \$$statement.identifier (\@{$expression}) {";
+			push code, "for $statement.identifier in $expression:";
 			list push code, self.compile_statements_block(statement.block, [ statement ]);
-			push code, "}";
 		}
 		"switch_statement": {
 			string expression = self.compile_expression(statement.expression);
@@ -160,10 +159,10 @@ list sub compile_statement(tree statement) {
 				foreach  (tree match_case in case.case_list) {
 					string switch (match_case.type) {
 						"integer_case": {
-							push expression_list_strings, "($expression == $match_case.value)";
+							push expression_list_strings, "$expression == $match_case.value";
 						}
 						"string_case": {
-							push expression_list_strings, "($expression eq $match_case.value)";
+							push expression_list_strings, "$expression == $match_case.value";
 						}
 						default: {
 							die "unimplemented: $match_case.type";
@@ -171,17 +170,16 @@ list sub compile_statement(tree statement) {
 					}
 				}
 				string expression_list = join ' or ', expression_list_strings;
-				push code, "${prefix}if ($expression_list) {";
+				push code, "${prefix}if $expression_list:";
 				# push code, "${prefix}if ($expression eq $case.value) {";
 				list push code, self.compile_statements_block(case.block, []);
 
-				prefix = "} els";
+				prefix = "el";
 			}
 			foreach  (tree case in default_blocks) {
-				push code, "} else {";
+				push code, "else:";
 				list push code, self.compile_statements_block(case.block, []);
 			}
-			push code, "}";
 		}
 		"if_statement": {
 			string expression = self.compile_expression(statement.expression);
@@ -203,7 +201,6 @@ list sub compile_statement(tree statement) {
 					branch = branch.branch;
 				}
 			}
-			push code, "}";
 		}
 		"while_statement": {
 			string expression = self.compile_expression(statement.expression);
@@ -587,7 +584,7 @@ string sub compile_tree_constructor (list tree_constructor_list) {
 }
 
 string sub compile_tree_constructor_pair(string key, string expression) {
-	return "$key => ($expression)";
+	return "'$key': $expression";
 }
 
 # main

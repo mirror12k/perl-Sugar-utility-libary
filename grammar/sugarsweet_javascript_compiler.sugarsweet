@@ -150,7 +150,7 @@ list sub compile_statement(tree statement) {
 	string switch (statement.type) {
 		"foreach_statement": {
 			string expression = self.compile_expression(statement.expression);
-			push code, "foreach my \$$statement.identifier (\@{$expression}) {";
+			push code, "for (var $statement.identifier of $expression) {";
 			list push code, self.compile_statements_block(statement.block, [ statement ]);
 			push code, "}";
 		}
@@ -172,10 +172,10 @@ list sub compile_statement(tree statement) {
 				foreach  (tree match_case in case.case_list) {
 					string switch (match_case.type) {
 						"integer_case": {
-							push expression_list_strings, "($expression == $match_case.value)";
+							push expression_list_strings, "$expression === $match_case.value";
 						}
 						"string_case": {
-							push expression_list_strings, "($expression eq $match_case.value)";
+							push expression_list_strings, "$expression === $match_case.value";
 						}
 						default: {
 							die "unimplemented: $match_case.type";
@@ -187,7 +187,7 @@ list sub compile_statement(tree statement) {
 				# push code, "${prefix}if ($expression eq $case.value) {";
 				list push code, self.compile_statements_block(case.block, []);
 
-				prefix = "} els";
+				prefix = "} else ";
 			}
 			foreach  (tree case in default_blocks) {
 				push code, "} else {";
@@ -198,8 +198,7 @@ list sub compile_statement(tree statement) {
 		"if_statement": {
 			string expression = self.compile_expression(statement.expression);
 
-			string prefix = '';
-			push code, "${prefix}if ($expression) {";
+			push code, "if ($expression) {";
 			list push code, self.compile_statements_block(statement.block, []);
 
 			if (contains statement.branch) {
@@ -207,7 +206,7 @@ list sub compile_statement(tree statement) {
 				while (branch) {
 					if (branch.type == 'elsif_statement') {
 						string expression = self.compile_expression(branch.expression);
-						push code, "} elsif ($expression) {";
+						push code, "} else if ($expression) {";
 						list push code, self.compile_statements_block(branch.block, []);
 					} else {
 						push code, "} else {";
@@ -221,7 +220,6 @@ list sub compile_statement(tree statement) {
 		"while_statement": {
 			string expression = self.compile_expression(statement.expression);
 
-			string prefix = '';
 			push code, "while ($expression) {";
 			list push code, self.compile_statements_block(statement.block, []);
 			push code, "}";
@@ -614,7 +612,7 @@ string sub compile_tree_constructor (list tree_constructor_list) {
 }
 
 string sub compile_tree_constructor_pair(string key, string expression) {
-	return "$key => ($expression)";
+	return "'$key': $expression";
 }
 
 # main

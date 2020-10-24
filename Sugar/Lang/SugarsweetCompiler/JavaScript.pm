@@ -116,7 +116,7 @@ use parent 'Sugar::Lang::SugarsweetBaseCompiler';
 		my $code = [];
 		if (($statement->{type} eq "foreach_statement")) {
 			my $expression = $self->compile_expression($statement->{expression});
-			push @{$code}, "foreach my \$$statement->{identifier} (\@{$expression}) {";
+			push @{$code}, "for (var $statement->{identifier} of $expression) {";
 			push @{$code}, @{$self->compile_statements_block($statement->{block}, [ $statement ])};
 			push @{$code}, "}";
 		} elsif (($statement->{type} eq "switch_statement")) {
@@ -134,9 +134,9 @@ use parent 'Sugar::Lang::SugarsweetBaseCompiler';
 				my $expression_list_strings;
 				foreach my $match_case (@{$case->{case_list}}) {
 					if (($match_case->{type} eq "integer_case")) {
-						push @{$expression_list_strings}, "($expression == $match_case->{value})";
+						push @{$expression_list_strings}, "$expression === $match_case->{value}";
 					} elsif (($match_case->{type} eq "string_case")) {
-						push @{$expression_list_strings}, "($expression eq $match_case->{value})";
+						push @{$expression_list_strings}, "$expression === $match_case->{value}";
 					} else {
 						die "unimplemented: $match_case->{type}";
 					}
@@ -144,7 +144,7 @@ use parent 'Sugar::Lang::SugarsweetBaseCompiler';
 				my $expression_list = join(' or ', @{$expression_list_strings});
 				push @{$code}, "${prefix}if ($expression_list) {";
 				push @{$code}, @{$self->compile_statements_block($case->{block}, [])};
-				$prefix = "} els";
+				$prefix = "} else ";
 			}
 			foreach my $case (@{$default_blocks}) {
 				push @{$code}, "} else {";
@@ -153,15 +153,14 @@ use parent 'Sugar::Lang::SugarsweetBaseCompiler';
 			push @{$code}, "}";
 		} elsif (($statement->{type} eq "if_statement")) {
 			my $expression = $self->compile_expression($statement->{expression});
-			my $prefix = '';
-			push @{$code}, "${prefix}if ($expression) {";
+			push @{$code}, "if ($expression) {";
 			push @{$code}, @{$self->compile_statements_block($statement->{block}, [])};
 			if (exists($statement->{branch})) {
 				my $branch = $statement->{branch};
 				while ($branch) {
 					if (($branch->{type} eq 'elsif_statement')) {
 						my $expression = $self->compile_expression($branch->{expression});
-						push @{$code}, "} elsif ($expression) {";
+						push @{$code}, "} else if ($expression) {";
 						push @{$code}, @{$self->compile_statements_block($branch->{block}, [])};
 					} else {
 						push @{$code}, "} else {";
@@ -173,7 +172,6 @@ use parent 'Sugar::Lang::SugarsweetBaseCompiler';
 			push @{$code}, "}";
 		} elsif (($statement->{type} eq "while_statement")) {
 			my $expression = $self->compile_expression($statement->{expression});
-			my $prefix = '';
 			push @{$code}, "while ($expression) {";
 			push @{$code}, @{$self->compile_statements_block($statement->{block}, [])};
 			push @{$code}, "}";
@@ -489,7 +487,7 @@ use parent 'Sugar::Lang::SugarsweetBaseCompiler';
 	
 	sub compile_tree_constructor_pair {
 		my ($self, $key, $expression) = @_;
-		return "$key => ($expression)";
+		return "'$key': $expression";
 	}
 	
 	sub main {
