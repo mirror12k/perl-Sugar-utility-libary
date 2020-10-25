@@ -187,7 +187,7 @@ use parent 'Sugar::Lang::SugarsweetBaseCompiler';
 		} elsif (($statement->{type} eq 'list_push_statement')) {
 			my $left_expression = $self->compile_expression($statement->{left_expression});
 			my $right_expression = $self->compile_expression($statement->{right_expression});
-			push @{$code}, "$left_expression += $right_expression;";
+			push @{$code}, "$left_expression = array_merge($left_expression, $right_expression);";
 		} elsif (($statement->{type} eq 'push_statement')) {
 			my $left_expression = $self->compile_expression($statement->{left_expression});
 			my $right_expression = $self->compile_expression($statement->{right_expression});

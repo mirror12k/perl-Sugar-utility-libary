@@ -290,7 +290,7 @@ string sub compile_expression (tree expression) {
 			unless (contains self.variable_scope[expression.identifier]) {
 				die "undefined variable referenced: $expression.identifier";
 			}
-			if ($expression.identifier == "self") {
+			if (expression.identifier == "self") {
 				return "this";
 			} else {
 				return "$expression.identifier";

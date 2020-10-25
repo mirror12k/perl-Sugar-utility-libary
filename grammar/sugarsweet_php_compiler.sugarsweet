@@ -241,7 +241,7 @@ list sub compile_statement(tree statement) {
 		'list_push_statement': {
 			string left_expression = self.compile_expression(statement.left_expression);
 			string right_expression = self.compile_expression(statement.right_expression);
-			push code, "$left_expression += $right_expression;";
+			push code, "$left_expression = array_merge($left_expression, $right_expression);";
 		}
 		'push_statement': {
 			string left_expression = self.compile_expression(statement.left_expression);
@@ -297,7 +297,7 @@ string sub compile_expression (tree expression) {
 			unless (contains self.variable_scope[expression.identifier]) {
 				die "undefined variable referenced: $expression.identifier";
 			}
-			if ($expression.identifier == "self") {
+			if (expression.identifier == "self") {
 				return "\$this";
 			} else {
 				return "\$$expression.identifier";
