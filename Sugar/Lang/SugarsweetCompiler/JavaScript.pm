@@ -8,7 +8,7 @@ use parent 'Sugar::Lang::SugarsweetBaseCompiler';
 
 	sub code_file_preamble {
 		my ($self) = @_;
-		return [ "" ];
+		return [ "var match;", "", "" ];
 	}
 	
 	sub code_file_postamble {
@@ -183,7 +183,7 @@ use parent 'Sugar::Lang::SugarsweetBaseCompiler';
 		} elsif (($statement->{type} eq 'list_push_statement')) {
 			my $left_expression = $self->compile_expression($statement->{left_expression});
 			my $right_expression = $self->compile_expression($statement->{right_expression});
-			push @{$code}, "$left_expression = $left_expression\.concat($right_expression);";
+			push @{$code}, "$left_expression\.push.apply($left_expression, $right_expression);";
 		} elsif (($statement->{type} eq 'push_statement')) {
 			my $left_expression = $self->compile_expression($statement->{left_expression});
 			my $right_expression = $self->compile_expression($statement->{right_expression});
@@ -232,9 +232,9 @@ use parent 'Sugar::Lang::SugarsweetBaseCompiler';
 			if (($expression->{index} < 0)) {
 				die "match index cannot be negative";
 			}
-			return "\$$expression->{index}";
+			return "match[$expression->{index}]";
 		} elsif (($expression->{type} eq 'match_position_expression')) {
-			return "\$+[0]";
+			return "match.index + match[0].length";
 		} elsif (($expression->{type} eq 'empty_list_expression')) {
 			return "[]";
 		} elsif (($expression->{type} eq 'empty_tree_expression')) {
@@ -369,7 +369,7 @@ use parent 'Sugar::Lang::SugarsweetBaseCompiler';
 			}
 		} elsif (($expression->{type} eq 'regex_match_expression')) {
 			my $sub_expression = $self->compile_expression($expression->{expression});
-			return "($sub_expression $expression->{operator} $expression->{regex})";
+			return "((match = $expression->{regex}\.exec($sub_expression)) !== null)";
 		} elsif (($expression->{type} eq 'regex_substitution_expression')) {
 			my $sub_expression = $self->compile_expression($expression->{expression});
 			my $regex_expression = $self->compile_substitution_expression($expression->{regex});

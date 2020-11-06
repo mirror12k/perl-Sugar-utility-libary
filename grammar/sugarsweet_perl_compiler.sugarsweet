@@ -278,6 +278,9 @@ string sub compile_expression (tree expression) {
 			if (expression.index < 0) {
 				die "match index cannot be negative";
 			}
+			if (expression.index == 0) {
+				return "\$&";
+			}
 			return "\$$expression.index";
 		}
 		'match_position_expression': {

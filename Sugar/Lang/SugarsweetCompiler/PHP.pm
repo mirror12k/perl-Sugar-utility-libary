@@ -187,7 +187,7 @@ use parent 'Sugar::Lang::SugarsweetBaseCompiler';
 		} elsif (($statement->{type} eq 'list_push_statement')) {
 			my $left_expression = $self->compile_expression($statement->{left_expression});
 			my $right_expression = $self->compile_expression($statement->{right_expression});
-			push @{$code}, "$left_expression = array_merge($left_expression, $right_expression);";
+			push @{$code}, "$left_expression->exchangeArray(array_merge($left_expression->getArrayCopy(), $right_expression->getArrayCopy()));";
 		} elsif (($statement->{type} eq 'push_statement')) {
 			my $left_expression = $self->compile_expression($statement->{left_expression});
 			my $right_expression = $self->compile_expression($statement->{right_expression});
@@ -235,41 +235,41 @@ use parent 'Sugar::Lang::SugarsweetBaseCompiler';
 			if (($expression->{index} < 0)) {
 				die "match index cannot be negative";
 			}
-			return "\$$expression->{index}";
+			return "\$match[$expression->{index}][0]";
 		} elsif (($expression->{type} eq 'match_position_expression')) {
-			return "\$+[0]";
+			return "strlen(\$match[0][0]) + \$match[0][1]";
 		} elsif (($expression->{type} eq 'empty_list_expression')) {
-			return "[]";
+			return "(new ArrayObject([]))";
 		} elsif (($expression->{type} eq 'empty_tree_expression')) {
-			return "{}";
+			return "(new ArrayObject([]))";
 		} elsif (($expression->{type} eq 'list_constructor_expression')) {
 			my $expression_list = $self->compile_expression_list($expression->{expression_list});
-			return "[ $expression_list ]";
+			return "(new ArrayObject([ $expression_list ]))";
 		} elsif (($expression->{type} eq 'tree_constructor_expression')) {
 			my $expression_list = $self->compile_tree_constructor($expression->{expression_list});
-			return "[ $expression_list ]";
+			return "(new ArrayObject([ $expression_list ]))";
 		} elsif (($expression->{type} eq 'not_expression')) {
 			my $sub_expression = $self->compile_expression($expression->{expression});
-			return "not ($sub_expression)";
+			return "!($sub_expression)";
 		} elsif (($expression->{type} eq 'join_expression')) {
 			my $left_expression = $self->compile_expression($expression->{left_expression});
 			my $right_expression = $self->compile_expression($expression->{right_expression});
-			return "join($left_expression, $right_expression)";
+			return "implode($left_expression, $right_expression->getArrayCopy())";
 		} elsif (($expression->{type} eq 'split_expression')) {
 			my $left_expression = $self->compile_expression($expression->{left_expression});
 			my $right_expression = $self->compile_expression($expression->{right_expression});
-			return "[ split(quotemeta($left_expression), $right_expression) ]";
+			return "(new ArrayObject([ explode($left_expression, $right_expression) ]))";
 		} elsif (($expression->{type} eq 'flatten_expression')) {
 			my $sub_expression = $self->compile_expression($expression->{expression});
-			return "[ map \@\$_, \@{$sub_expression} ]";
+			return "call_user_func_array('array_merge', $sub_expression->getArrayCopy())";
 		} elsif (($expression->{type} eq 'map_expression')) {
 			my $left_expression = $self->compile_expression_with_variables($expression->{left_expression}, [ { variable_type => ('*'), identifier => ('_') } ]);
 			my $right_expression = $self->compile_expression($expression->{right_expression});
-			return "[ map { $left_expression } \@{$right_expression} ]";
+			return "array_map(function (\$_) { return $left_expression; }, $right_expression)";
 		} elsif (($expression->{type} eq 'grep_expression')) {
 			my $left_expression = $self->compile_expression_with_variables($expression->{left_expression}, [ { variable_type => ('*'), identifier => ('_') } ]);
 			my $right_expression = $self->compile_expression($expression->{right_expression});
-			return "[ grep { $left_expression } \@{$right_expression} ]";
+			return "array_filter(function (\$_) { return $left_expression; }, $right_expression)";
 		} elsif (($expression->{type} eq 'length_expression')) {
 			my $expression_type;
 			if (exists($expression->{static_type})) {
@@ -282,25 +282,25 @@ use parent 'Sugar::Lang::SugarsweetBaseCompiler';
 			}
 			my $sub_expression = $self->compile_expression($expression->{expression});
 			if (($expression_type eq 'string')) {
-				return "length($sub_expression)";
+				return "strlen($sub_expression)";
 			} elsif (($expression_type eq 'list')) {
-				return "scalar(\@{$sub_expression})";
+				return "count($sub_expression)";
 			} else {
 				die "invalid value type for length expression: '$expression_type'";
 			}
 		} elsif (($expression->{type} eq 'pop_expression')) {
 			my $sub_expression = $self->compile_expression($expression->{expression});
-			return "pop(\@{$sub_expression})";
+			return "array_pop($sub_expression)";
 		} elsif (($expression->{type} eq 'shift_expression')) {
 			my $sub_expression = $self->compile_expression($expression->{expression});
-			return "shift(\@{$sub_expression})";
+			return "array_shift($sub_expression)";
 		} elsif (($expression->{type} eq 'contains_expression')) {
 			if (($expression->{expression}->{type} eq 'access_expression') or ($expression->{expression}->{type} eq 'expression_access_expression')) {
 			} else {
 				die "invalid expression for contains expression: $expression->{expression}{type}";
 			}
 			my $sub_expression = $self->compile_expression($expression->{expression});
-			return "exists($sub_expression)";
+			return "isset($sub_expression)";
 		} elsif (($expression->{type} eq 'clone_expression')) {
 			my $expression_type = $self->get_expression_type($expression->{expression});
 			if (not ($expression_type)) {
@@ -308,9 +308,9 @@ use parent 'Sugar::Lang::SugarsweetBaseCompiler';
 			}
 			my $sub_expression = $self->compile_expression($expression->{expression});
 			if (($expression_type eq 'tree')) {
-				return "{ \%{$sub_expression} }";
+				return "array_merge($sub_expression)";
 			} elsif (($expression_type eq 'list')) {
-				return "[ \@{$sub_expression} ]";
+				return "array_merge($sub_expression)";
 			} else {
 				die "invalid value type for clone expression: '$expression_type'";
 			}
@@ -372,7 +372,11 @@ use parent 'Sugar::Lang::SugarsweetBaseCompiler';
 			}
 		} elsif (($expression->{type} eq 'regex_match_expression')) {
 			my $sub_expression = $self->compile_expression($expression->{expression});
-			return "($sub_expression $expression->{operator} $expression->{regex})";
+			my $operator = '===';
+			if (($expression->{operator} eq '!~')) {
+				$operator = '!==';
+			}
+			return "(preg_match('$expression->{regex}', $sub_expression, \$match, PREG_OFFSET_CAPTURE) $operator 1)";
 		} elsif (($expression->{type} eq 'regex_substitution_expression')) {
 			my $sub_expression = $self->compile_expression($expression->{expression});
 			my $regex_expression = $self->compile_substitution_expression($expression->{regex});

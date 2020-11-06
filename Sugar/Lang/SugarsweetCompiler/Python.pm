@@ -8,7 +8,10 @@ use parent 'Sugar::Lang::SugarsweetBaseCompiler';
 
 	sub code_file_preamble {
 		my ($self) = @_;
-		return [ "import sys", "", "", "" ];
+		return [ "import sys", "import re", "", "def trymatch(r, s):
+	global match
+	match = re.search(r, s)
+	return match is not None", "", "", "" ];
 	}
 	
 	sub code_file_postamble {
@@ -215,9 +218,9 @@ use parent 'Sugar::Lang::SugarsweetBaseCompiler';
 			if (($expression->{index} < 0)) {
 				die "match index cannot be negative";
 			}
-			return "\$$expression->{index}";
+			return "match.group($expression->{index})";
 		} elsif (($expression->{type} eq 'match_position_expression')) {
-			return "\$+[0]";
+			return "match.end(0)";
 		} elsif (($expression->{type} eq 'empty_list_expression')) {
 			return "[]";
 		} elsif (($expression->{type} eq 'empty_tree_expression')) {
@@ -234,7 +237,7 @@ use parent 'Sugar::Lang::SugarsweetBaseCompiler';
 		} elsif (($expression->{type} eq 'join_expression')) {
 			my $left_expression = $self->compile_expression($expression->{left_expression});
 			my $right_expression = $self->compile_expression($expression->{right_expression});
-			return "str($left_expression).join($right_expression)";
+			return "str($left_expression).join([ str(_v) for _v in $right_expression])";
 		} elsif (($expression->{type} eq 'split_expression')) {
 			my $left_expression = $self->compile_expression($expression->{left_expression});
 			my $right_expression = $self->compile_expression($expression->{right_expression});
@@ -352,13 +355,25 @@ use parent 'Sugar::Lang::SugarsweetBaseCompiler';
 			}
 		} elsif (($expression->{type} eq 'regex_match_expression')) {
 			my $sub_expression = $self->compile_expression($expression->{expression});
-			return "($sub_expression $expression->{operator} $expression->{regex})";
+			my $regex = $self->compile_regex_expression($expression->{regex});
+			return "trymatch($regex, $sub_expression)";
 		} elsif (($expression->{type} eq 'regex_substitution_expression')) {
 			my $sub_expression = $self->compile_expression($expression->{expression});
 			my $regex_expression = $self->compile_substitution_expression($expression->{regex});
 			return "($sub_expression =~ $regex_expression)";
 		} else {
 			die "invalid expression type: $expression->{type}";
+		}
+	}
+	
+	sub compile_regex_expression {
+		my ($self, $regex_token) = @_;
+		if (($regex_token =~ /\A\/((?:[^\\\/]|\\.)*+)\/([msixpodualngc]*+)\Z/s)) {
+			my $regex = $1;
+			my $flags = $2;
+			return "r'(?$flags:$regex)'";
+		} else {
+			die "failed to compile regex expression: $regex_token";
 		}
 	}
 	

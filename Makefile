@@ -81,6 +81,6 @@ test_sugarsweet:
 	Sugar/Lang/SugarsweetCompiler/PHP.pm tests/test_class.sugarsweet > tests/TestClass.php
 	php tests/TestClass.php
 	Sugar/Lang/SugarsweetCompiler/Python.pm tests/test_class.sugarsweet > tests/TestClass.py
-	python tests/TestClass.py
+	python3 tests/TestClass.py
 	Sugar/Lang/SugarsweetCompiler/JavaScript.pm tests/test_class.sugarsweet > tests/TestClass.js
 	nodejs tests/TestClass.js

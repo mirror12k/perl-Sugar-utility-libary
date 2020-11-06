@@ -7,6 +7,12 @@ class Sugar::Lang::SugarsweetCompiler::Python extends Sugar::Lang::SugarsweetBas
 list sub code_file_preamble() {
 	return [
 		"import sys",
+		"import re",
+		"",
+		"def trymatch(r, s):
+	global match
+	match = re.search(r, s)
+	return match is not None",
 		"",
 		"",
 		""
@@ -281,10 +287,10 @@ string sub compile_expression (tree expression) {
 			if (expression.index < 0) {
 				die "match index cannot be negative";
 			}
-			return "\$$expression.index";
+			return "match.group($expression.index)";
 		}
 		'match_position_expression': {
-			return "\$+[0]";
+			return "match.end(0)";
 		}
 		'empty_list_expression': {
 			return "[]";
@@ -307,7 +313,7 @@ string sub compile_expression (tree expression) {
 		'join_expression': {
 			string left_expression = self.compile_expression(expression.left_expression);
 			string right_expression = self.compile_expression(expression.right_expression);
-			return "str($left_expression).join($right_expression)";
+			return "str($left_expression).join([ str(_v) for _v in $right_expression])";
 		}
 		'split_expression': {
 			string left_expression = self.compile_expression(expression.left_expression);
@@ -456,7 +462,8 @@ string sub compile_expression (tree expression) {
 		}
 		'regex_match_expression': {
 			string sub_expression = self.compile_expression(expression.expression);
-			return "($sub_expression $expression.operator $expression.regex)";
+			string regex = self.compile_regex_expression($expression.regex);
+			return "trymatch($regex, $sub_expression)";
 		}
 		'regex_substitution_expression': {
 			string sub_expression = self.compile_expression(expression.expression);
@@ -469,9 +476,18 @@ string sub compile_expression (tree expression) {
 	}
 }
 
-string sub compile_substitution_expression (string regex_token) {
-	# my ($self, $string) = @_;
+string sub compile_regex_expression (string regex_token) {
+	if (regex_token =~ /\A\/((?:[^\\\/]|\\.)*+)\/([msixpodualngc]*+)\Z/s) {
+		string regex = match[1];
+		string flags = match[2];
 
+		return "r'(?$flags:$regex)'";
+	} else {
+		die "failed to compile regex expression: $regex_token";
+	}
+}
+
+string sub compile_substitution_expression (string regex_token) {
 	if (regex_token =~ /\As\/((?:[^\\\/]|\\.)*+)\/((?:[^\\\/]|\\.)*+)\/([msixpodualngc]*+)\Z/s) {
 		string regex = match[1];
 		string substitution_string = match[2];
@@ -486,8 +502,6 @@ string sub compile_substitution_expression (string regex_token) {
 }
 
 string sub compile_string_expression (string string_token) {
-	# my ($self, $string) = @_;
-
 	string string_content;
 	bool is_quoted;
 	if (string_token =~ /\A'/s) {
