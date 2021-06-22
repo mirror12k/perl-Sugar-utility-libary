@@ -32,18 +32,27 @@ sub compile_project_directory {
 	# my $index_file = Sugar::IO::File->new("$bin_dir/index.php");
 
 	# get a list of all files
-	my @all_files = $src_dir->recursive_files;
+	my @all_files = map s#//#/#gr, $src_dir->recursive_files;
 
+	if (exists $options{target_path}) {
+		my $target_path = quotemeta $options{target_path};
+		@all_files = grep /\A$target_path/, @all_files;
+	}
+
+	# for every compilation instruction
 	foreach my $line (@instructions) {
 		if ($line =~ /\A(.*?)\s*=>\s*(.*?):\s+(.*?)\Z/s) {
 			my $filematch = $1;
 			my $outpath = $2;
 			my $command = $3;
 
+			# parse all source files
 			foreach my $source_path (@all_files) {
 				my $relative_path = $source_path =~ s/\A$src_dir\/*//r;
+				# if the source file path matches our given rule, process it
 				if (my @matched_stuff = $relative_path =~ /\A$filematch\Z/) {
 					my $destination_path = "$bin_dir/$outpath";
+					$destination_path =~ s#//#/#g;
 
 					foreach my $i (1 .. @matched_stuff) {
 						$destination_path =~ s/\$$i/$matched_stuff[$i-1]/g;
@@ -94,7 +103,7 @@ sub main {
 		require File::Hotfolder;
 		File::Hotfolder::watch($src_dir,
 			fork => 0,
-			callback => sub { compile_project_directory($src_dir, $bin_dir, %options); },
+			callback => sub { compile_project_directory($src_dir, $bin_dir, target_path => $_[0], %options); },
 		)->loop;
 	}
 }
