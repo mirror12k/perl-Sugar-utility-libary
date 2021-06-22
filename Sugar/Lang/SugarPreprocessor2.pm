@@ -3,7 +3,7 @@ use strict;
 use warnings;
 use feature 'say';
 
-package Sugar::Lang::SugarPreprocessor;
+package Sugar::Lang::SugarPreprocessor2;
 
 	sub new {
 		my ($self, $args) = @_;
@@ -27,8 +27,17 @@ package Sugar::Lang::SugarPreprocessor;
 					$v .= "\n";
 					$v .= shift(@{$lines});
 				}
-				if (($v =~ /\A\#\s*sugar_define\b\s*(?:\#(\w+)\s*)?\{\/(.*?)\/([msixgcpodualn]*)\}\s*(.*)\Z/s)) {
-					push @{$self->{registered_commands}}, { define_key => ($1), what => ($2), flags => ($3), into => ($4) };
+				my $into = shift(@{$lines});
+				while (($into =~ /\\\Z/s)) {
+					if ((0 == scalar(@{$lines}))) {
+						die "incomplete command at the end of a file: $into";
+					}
+					$into = ($into =~ s/\\\Z//sr);
+					$into .= "\n";
+					$into .= shift(@{$lines});
+				}
+				if (($v =~ /\A\#\s*sugar_define\b\s*(?:\#(\w+)\s*)?\{\/(.*?)\/([msixgcpodualn]*)\}\s*\Z/s)) {
+					push @{$self->{registered_commands}}, { define_key => ($1), what => ($2), flags => ($3), into => ($into) };
 				} else {
 					die "invalid sugar_define: $v";
 				}
@@ -63,6 +72,9 @@ package Sugar::Lang::SugarPreprocessor;
 		my ($self, $into, $matched_stuff) = @_;
 		my $i = 1;
 		foreach my $sub_to (@{$matched_stuff}) {
+			if (not (defined ($sub_to))) {
+				$sub_to = '';
+			}
 			$into = ($into =~ s/\$$i/$sub_to/gsr);
 			$i += 1;
 		}

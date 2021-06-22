@@ -1,0 +1,147 @@
+
+
+class Sugar::Lang::SugarPreprocessor2 {
+
+
+sub _constructor(tree args) {
+	self.registered_commands = [];
+	self.cached_defines = {};
+}
+
+string sub preprocess_lines(list lines) {
+	string remaining_text = '';
+	while (0 < length lines) {
+		string v = shift lines;
+		if (v =~ /\A\#\s*sugar_define\b/s) {
+			while (v =~ /\\\Z/s) {
+				if (0 == length lines) {
+					die "incomplete command at the end of a file: $v";
+				}
+				v = v =~ s/\\\Z//s;
+				v += "\n";
+				v += shift lines;
+			}
+
+			string into = shift lines;
+			while (into =~ /\\\Z/s) {
+				if (0 == length lines) {
+					die "incomplete command at the end of a file: $into";
+				}
+				into = into =~ s/\\\Z//s;
+				into += "\n";
+				into += shift lines;
+			}
+
+			if (v =~ /\A\#\s*sugar_define\b\s*(?:\#(\w+)\s*)?\{\/(.*?)\/([msixgcpodualn]*)\}\s*\Z/s) {
+				push self.registered_commands, {
+					define_key => match[1],
+					what => match[2],
+					flags => match[3],
+					into => into,
+				};
+			} else {
+				die "invalid sugar_define: $v";
+			}
+		} else {
+			remaining_text += "$v\n";
+		}
+	}
+
+	foreach (var command in self.registered_commands) {
+		string regex = "(?$command.flags:$command.what)";
+		list matched_stuff = [remaining_text =~ /$regex/];
+		while (0 < length matched_stuff) {
+			if (command.define_key) {
+				self.cache_match(command.define_key, matched_stuff);
+			}
+
+			string into = self.sub_into(command.into, matched_stuff);
+
+			remaining_text = remaining_text =~ s/$regex/$into/s;
+			matched_stuff = [remaining_text =~ /$regex/];
+		}
+	}
+
+	return remaining_text;
+}
+
+void sub cache_match(string key, list matched_stuff) {
+	if (not self.cached_defines[key]) {
+		self.cached_defines[key] = [];
+	}
+	push self.cached_defines[key], matched_stuff;
+}
+
+string sub sub_into(string into, list matched_stuff) {
+	int i = 1;
+	foreach (string sub_to in matched_stuff) {
+		unless (defined sub_to) {
+			sub_to = '';
+		}
+		into = into =~ s/\$$i/$sub_to/gs;
+		i += 1;
+	}
+
+	list inner_cache_keys = [];
+	while (into =~ /\#\s*sugar_inner_define\b\s*(?:\#(\w+)\s*)?\{\/(.*?)\/([msixgcpodualn]*)\}\s*\{\{(.*?)\}\}/s) {
+		dict inner_command = {
+			define_key => match[1],
+			what => match[2],
+			flags => match[3],
+			into => match[4],
+		};
+		inner_command.into = inner_command.into =~ s/\$l(\d+)/\$$1/gs;
+		into = into =~ s/\#\s*sugar_inner_define\b\s*(?:\#(\w+)\s*)?\{\/(.*?)\/([msixgcpodualn]*)\}\s*\{\{(.*?)\}\}//s;
+		string regex = "(?$inner_command.flags:$inner_command.what)";
+		list matched_stuff = [into =~ /$regex/];
+		while (0 < length matched_stuff) {
+			if (inner_command.define_key) {
+				push inner_cache_keys, inner_command.define_key;
+				self.cache_match(inner_command.define_key, matched_stuff);
+			}
+
+			string inner_into = self.sub_into(inner_command.into, matched_stuff);
+			into = into =~ s/$regex/$inner_into/s;
+			matched_stuff = [into =~ /$regex/];
+		}
+	}
+
+	while (into =~ /\#foreach\b\s*\#(\w+)\s*\{\{(.*?)\}\}/s) {
+		string cache_key = match[1];
+		string looped_into = match[2];
+
+		looped_into = looped_into =~ s/\$l(\d+)/\$$1/gs;
+
+		if (contains self.cached_defines[cache_key]) {
+			string nested_into = join '', map { self.sub_into(looped_into, _) } self.cached_defines[cache_key];
+			into = into =~ s/\#foreach\b\s*\#(\w+)\s*\{\{(.*?)\}\}/$nested_into/s;
+		} else {
+			into = into =~ s/\#foreach\b\s*\#(\w+)\s*\{\{(.*?)\}\}//s;
+		}
+	}
+
+	foreach (string inner_cache_key in inner_cache_keys) {
+		self.cached_defines[inner_cache_key] = [];
+	}
+
+	return into;
+}
+
+void sub main () native:perl5 {{
+	my ($files_list) = @_;
+
+	# use Data::Dumper;
+	require Sugar::IO::File;
+
+	my $preprocessor = __PACKAGE__->new;
+	foreach my $file (@$files_list) {
+		my @lines = Sugar::IO::File->new($file)->readlines;
+		# say Dumper \@lines;
+
+		say $preprocessor->preprocess_lines(\@lines);
+		# say Dumper $preprocessor->{cached_defines};
+	}
+}}
+
+}
+

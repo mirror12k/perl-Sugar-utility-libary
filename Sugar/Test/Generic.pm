@@ -46,7 +46,7 @@ sub expect_result {
 
 		if ($@) {
 			say color('bold bright_red'), "[#$self->{test_index}] $test_name: runtime error:", color('reset');
-			say color('bright_red'), "\t\t$@";
+			say color('bright_red'), "\t\t$@", color('reset');
 			return;
 		}
 

@@ -1,5 +1,5 @@
 
-all: sugar_grammar sugar_compiler sugarsweet_grammar sugarsweet_base_compiler sugarsweet_perl_compiler sugar_preprocessor test_sugar_grammar test_json_example
+all: sugar_grammar sugar_compiler sugarsweet_grammar sugarsweet_base_compiler sugarsweet_perl_compiler sugar_preprocessor sugar_preprocessor2 test_sugar_grammar test_json_example test_sugarsweet_multilang
 
 sugar_grammar:
 	./Sugar/Lang/SugarGrammarCompiler.pm grammar/sugar_grammar.sugar > temp_compiled_file
@@ -38,6 +38,11 @@ sugar_preprocessor:
 	chmod +x temp_compiled_file
 	mv temp_compiled_file Sugar/Lang/SugarPreprocessor.pm
 
+sugar_preprocessor2:
+	./Sugar/Lang/SugarsweetCompiler/Perl.pm grammar/sugar_preprocessor2.sugarsweet > temp_compiled_file
+	chmod +x temp_compiled_file
+	mv temp_compiled_file Sugar/Lang/SugarPreprocessor2.pm
+
 
 all_trial: trial_sugar_grammar trial_sugar_compiler trial_sugarsweet_grammar trial_sugarsweet_compiler
 
@@ -67,6 +72,9 @@ test_json_example:
 	./Sugar/Lang/SugarGrammarCompiler.pm example/json_parser.synth > example/JSONParser.pm
 	./example/json_parser_tests.pl
 
+test_sugarsweet_multilang:
+	./tests/sugarsweet_cross_compilation_tests.pl
+
 profile_sugar_compiler:
 	perl -d:NYTProf Sugar/Lang/SugarGrammarParser.pm grammar/sugar_grammar.sugar > temp_compiled_file
 	rm temp_compiled_file
@@ -76,11 +84,12 @@ test_sugarsweet:
 	make sugarsweet_php_compiler
 	make sugarsweet_python_compiler
 	make sugarsweet_javascript_compiler
-	Sugar/Lang/SugarsweetCompiler/Perl.pm tests/test_class.sugarsweet > tests/TestClass.pm
+
+	Sugar/Lang/SugarsweetCompiler/Perl.pm tests/sugarsweet_multilang/test_regex.sugarsweet > tests/TestClass.pm
 	perl tests/TestClass.pm
-	Sugar/Lang/SugarsweetCompiler/PHP.pm tests/test_class.sugarsweet > tests/TestClass.php
+	Sugar/Lang/SugarsweetCompiler/PHP.pm tests/sugarsweet_multilang/test_regex.sugarsweet > tests/TestClass.php
 	php tests/TestClass.php
-	Sugar/Lang/SugarsweetCompiler/Python.pm tests/test_class.sugarsweet > tests/TestClass.py
+	Sugar/Lang/SugarsweetCompiler/Python.pm tests/sugarsweet_multilang/test_regex.sugarsweet > tests/TestClass.py
 	python3 tests/TestClass.py
-	Sugar/Lang/SugarsweetCompiler/JavaScript.pm tests/test_class.sugarsweet > tests/TestClass.js
+	Sugar/Lang/SugarsweetCompiler/JavaScript.pm tests/sugarsweet_multilang/test_regex.sugarsweet > tests/TestClass.js
 	nodejs tests/TestClass.js

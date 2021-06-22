@@ -482,11 +482,16 @@ string sub compile_expression (tree expression) {
 		}
 		'regex_match_expression': {
 			string sub_expression = self.compile_expression(expression.expression);
+			tree compiled_regex = self.compile_regex_expression(expression.regex);
 			string operator = '===';
 			if ($expression.operator == '!~') {
 				operator = '!==';
 			}
-			return "(preg_match('$expression.regex', $sub_expression, \$match, PREG_OFFSET_CAPTURE) $operator 1)";
+			if (compiled_regex.has_g) {
+				return "(preg_match('/$compiled_regex.regex/$compiled_regex.flags', $sub_expression, \$match, PREG_OFFSET_CAPTURE, isset(\$_offset)?\$_offset:0) $operator 1 && \$_offset = strlen(\$match[0][0]) + \$match[0][1])";
+			} else {
+				return "(preg_match('/$compiled_regex.regex/$compiled_regex.flags', $sub_expression, \$match, PREG_OFFSET_CAPTURE) $operator 1)";
+			}
 		}
 		'regex_substitution_expression': {
 			string sub_expression = self.compile_expression(expression.expression);
@@ -496,6 +501,27 @@ string sub compile_expression (tree expression) {
 		default: {
 			die "invalid expression type: $expression.type";
 		}
+	}
+}
+
+string sub compile_regex_expression (string regex_token) {
+	if (regex_token =~ /\A\/((?:[^\\\/]|\\.)*+)\/([msixpodualngc]*+)\Z/s) {
+		string regex = match[1];
+		string flags = match[2];
+
+		int has_g = 0;
+		if (flags =~ /g/) {
+			flags = flags =~ s/g//;
+			has_g = 1;
+		}
+
+		return {
+			regex => regex,
+			flags => flags,
+			has_g => has_g,
+		};
+	} else {
+		die "failed to compile regex expression: $regex_token";
 	}
 }
 

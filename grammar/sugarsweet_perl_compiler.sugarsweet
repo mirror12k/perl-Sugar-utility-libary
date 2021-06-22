@@ -304,6 +304,10 @@ string sub compile_expression (tree expression) {
 			string sub_expression = self.compile_expression(expression.expression);
 			return "not ($sub_expression)";
 		}
+		'defined_expression': {
+			string sub_expression = self.compile_expression(expression.expression);
+			return "defined ($sub_expression)";
+		}
 		'join_expression': {
 			string left_expression = self.compile_expression(expression.left_expression);
 			string right_expression = self.compile_expression(expression.right_expression);

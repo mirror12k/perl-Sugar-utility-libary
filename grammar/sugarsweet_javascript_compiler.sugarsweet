@@ -477,7 +477,11 @@ string sub compile_expression (tree expression) {
 		}
 		'regex_match_expression': {
 			string sub_expression = self.compile_expression(expression.expression);
-			return "((match = $expression.regex\.exec($sub_expression)) !== null)";
+			string operator = '!==';
+			if ($expression.operator == '!~') {
+				operator = '===';
+			}
+			return "((match = $expression.regex\.exec($sub_expression)) $operator null)";
 		}
 		'regex_substitution_expression': {
 			string sub_expression = self.compile_expression(expression.expression);

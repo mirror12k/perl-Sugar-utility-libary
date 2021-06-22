@@ -7,6 +7,7 @@ use feature 'say';
 
 use Carp;
 
+use Term::ANSIColor;
 use Sugar::IO::Dir;
 
 
@@ -116,8 +117,10 @@ sub run {
 
 	my @testfiles = $testdir->recursive_files;
 	@testfiles = grep $_ =~ $self->{test_files_regex}, @testfiles if defined $self->{test_files_regex};
+	my $index = 0;
 	foreach my $testfile (@testfiles) {
-		say "test file $testfile";
+		$index++;
+		# say "test file $testfile";
 
 		my (@control_lines, @test_lines);
 		if (ref $self->{control_processor}) {
@@ -139,23 +142,25 @@ sub run {
 
 		my $error = 0;
 		if (@test_lines != @control_lines) {
-			say "\tincorrect number of lines $#control_lines vs $#test_lines";
+			my $num_control_lines = @control_lines;
+			my $num_test_lines = @test_lines;
+			say color('bold bright_red'), "\tincorrect number of lines $num_control_lines vs $num_test_lines", color('reset');
 			$error = 1;
 		}
 		foreach (0 .. $#control_lines) {
 			unless (defined $test_lines[$_] and $control_lines[$_] eq $test_lines[$_]) {
-				say "\tinconsistent lines [$_]";
-				print "\t\t$control_lines[$_]" if defined $control_lines[$_];
-				print "\t\t$test_lines[$_]" if defined $test_lines[$_];
+				say color('bold bright_red'), "\tinconsistent lines [$_]", color('reset');
+				print color('bright_red'), "\t\t$control_lines[$_]", color('reset') if defined $control_lines[$_];
+				print color('bright_red'), "\t\t$test_lines[$_]", color('reset') if defined $test_lines[$_];
 
 				$error = 1;
 			}
 		}
 
 		if ($error) {
-			say "test $testfile failed";
+			say color('bold bright_red'), "[#$index] test $testfile: fail", color('reset');
 		} else {
-			say "test $testfile successful";
+			say color('bold bright_green'), "[#$index] test $testfile: pass", color('reset');
 		}
 	}
 }

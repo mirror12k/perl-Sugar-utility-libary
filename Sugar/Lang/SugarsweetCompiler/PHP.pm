@@ -372,17 +372,38 @@ use parent 'Sugar::Lang::SugarsweetBaseCompiler';
 			}
 		} elsif (($expression->{type} eq 'regex_match_expression')) {
 			my $sub_expression = $self->compile_expression($expression->{expression});
+			my $compiled_regex = $self->compile_regex_expression($expression->{regex});
 			my $operator = '===';
 			if (($expression->{operator} eq '!~')) {
 				$operator = '!==';
 			}
-			return "(preg_match('$expression->{regex}', $sub_expression, \$match, PREG_OFFSET_CAPTURE) $operator 1)";
+			if ($compiled_regex->{has_g}) {
+				return "(preg_match('/$compiled_regex->{regex}/$compiled_regex->{flags}', $sub_expression, \$match, PREG_OFFSET_CAPTURE, isset(\$_offset)?\$_offset:0) $operator 1 && \$_offset = strlen(\$match[0][0]) + \$match[0][1])";
+			} else {
+				return "(preg_match('/$compiled_regex->{regex}/$compiled_regex->{flags}', $sub_expression, \$match, PREG_OFFSET_CAPTURE) $operator 1)";
+			}
 		} elsif (($expression->{type} eq 'regex_substitution_expression')) {
 			my $sub_expression = $self->compile_expression($expression->{expression});
 			my $regex_expression = $self->compile_substitution_expression($expression->{regex});
 			return "($sub_expression =~ $regex_expression)";
 		} else {
 			die "invalid expression type: $expression->{type}";
+		}
+	}
+	
+	sub compile_regex_expression {
+		my ($self, $regex_token) = @_;
+		if (($regex_token =~ /\A\/((?:[^\\\/]|\\.)*+)\/([msixpodualngc]*+)\Z/s)) {
+			my $regex = $1;
+			my $flags = $2;
+			my $has_g = 0;
+			if (($flags =~ /g/)) {
+				$flags = ($flags =~ s/g//r);
+				$has_g = 1;
+			}
+			return { regex => ($regex), flags => ($flags), has_g => ($has_g) };
+		} else {
+			die "failed to compile regex expression: $regex_token";
 		}
 	}
 	

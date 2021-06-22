@@ -369,7 +369,11 @@ use parent 'Sugar::Lang::SugarsweetBaseCompiler';
 			}
 		} elsif (($expression->{type} eq 'regex_match_expression')) {
 			my $sub_expression = $self->compile_expression($expression->{expression});
-			return "((match = $expression->{regex}\.exec($sub_expression)) !== null)";
+			my $operator = '!==';
+			if (($expression->{operator} eq '!~')) {
+				$operator = '===';
+			}
+			return "((match = $expression->{regex}\.exec($sub_expression)) $operator null)";
 		} elsif (($expression->{type} eq 'regex_substitution_expression')) {
 			my $sub_expression = $self->compile_expression($expression->{expression});
 			my $regex_expression = $self->compile_substitution_expression($expression->{regex});

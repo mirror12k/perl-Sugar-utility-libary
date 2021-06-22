@@ -11,7 +11,21 @@ use parent 'Sugar::Lang::SugarsweetBaseCompiler';
 		return [ "import sys", "import re", "", "def trymatch(r, s):
 	global match
 	match = re.search(r, s)
-	return match is not None", "", "", "" ];
+	return match is not None", "
+global myiter
+myiter = None
+
+def tryglobalmatch(r, s):
+	global myiter
+	global match
+	if myiter is None:
+		myiter = re.finditer(r, s)
+	try:
+		match = next(myiter)
+		return True
+	except StopIteration:
+		myiter = None
+		return False", "", "", "" ];
 	}
 	
 	sub code_file_postamble {
@@ -355,8 +369,16 @@ use parent 'Sugar::Lang::SugarsweetBaseCompiler';
 			}
 		} elsif (($expression->{type} eq 'regex_match_expression')) {
 			my $sub_expression = $self->compile_expression($expression->{expression});
-			my $regex = $self->compile_regex_expression($expression->{regex});
-			return "trymatch($regex, $sub_expression)";
+			my $compiled_regex = $self->compile_regex_expression($expression->{regex});
+			my $operator = '';
+			if (($expression->{operator} eq '!~')) {
+				$operator = 'not ';
+			}
+			if ($compiled_regex->{has_g}) {
+				return "${operator}tryglobalmatch($compiled_regex->{regex}, $sub_expression)";
+			} else {
+				return "${operator}trymatch($compiled_regex->{regex}, $sub_expression)";
+			}
 		} elsif (($expression->{type} eq 'regex_substitution_expression')) {
 			my $sub_expression = $self->compile_expression($expression->{expression});
 			my $regex_expression = $self->compile_substitution_expression($expression->{regex});
@@ -371,7 +393,12 @@ use parent 'Sugar::Lang::SugarsweetBaseCompiler';
 		if (($regex_token =~ /\A\/((?:[^\\\/]|\\.)*+)\/([msixpodualngc]*+)\Z/s)) {
 			my $regex = $1;
 			my $flags = $2;
-			return "r'(?$flags:$regex)'";
+			my $has_g = 0;
+			if (($flags =~ /g/)) {
+				$flags = ($flags =~ s/g//r);
+				$has_g = 1;
+			}
+			return { regex => ("r'(?$flags:$regex)'"), has_g => ($has_g) };
 		} else {
 			die "failed to compile regex expression: $regex_token";
 		}

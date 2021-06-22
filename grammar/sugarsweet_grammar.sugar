@@ -484,6 +484,11 @@ item sub expression {
 				expression => !expression
 			}
 		}
+		'defined' => {
+			return defined_expression:{
+				expression => !expression
+			}
+		}
 		*identifier => {
 			return !more_expression->variable_expression:{
 				identifier => $0

@@ -13,6 +13,21 @@ list sub code_file_preamble() {
 	global match
 	match = re.search(r, s)
 	return match is not None",
+		"
+global myiter
+myiter = None
+
+def tryglobalmatch(r, s):
+	global myiter
+	global match
+	if myiter is None:
+		myiter = re.finditer(r, s)
+	try:
+		match = next(myiter)
+		return True
+	except StopIteration:
+		myiter = None
+		return False",
 		"",
 		"",
 		""
@@ -462,8 +477,16 @@ string sub compile_expression (tree expression) {
 		}
 		'regex_match_expression': {
 			string sub_expression = self.compile_expression(expression.expression);
-			string regex = self.compile_regex_expression($expression.regex);
-			return "trymatch($regex, $sub_expression)";
+			string compiled_regex = self.compile_regex_expression($expression.regex);
+			string operator = '';
+			if ($expression.operator == '!~') {
+				operator = 'not ';
+			}
+			if (compiled_regex.has_g) {
+				return "${operator}tryglobalmatch($compiled_regex.regex, $sub_expression)";
+			} else {
+				return "${operator}trymatch($compiled_regex.regex, $sub_expression)";
+			}
 		}
 		'regex_substitution_expression': {
 			string sub_expression = self.compile_expression(expression.expression);
@@ -481,7 +504,16 @@ string sub compile_regex_expression (string regex_token) {
 		string regex = match[1];
 		string flags = match[2];
 
-		return "r'(?$flags:$regex)'";
+		int has_g = 0;
+		if (flags =~ /g/) {
+			flags = flags =~ s/g//;
+			has_g = 1;
+		}
+
+		return {
+			regex => "r'(?$flags:$regex)'",
+			has_g => has_g,
+		};
 	} else {
 		die "failed to compile regex expression: $regex_token";
 	}

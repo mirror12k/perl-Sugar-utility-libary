@@ -241,6 +241,9 @@ use parent 'Sugar::Lang::SugarsweetBaseCompiler';
 		} elsif (($expression->{type} eq 'not_expression')) {
 			my $sub_expression = $self->compile_expression($expression->{expression});
 			return "not ($sub_expression)";
+		} elsif (($expression->{type} eq 'defined_expression')) {
+			my $sub_expression = $self->compile_expression($expression->{expression});
+			return "defined ($sub_expression)";
 		} elsif (($expression->{type} eq 'join_expression')) {
 			my $left_expression = $self->compile_expression($expression->{left_expression});
 			my $right_expression = $self->compile_expression($expression->{right_expression});
