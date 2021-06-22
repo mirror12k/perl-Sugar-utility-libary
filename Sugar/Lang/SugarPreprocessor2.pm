@@ -75,12 +75,13 @@ package Sugar::Lang::SugarPreprocessor2;
 			if (not (defined ($sub_to))) {
 				$sub_to = '';
 			}
-			$into = ($into =~ s/\$$i/$sub_to/gsr);
+			$into = ($into =~ s/\$$i|\$\{$i\}/$sub_to/gsr);
 			$i += 1;
 		}
 		my $inner_cache_keys = [];
 		while (($into =~ /\#\s*sugar_inner_define\b\s*(?:\#(\w+)\s*)?\{\/(.*?)\/([msixgcpodualn]*)\}\s*\{\{(.*?)\}\}/s)) {
 			my $inner_command = { define_key => ($1), what => ($2), flags => ($3), into => ($4) };
+			$inner_command->{into} = ($inner_command->{into} =~ s/\$\{l(\d+)\}/\${$1}/gsr);
 			$inner_command->{into} = ($inner_command->{into} =~ s/\$l(\d+)/\$$1/gsr);
 			$into = ($into =~ s/\#\s*sugar_inner_define\b\s*(?:\#(\w+)\s*)?\{\/(.*?)\/([msixgcpodualn]*)\}\s*\{\{(.*?)\}\}//sr);
 			my $regex = "(?$inner_command->{flags}:$inner_command->{what})";
@@ -98,6 +99,7 @@ package Sugar::Lang::SugarPreprocessor2;
 		while (($into =~ /\#foreach\b\s*\#(\w+)\s*\{\{(.*?)\}\}/s)) {
 			my $cache_key = $1;
 			my $looped_into = $2;
+			$looped_into = ($looped_into =~ s/\$\{l(\d+)\}/\${$1}/gsr);
 			$looped_into = ($looped_into =~ s/\$l(\d+)/\$$1/gsr);
 			if (exists($self->{cached_defines}->{$cache_key})) {
 				my $nested_into = join('', @{[ map { $self->sub_into($looped_into, $_) } @{$self->{cached_defines}->{$cache_key}} ]});

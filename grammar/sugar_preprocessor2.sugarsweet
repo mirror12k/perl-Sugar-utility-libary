@@ -78,7 +78,7 @@ string sub sub_into(string into, list matched_stuff) {
 		unless (defined sub_to) {
 			sub_to = '';
 		}
-		into = into =~ s/\$$i/$sub_to/gs;
+		into = into =~ s/\$$i|\$\{$i\}/$sub_to/gs;
 		i += 1;
 	}
 
@@ -90,6 +90,7 @@ string sub sub_into(string into, list matched_stuff) {
 			flags => match[3],
 			into => match[4],
 		};
+		inner_command.into = inner_command.into =~ s/\$\{l(\d+)\}/\${$1}/gs;
 		inner_command.into = inner_command.into =~ s/\$l(\d+)/\$$1/gs;
 		into = into =~ s/\#\s*sugar_inner_define\b\s*(?:\#(\w+)\s*)?\{\/(.*?)\/([msixgcpodualn]*)\}\s*\{\{(.*?)\}\}//s;
 		string regex = "(?$inner_command.flags:$inner_command.what)";
@@ -110,6 +111,7 @@ string sub sub_into(string into, list matched_stuff) {
 		string cache_key = match[1];
 		string looped_into = match[2];
 
+		looped_into = looped_into =~ s/\$\{l(\d+)\}/\${$1}/gs;
 		looped_into = looped_into =~ s/\$l(\d+)/\$$1/gs;
 
 		if (contains self.cached_defines[cache_key]) {
