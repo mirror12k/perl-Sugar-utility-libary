@@ -127,7 +127,7 @@ package Sugar::Lang::SugarPreprocessor2;
 		my @lines = Sugar::IO::File->new($file)->readlines;
 		# say Dumper \@lines;
 
-		say $preprocessor->preprocess_lines(\@lines);
+		print $preprocessor->preprocess_lines(\@lines);
 		# say Dumper $preprocessor->{cached_defines};
 	}
 
