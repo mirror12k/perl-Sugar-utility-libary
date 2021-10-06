@@ -206,6 +206,22 @@ item sub match_item {
 			$_{assign_object_expression_value} = $1{value}
 			return $_
 		}
+		*identifier, ':', '{', *identifier, '}', '[', ']', '=' => {
+			$_ = !match_item
+			$_{assign_object_type} = $0
+			$_{assign_object_list_value} = $3
+			return $_
+		}
+		'{', *identifier, '}', '[', ']', '=' => {
+			$_ = !match_item
+			$_{assign_object_list_value} = $1
+			return $_
+		}
+		'{', !spawn_expression, '}', '[', ']', '=' => {
+			$_ = !match_item
+			$_{assign_object_expression_list_value} = $1{value}
+			return $_
+		}
 		'[', ']', '=' => {
 			$_ = !match_item
 			$_{assign_list_value} = 'true'
@@ -232,6 +248,25 @@ item sub match_item {
 		'{', !spawn_expression, '}', '=>', !spawn_expression => {
 			return assignment_nonmatch:{
 				assign_object_expression_value => $1{value}
+				expression => $4{value}
+			}
+		}
+		*identifier, ':', '{', *identifier, '}', '[', ']', '=>', !spawn_expression => {
+			return assignment_nonmatch:{
+				assign_object_type => $0
+				assign_object_list_value => $3
+				expression => $6{value}
+			}
+		}
+		'{', *identifier, '}', '[', ']', '=>', !spawn_expression => {
+			return assignment_nonmatch:{
+				assign_object_list_value => $1
+				expression => $4{value}
+			}
+		}
+		'{', !spawn_expression, '}', '[', ']', '=>', !spawn_expression => {
+			return assignment_nonmatch:{
+				assign_object_expression_list_value => $1{value}
 				expression => $4{value}
 			}
 		}
@@ -270,6 +305,9 @@ item sub match_item {
 		}
 		'*', *identifier => {
 			return token_type_match:{ value => $1 }
+		}
+		'warn', !spawn_expression => {
+			return warn_match:{ argument => $1{value} }
 		}
 		'die', !spawn_expression => {
 			return death_match:{ argument => $1{value} }

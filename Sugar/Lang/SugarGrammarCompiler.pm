@@ -330,6 +330,9 @@ sub parse {
 			$token_condition_string = "$token_memory_expression\->[0] eq '$condition->{value}'";
 		} elsif (($condition->{type} eq 'assignment_nonmatch')) {
 			$token_condition_string = "1";
+		} elsif (($condition->{type} eq 'warn_match')) {
+			my $expression = $self->compile_syntax_spawn_expression($condition->{argument});
+			$token_condition_string = "(warn($expression) or do { 1 })";
 		} elsif (($condition->{type} eq 'death_match')) {
 			my $expression = $self->compile_syntax_spawn_expression($condition->{argument});
 			$token_condition_string = "\$self->confess_at_current_offset($expression)";
@@ -372,6 +375,20 @@ sub parse {
 			}
 			$token_condition_string = "($token_condition_string and do { \$context_value->{$variable} = $value_expression; 1 })";
 		}
+		if (exists($condition->{assign_object_list_value})) {
+			my $variable = $condition->{assign_object_list_value};
+			my $value_expression;
+			if (($condition->{type} eq 'function_match')) {
+				$value_expression = "\$tokens[$tokens_array_offset]";
+			} elsif (($condition->{type} eq 'context_match')) {
+				$value_expression = "\$tokens[$tokens_array_offset]";
+			} elsif (($condition->{type} eq 'assignment_nonmatch')) {
+				$value_expression = $self->compile_syntax_spawn_expression($condition->{expression});
+			} else {
+				$value_expression = "\$tokens[$tokens_array_offset][1]";
+			}
+			$token_condition_string = "($token_condition_string and do { push \@{\$context_value->{$variable}}, $value_expression; 1 })";
+		}
 		if (exists($condition->{assign_object_expression_value})) {
 			my $key_expression = $self->compile_syntax_spawn_expression($condition->{assign_object_expression_value});
 			my $value_expression;
@@ -385,6 +402,20 @@ sub parse {
 				$value_expression = "\$tokens[$tokens_array_offset][1]";
 			}
 			$token_condition_string = "($token_condition_string and do { \$context_value->{$key_expression} = $value_expression; 1 })";
+		}
+		if (exists($condition->{assign_object_expression_list_value})) {
+			my $key_expression = $self->compile_syntax_spawn_expression($condition->{assign_object_expression_list_value});
+			my $value_expression;
+			if (($condition->{type} eq 'function_match')) {
+				$value_expression = "\$tokens[$tokens_array_offset]";
+			} elsif (($condition->{type} eq 'context_match')) {
+				$value_expression = "\$tokens[$tokens_array_offset]";
+			} elsif (($condition->{type} eq 'assignment_nonmatch')) {
+				$value_expression = $self->compile_syntax_spawn_expression($condition->{expression});
+			} else {
+				$value_expression = "\$tokens[$tokens_array_offset][1]";
+			}
+			$token_condition_string = "($token_condition_string and do { push \@{\$context_value->{$key_expression}}, $value_expression; 1 })";
 		}
 		if (exists($condition->{assign_list_value})) {
 			my $value_expression;
@@ -442,6 +473,7 @@ sub parse {
 				} elsif (($condition->{type} eq 'optional_matchgroup')) {
 				} elsif (($condition->{type} eq 'lookahead_matchgroup')) {
 				} elsif (($condition->{type} eq 'assignment_nonmatch')) {
+				} elsif (($condition->{type} eq 'warn_match')) {
 				} elsif (($condition->{type} eq 'death_match')) {
 				} elsif (($condition->{type} eq 'return_match')) {
 				} else {
@@ -462,6 +494,7 @@ sub parse {
 			} elsif (($condition->{type} eq 'assignment_nonmatch')) {
 			} elsif (($condition->{type} eq 'function_match')) {
 			} elsif (($condition->{type} eq 'context_match')) {
+			} elsif (($condition->{type} eq 'warn_match')) {
 			} elsif (($condition->{type} eq 'death_match')) {
 			} elsif (($condition->{type} eq 'return_match')) {
 			} else {
@@ -516,6 +549,8 @@ sub parse {
 			return ("$condition->{string}" =~ s/([\\'])/\\$1/gr);
 		} elsif (($condition->{type} eq 'token_type_match')) {
 			return "$condition->{value} token";
+		} elsif (($condition->{type} eq 'warn_match')) {
+			return "";
 		} elsif (($condition->{type} eq 'death_match')) {
 			return "";
 		} elsif (($condition->{type} eq 'return_match')) {

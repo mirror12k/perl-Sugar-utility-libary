@@ -446,6 +446,10 @@ string sub compile_syntax_condition (tree condition, int offset) {
 		'assignment_nonmatch': {
 			token_condition_string = "1";
 		}
+		'warn_match': {
+			string expression = self.compile_syntax_spawn_expression(condition.argument);
+			token_condition_string = "(warn($expression) or do { 1 })";
+		}
 		'death_match': {
 			string expression = self.compile_syntax_spawn_expression(condition.argument);
 			token_condition_string = "\$self->confess_at_current_offset($expression)";
@@ -495,6 +499,21 @@ string sub compile_syntax_condition (tree condition, int offset) {
 		token_condition_string = "($token_condition_string and do { \$context_value->{$variable} = $value_expression; 1 })";
 	}
 
+	if (contains condition.assign_object_list_value) {
+		string variable = condition.assign_object_list_value;
+		string value_expression;
+		if (condition.type == 'function_match') {
+			value_expression = "\$tokens[$tokens_array_offset]";
+		} elsif (condition.type == 'context_match') {
+			value_expression = "\$tokens[$tokens_array_offset]";
+		} elsif (condition.type == 'assignment_nonmatch') {
+			value_expression = self.compile_syntax_spawn_expression(condition.expression);
+		} else {
+			value_expression = "\$tokens[$tokens_array_offset][1]";
+		}
+		token_condition_string = "($token_condition_string and do { push \@{\$context_value->{$variable}}, $value_expression; 1 })";
+	}
+
 	if (contains condition.assign_object_expression_value) {
 		string key_expression = self.compile_syntax_spawn_expression(condition.assign_object_expression_value);
 		string value_expression;
@@ -508,6 +527,21 @@ string sub compile_syntax_condition (tree condition, int offset) {
 			value_expression = "\$tokens[$tokens_array_offset][1]";
 		}
 		token_condition_string = "($token_condition_string and do { \$context_value->{$key_expression} = $value_expression; 1 })";
+	}
+
+	if (contains condition.assign_object_expression_list_value) {
+		string key_expression = self.compile_syntax_spawn_expression(condition.assign_object_expression_list_value);
+		string value_expression;
+		if (condition.type == 'function_match') {
+			value_expression = "\$tokens[$tokens_array_offset]";
+		} elsif (condition.type == 'context_match') {
+			value_expression = "\$tokens[$tokens_array_offset]";
+		} elsif (condition.type == 'assignment_nonmatch') {
+			value_expression = self.compile_syntax_spawn_expression(condition.expression);
+		} else {
+			value_expression = "\$tokens[$tokens_array_offset][1]";
+		}
+		token_condition_string = "($token_condition_string and do { push \@{\$context_value->{$key_expression}}, $value_expression; 1 })";
 	}
 
 	if (contains condition.assign_list_value) {
@@ -569,6 +603,7 @@ int sub get_syntax_match_list_tokens_eaten (list match_list) {
 			} elsif (condition.type == 'assignment_nonmatch') {
 			# } elsif (condition.type == 'function_match') {
 			# } elsif (condition.type == 'context_match') {
+			} elsif (condition.type == 'warn_match') {
 			} elsif (condition.type == 'death_match') {
 			} elsif (condition.type == 'return_match') {
 			} else {
@@ -590,6 +625,7 @@ int sub get_match_list_match_length (list match_list) {
 		} elsif (condition.type == 'assignment_nonmatch') {
 		} elsif (condition.type == 'function_match') {
 		} elsif (condition.type == 'context_match') {
+		} elsif (condition.type == 'warn_match') {
 		} elsif (condition.type == 'death_match') {
 		} elsif (condition.type == 'return_match') {
 		} else {
@@ -652,6 +688,9 @@ string sub syntax_condition_as_string (tree condition) {
 		}
 		'token_type_match': {
 			return "$condition.value token";
+		}
+		'warn_match': {
+			return "";
 		}
 		'death_match': {
 			return "";
