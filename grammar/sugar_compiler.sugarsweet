@@ -550,6 +550,8 @@ string sub compile_syntax_condition (tree condition, int offset) {
 			value_expression = "\$tokens[$tokens_array_offset]";
 		} elsif (condition.type == 'context_match') {
 			value_expression = "\$tokens[$tokens_array_offset]";
+		} elsif (condition.type == 'assignment_nonmatch') {
+			value_expression = self.compile_syntax_spawn_expression(condition.expression);
 		} else {
 			value_expression = "\$tokens[$tokens_array_offset][1]";
 		}

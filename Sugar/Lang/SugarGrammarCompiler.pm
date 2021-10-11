@@ -423,6 +423,8 @@ sub parse {
 				$value_expression = "\$tokens[$tokens_array_offset]";
 			} elsif (($condition->{type} eq 'context_match')) {
 				$value_expression = "\$tokens[$tokens_array_offset]";
+			} elsif (($condition->{type} eq 'assignment_nonmatch')) {
+				$value_expression = $self->compile_syntax_spawn_expression($condition->{expression});
 			} else {
 				$value_expression = "\$tokens[$tokens_array_offset][1]";
 			}
