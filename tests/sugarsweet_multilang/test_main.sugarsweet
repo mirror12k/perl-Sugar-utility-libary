@@ -1,0 +1,120 @@
+
+class TestClass {
+
+	sub _constructor(tree args) {
+		# self.type = args.type;
+		string v = "\t[TestClass] ";
+		v += 'hello from multilang!';
+		v += " and TestClass!";
+		print v;
+
+		self.test_lots_of_messages("pineapple");
+		self.test_bag_of_values(20);
+		self.test_branch(20);
+		self.test_branch(3);
+		self.test_branch(5);
+		self.test_branch(3);
+
+		foreach (string item in ['lettera', 'letterb', 'letterc', 'letterd']) {
+			var msg = self.test_get_message({
+				type => item,
+			});
+
+			if (msg) {
+				print msg;
+			} else {
+				print "\t[TestClass] got no message";
+			}
+		}
+
+		list items = [];
+		list push items, [ "\t[TestClass] lol" ];
+		list push items, [ "5", "6", "7" ];
+		list push items, [ "asdf", "qwer" ];
+		print join "+", items;
+
+
+		list a = ["\t[TestClass] zeroth", 'first'];
+
+		list b = a;
+
+		push b, 'second';
+
+		list push b, [ 'third', 'fourth' ];
+		print join "+", a;
+	}
+
+	void sub test_lots_of_messages(string thing) {
+		int i = 1;
+		while (i < 6) {
+			print "\t[TestClass] my thing #$i is: $thing";
+			i += 1;
+		}
+	}
+
+	void sub test_bag_of_values(int count) {
+		int i = 0;
+		list vals = [];
+		while (i < count) {
+			push vals, "$i";
+			i += 1;
+		}
+		string vals_string = join ',', vals;
+
+		print "\t[TestClass] my vals: $vals_string";
+	}
+
+	void sub test_branch(int val) {
+		if (val < 5) {
+			print "\t[TestClass] $val is less than 5";
+		} elsif (val > 5) {
+			print "\t[TestClass] $val is more than 5";
+		} else {
+			print "\t[TestClass] $val is 5";
+		}
+	}
+
+	void sub test_get_message(tree statement) {
+		string switch (statement['type']) {
+			"lettera": {
+				return "\t[TestClass] got message of apple";
+			}
+			"letterb": {
+				return "\t[TestClass] got message of banana";
+			}
+			"letterc": {
+				return "\t[TestClass] got message of cherry";
+			}
+			default: {
+				return;
+			}
+		}
+	}
+
+	# main
+	void sub main () native:perl5 {{
+		my $f = TestClass->new({
+			message => 'hello from perl5!',
+		});
+	}}
+
+	void sub main () native:php7 {{
+		$f = new TestClass([
+			'message' => 'hello from php7!',
+		]);
+	}}
+
+	void sub main () native:python3 {{
+		f = TestClass({
+			'message':'hello from python3!',
+		})
+	}}
+
+	void sub main () native:javascript6 {{
+		var f = new TestClass({
+			'message':'hello from javascript6!',
+		})
+	}}
+
+}
+

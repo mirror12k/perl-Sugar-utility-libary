@@ -148,6 +148,7 @@ list sub compile_native_function(tree function_tree) {
 
 list sub compile_statement(tree statement) {
 	list code = [];
+	self.pre_expression_statements = [];
 
 	string switch (statement.type) {
 		"foreach_statement": {
@@ -220,8 +221,10 @@ list sub compile_statement(tree statement) {
 			push code, "}";
 		}
 		"while_statement": {
+
 			string expression = self.compile_expression(statement.expression);
 
+			list push code, self.get_pre_expression_statements();
 			push code, "while ($expression) {";
 			list push code, self.compile_statements_block(statement.block, []);
 			push code, "}";
@@ -277,7 +280,11 @@ list sub compile_statement(tree statement) {
 }
 
 
-
+list sub get_pre_expression_statements () {
+	list pre_expression_statements = self.pre_expression_statements;
+	self.pre_expression_statements = [];
+	return pre_expression_statements;
+}
 
 string sub compile_expression (tree expression) {
 
@@ -477,11 +484,17 @@ string sub compile_expression (tree expression) {
 		}
 		'regex_match_expression': {
 			string sub_expression = self.compile_expression(expression.expression);
+			string compiled_regex = self.compile_regex_expression(expression.regex);
+
+			if (compiled_regex.has_g) {
+				push self.pre_expression_statements, "var $compiled_regex.token = $compiled_regex.regex;";
+			}
+
 			string operator = '!==';
-			if ($expression.operator == '!~') {
+			if (expression.operator == '!~') {
 				operator = '===';
 			}
-			return "((match = $expression.regex\.exec($sub_expression)) $operator null)";
+			return "((match = $compiled_regex.token\.exec($sub_expression)) $operator null)";
 		}
 		'regex_substitution_expression': {
 			string sub_expression = self.compile_expression(expression.expression);
@@ -491,6 +504,34 @@ string sub compile_expression (tree expression) {
 		default: {
 			die "invalid expression type: $expression.type";
 		}
+	}
+}
+
+string sub compile_regex_expression (string regex_token) {
+	if (regex_token =~ /\A\/((?:[^\\\/]|\\.)*+)\/([msixpodualngc]*+)\Z/s) {
+		string regex = match[1];
+		string flags = match[2];
+		string token = regex_token;
+
+		int has_g = 0;
+		if (flags =~ /g/) {
+			has_g = 1;
+
+			unless (self.regex_intermediate_index) {
+				self.regex_intermediate_index = 1;
+			}
+
+			token = "_regex$self.regex_intermediate_index";
+			self.regex_intermediate_index += 1;
+		}
+
+		return {
+			regex => regex_token,
+			has_g => has_g,
+			token => token,
+		};
+	} else {
+		die "failed to compile regex expression: $regex_token";
 	}
 }
 

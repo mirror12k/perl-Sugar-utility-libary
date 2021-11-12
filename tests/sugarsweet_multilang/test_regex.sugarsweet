@@ -1,0 +1,48 @@
+
+class TestClass {
+
+	sub _constructor(tree args) {
+		if ("%asdf%f" =~ /%(.*?)%/) {
+			print join ': ', ["\t[TestClass] my match", match[1]];
+		}
+
+		if ("HELLOWORLD" =~ /owo/i) {
+			print join ': ', ["\t[TestClass] my uwu match", match[0], "at", match.pos];
+		}
+
+		if ("HELLOWORLD" !~ /dwo/i) {
+			print join ': ', ["\t[TestClass] cant find dwo"];
+		}
+
+		while ("asdf qwer zxcv whoami lol" =~ /(\w+)/g) {
+			print join ': ', ["\t[TestClass] matched something: ", match[1]];
+		}
+	}
+
+	# main
+	void sub main () native:perl5 {{
+		my $f = TestClass->new({
+			message => 'hello from perl5!',
+		});
+	}}
+
+	void sub main () native:php7 {{
+		$f = new TestClass([
+			'message' => 'hello from php7!',
+		]);
+	}}
+
+	void sub main () native:python3 {{
+		f = TestClass({
+			'message':'hello from python3!',
+		})
+	}}
+
+	void sub main () native:javascript6 {{
+		var f = new TestClass({
+			'message':'hello from javascript6!',
+		})
+	}}
+
+}
+

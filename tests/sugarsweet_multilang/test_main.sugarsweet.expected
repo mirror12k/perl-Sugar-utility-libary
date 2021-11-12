@@ -1,0 +1,17 @@
+	[TestClass] hello from multilang! and TestClass!
+	[TestClass] my thing #1 is: pineapple
+	[TestClass] my thing #2 is: pineapple
+	[TestClass] my thing #3 is: pineapple
+	[TestClass] my thing #4 is: pineapple
+	[TestClass] my thing #5 is: pineapple
+	[TestClass] my vals: 0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19
+	[TestClass] 20 is more than 5
+	[TestClass] 3 is less than 5
+	[TestClass] 5 is 5
+	[TestClass] 3 is less than 5
+	[TestClass] got message of apple
+	[TestClass] got message of banana
+	[TestClass] got message of cherry
+	[TestClass] got no message
+	[TestClass] lol+5+6+7+asdf+qwer
+	[TestClass] zeroth+first+second+third+fourth

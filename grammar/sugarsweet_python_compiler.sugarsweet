@@ -477,9 +477,9 @@ string sub compile_expression (tree expression) {
 		}
 		'regex_match_expression': {
 			string sub_expression = self.compile_expression(expression.expression);
-			string compiled_regex = self.compile_regex_expression($expression.regex);
+			string compiled_regex = self.compile_regex_expression(expression.regex);
 			string operator = '';
-			if ($expression.operator == '!~') {
+			if (expression.operator == '!~') {
 				operator = 'not ';
 			}
 			if (compiled_regex.has_g) {

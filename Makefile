@@ -85,11 +85,11 @@ test_sugarsweet:
 	make sugarsweet_python_compiler
 	make sugarsweet_javascript_compiler
 
-	Sugar/Lang/SugarsweetCompiler/Perl.pm tests/sugarsweet_multilang/test_regex.sugarsweet > tests/TestClass.pm
+	Sugar/Lang/SugarsweetCompiler/Perl.pm tests/test_class.sugarsweet > tests/TestClass.pm
 	perl tests/TestClass.pm
-	Sugar/Lang/SugarsweetCompiler/PHP.pm tests/sugarsweet_multilang/test_regex.sugarsweet > tests/TestClass.php
+	Sugar/Lang/SugarsweetCompiler/PHP.pm tests/test_class.sugarsweet > tests/TestClass.php
 	php tests/TestClass.php
-	Sugar/Lang/SugarsweetCompiler/Python.pm tests/sugarsweet_multilang/test_regex.sugarsweet > tests/TestClass.py
+	Sugar/Lang/SugarsweetCompiler/Python.pm tests/test_class.sugarsweet > tests/TestClass.py
 	python3 tests/TestClass.py
-	Sugar/Lang/SugarsweetCompiler/JavaScript.pm tests/sugarsweet_multilang/test_regex.sugarsweet > tests/TestClass.js
+	Sugar/Lang/SugarsweetCompiler/JavaScript.pm tests/test_class.sugarsweet > tests/TestClass.js
 	nodejs tests/TestClass.js

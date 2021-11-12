@@ -114,6 +114,7 @@ use parent 'Sugar::Lang::SugarsweetBaseCompiler';
 	sub compile_statement {
 		my ($self, $statement) = @_;
 		my $code = [];
+		$self->{pre_expression_statements} = [];
 		if (($statement->{type} eq "foreach_statement")) {
 			my $expression = $self->compile_expression($statement->{expression});
 			push @{$code}, "for (var $statement->{identifier} of $expression) {";
@@ -172,6 +173,7 @@ use parent 'Sugar::Lang::SugarsweetBaseCompiler';
 			push @{$code}, "}";
 		} elsif (($statement->{type} eq "while_statement")) {
 			my $expression = $self->compile_expression($statement->{expression});
+			push @{$code}, @{$self->get_pre_expression_statements()};
 			push @{$code}, "while ($expression) {";
 			push @{$code}, @{$self->compile_statements_block($statement->{block}, [])};
 			push @{$code}, "}";
@@ -211,6 +213,13 @@ use parent 'Sugar::Lang::SugarsweetBaseCompiler';
 			die "invalid statement type: $statement->{type}";
 		}
 		return $code;
+	}
+	
+	sub get_pre_expression_statements {
+		my ($self) = @_;
+		my $pre_expression_statements = $self->{pre_expression_statements};
+		$self->{pre_expression_statements} = [];
+		return $pre_expression_statements;
 	}
 	
 	sub compile_expression {
@@ -369,17 +378,42 @@ use parent 'Sugar::Lang::SugarsweetBaseCompiler';
 			}
 		} elsif (($expression->{type} eq 'regex_match_expression')) {
 			my $sub_expression = $self->compile_expression($expression->{expression});
+			my $compiled_regex = $self->compile_regex_expression($expression->{regex});
+			if ($compiled_regex->{has_g}) {
+				push @{$self->{pre_expression_statements}}, "var $compiled_regex->{token} = $compiled_regex->{regex};";
+			}
 			my $operator = '!==';
 			if (($expression->{operator} eq '!~')) {
 				$operator = '===';
 			}
-			return "((match = $expression->{regex}\.exec($sub_expression)) $operator null)";
+			return "((match = $compiled_regex->{token}\.exec($sub_expression)) $operator null)";
 		} elsif (($expression->{type} eq 'regex_substitution_expression')) {
 			my $sub_expression = $self->compile_expression($expression->{expression});
 			my $regex_expression = $self->compile_substitution_expression($expression->{regex});
 			return "($sub_expression =~ $regex_expression)";
 		} else {
 			die "invalid expression type: $expression->{type}";
+		}
+	}
+	
+	sub compile_regex_expression {
+		my ($self, $regex_token) = @_;
+		if (($regex_token =~ /\A\/((?:[^\\\/]|\\.)*+)\/([msixpodualngc]*+)\Z/s)) {
+			my $regex = $1;
+			my $flags = $2;
+			my $token = $regex_token;
+			my $has_g = 0;
+			if (($flags =~ /g/)) {
+				$has_g = 1;
+				if (not ($self->{regex_intermediate_index})) {
+					$self->{regex_intermediate_index} = 1;
+				}
+				$token = "_regex$self->{regex_intermediate_index}";
+				$self->{regex_intermediate_index} += 1;
+			}
+			return { regex => ($regex_token), has_g => ($has_g), token => ($token) };
+		} else {
+			die "failed to compile regex expression: $regex_token";
 		}
 	}
 	
