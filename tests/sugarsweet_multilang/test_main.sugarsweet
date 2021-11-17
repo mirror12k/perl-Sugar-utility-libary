@@ -74,7 +74,7 @@ class TestClass {
 		}
 	}
 
-	void sub test_get_message(tree statement) {
+	string sub test_get_message(tree statement) {
 		string switch (statement['type']) {
 			"lettera": {
 				return "\t[TestClass] got message of apple";
@@ -114,6 +114,12 @@ class TestClass {
 		var f = new TestClass({
 			'message':'hello from javascript6!',
 		})
+	}}
+
+	void sub main () native:csharp {{
+		new TestClass(new Dictionary<string, object>{
+			{ "message", "hello from C#!" },
+		});
 	}}
 
 }

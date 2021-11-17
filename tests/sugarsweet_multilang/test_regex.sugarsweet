@@ -44,5 +44,11 @@ class TestClass {
 		})
 	}}
 
+	void sub main () native:csharp {{
+		new TestClass(new Dictionary<string, object>{
+			{ "message", "hello from C#!" },
+		});
+	}}
+
 }
 

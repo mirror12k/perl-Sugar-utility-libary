@@ -29,11 +29,18 @@ Sugar::Test::Barrage->new(
 	test_processor => "Sugar/Lang/SugarsweetCompiler/Python.pm \$testfile > tests/TestClass.py && python3 tests/TestClass.py",
 )->run;
 
-# Sugar::Test::Barrage->new(
-# 	test_files_dir => 'tests/sugarsweet_multilang',
-# 	test_files_regex => qr/\.sugarsweet$/,
-# 	control_processor => "cat \$testfile.expected",
-# 	test_processor => "Sugar/Lang/SugarsweetCompiler/JavaScript.pm \$testfile > tests/TestClass.js && nodejs tests/TestClass.js",
-# )->run;
+Sugar::Test::Barrage->new(
+	test_files_dir => 'tests/sugarsweet_multilang',
+	test_files_regex => qr/\.sugarsweet$/,
+	control_processor => "cat \$testfile.expected",
+	test_processor => "Sugar/Lang/SugarsweetCompiler/JavaScript.pm \$testfile > tests/TestClass.js && nodejs tests/TestClass.js",
+)->run;
+
+Sugar::Test::Barrage->new(
+	test_files_dir => 'tests/sugarsweet_multilang',
+	test_files_regex => qr/\.sugarsweet$/,
+	control_processor => "cat \$testfile.expected",
+	test_processor => "Sugar/Lang/SugarsweetCompiler/CSharp.pm \$testfile > tests/TestClass.cs && mcs tests/TestClass.cs && ./tests/TestClass.exe",
+)->run;
 
 
