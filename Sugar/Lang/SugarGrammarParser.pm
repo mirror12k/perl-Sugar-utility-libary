@@ -419,17 +419,17 @@ sub context_match_item {
 		} elsif (((($self->{tokens_index} = $save_tokens_index) + 8 <= @{$self->{tokens}}) and ($tokens[0] = $self->{tokens}[$self->{tokens_index}++])->[0] eq 'identifier' and ($tokens[1] = $self->{tokens}[$self->{tokens_index}++])->[1] eq ':' and ($tokens[2] = $self->{tokens}[$self->{tokens_index}++])->[1] eq '{' and ($tokens[3] = $self->{tokens}[$self->{tokens_index}++])->[0] eq 'identifier' and ($tokens[4] = $self->{tokens}[$self->{tokens_index}++])->[1] eq '}' and ($tokens[5] = $self->{tokens}[$self->{tokens_index}++])->[1] eq '[' and ($tokens[6] = $self->{tokens}[$self->{tokens_index}++])->[1] eq ']' and ($tokens[7] = $self->{tokens}[$self->{tokens_index}++])->[1] eq '=>' and ($tokens[8] = $self->context_spawn_expression))) {
 			$save_tokens_index = $self->{tokens_index};
 			$save_tokens_index = $self->{tokens_index};
-			return { type => 'assignment_nonmatch', line_number => $tokens[0][2], assign_object_type => $tokens[0][1], assign_object_list_value => $tokens[3][1], expression => $tokens[6], };
+			return { type => 'assignment_nonmatch', line_number => $tokens[0][2], assign_object_type => $tokens[0][1], assign_object_list_value => $tokens[3][1], expression => $tokens[8], };
 			$save_tokens_index = $self->{tokens_index};
 		} elsif (((($self->{tokens_index} = $save_tokens_index) + 6 <= @{$self->{tokens}}) and ($tokens[0] = $self->{tokens}[$self->{tokens_index}++])->[1] eq '{' and ($tokens[1] = $self->{tokens}[$self->{tokens_index}++])->[0] eq 'identifier' and ($tokens[2] = $self->{tokens}[$self->{tokens_index}++])->[1] eq '}' and ($tokens[3] = $self->{tokens}[$self->{tokens_index}++])->[1] eq '[' and ($tokens[4] = $self->{tokens}[$self->{tokens_index}++])->[1] eq ']' and ($tokens[5] = $self->{tokens}[$self->{tokens_index}++])->[1] eq '=>' and ($tokens[6] = $self->context_spawn_expression))) {
 			$save_tokens_index = $self->{tokens_index};
 			$save_tokens_index = $self->{tokens_index};
-			return { type => 'assignment_nonmatch', line_number => $tokens[0][2], assign_object_list_value => $tokens[1][1], expression => $tokens[4], };
+			return { type => 'assignment_nonmatch', line_number => $tokens[0][2], assign_object_list_value => $tokens[1][1], expression => $tokens[6], };
 			$save_tokens_index = $self->{tokens_index};
 		} elsif (((($self->{tokens_index} = $save_tokens_index) + 5 <= @{$self->{tokens}}) and ($tokens[0] = $self->{tokens}[$self->{tokens_index}++])->[1] eq '{' and ($tokens[1] = $self->context_spawn_expression) and ($tokens[2] = $self->{tokens}[$self->{tokens_index}++])->[1] eq '}' and ($tokens[3] = $self->{tokens}[$self->{tokens_index}++])->[1] eq '[' and ($tokens[4] = $self->{tokens}[$self->{tokens_index}++])->[1] eq ']' and ($tokens[5] = $self->{tokens}[$self->{tokens_index}++])->[1] eq '=>' and ($tokens[6] = $self->context_spawn_expression))) {
 			$save_tokens_index = $self->{tokens_index};
 			$save_tokens_index = $self->{tokens_index};
-			return { type => 'assignment_nonmatch', line_number => $tokens[0][2], assign_object_expression_list_value => $tokens[1], expression => $tokens[4], };
+			return { type => 'assignment_nonmatch', line_number => $tokens[0][2], assign_object_expression_list_value => $tokens[1], expression => $tokens[6], };
 			$save_tokens_index = $self->{tokens_index};
 		} elsif (((($self->{tokens_index} = $save_tokens_index) + 3 <= @{$self->{tokens}}) and ($tokens[0] = $self->{tokens}[$self->{tokens_index}++])->[1] eq '[' and ($tokens[1] = $self->{tokens}[$self->{tokens_index}++])->[1] eq ']' and ($tokens[2] = $self->{tokens}[$self->{tokens_index}++])->[1] eq '=>' and ($tokens[3] = $self->context_spawn_expression))) {
 			$save_tokens_index = $self->{tokens_index};

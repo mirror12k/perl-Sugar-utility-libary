@@ -255,19 +255,19 @@ item sub match_item {
 			return assignment_nonmatch:{
 				assign_object_type => $0
 				assign_object_list_value => $3
-				expression => $6{value}
+				expression => $8{value}
 			}
 		}
 		'{', *identifier, '}', '[', ']', '=>', !spawn_expression => {
 			return assignment_nonmatch:{
 				assign_object_list_value => $1
-				expression => $4{value}
+				expression => $6{value}
 			}
 		}
 		'{', !spawn_expression, '}', '[', ']', '=>', !spawn_expression => {
 			return assignment_nonmatch:{
 				assign_object_expression_list_value => $1{value}
-				expression => $4{value}
+				expression => $6{value}
 			}
 		}
 		'[', ']', '=>', !spawn_expression => {
