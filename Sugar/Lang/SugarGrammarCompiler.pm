@@ -913,7 +913,7 @@ sub parse_tokens_in_text {
 	my $offset = 0;
 
 	# study $text;
-	while ($text =~ /\G$self->{tokenizer_regex}/gco) {
+	while ($text =~ /\G$self->{tokenizer_regex}/gc) {
 		# despite the absurdity of this solution, this is still faster than loading %+
 		# my ($token_type, $token_text) = each %+;
 		# my ($token_type, $token_text) = $self->{token_selector_callback}->();
