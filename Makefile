@@ -84,21 +84,21 @@ profile_sugar_compiler:
 	rm temp_compiled_file
 
 test_sugarsweet:
-# 	make sugarsweet_base_compiler
-# 	make sugarsweet_php_compiler
-# 	make sugarsweet_python_compiler
-# 	make sugarsweet_javascript_compiler
+	make sugarsweet_base_compiler
+	make sugarsweet_php_compiler
+	make sugarsweet_python_compiler
+	make sugarsweet_javascript_compiler
 	make sugarsweet_csharp_compiler
 
-# 	Sugar/Lang/SugarsweetCompiler/Perl.pm tests/test_class.sugarsweet > tests/TestClass.pm
-# 	perl tests/TestClass.pm
-# 	Sugar/Lang/SugarsweetCompiler/PHP.pm tests/test_class.sugarsweet > tests/TestClass.php
-# 	php tests/TestClass.php
-# 	Sugar/Lang/SugarsweetCompiler/Python.pm tests/test_class.sugarsweet > tests/TestClass.py
-# 	python3 tests/TestClass.py
-# 	Sugar/Lang/SugarsweetCompiler/JavaScript.pm tests/test_class.sugarsweet > tests/TestClass.js
-# 	nodejs tests/TestClass.js
-	Sugar/Lang/SugarsweetCompiler/CSharp.pm tests/sugarsweet_multilang/test_regex.sugarsweet > tests/TestClass.cs
+	Sugar/Lang/SugarsweetCompiler/Perl.pm tests/test_class.sugarsweet > tests/TestClass.pm
+	perl tests/TestClass.pm
+	Sugar/Lang/SugarsweetCompiler/PHP.pm tests/test_class.sugarsweet > tests/TestClass.php
+	php tests/TestClass.php
+	Sugar/Lang/SugarsweetCompiler/Python.pm tests/test_class.sugarsweet > tests/TestClass.py
+	python3 tests/TestClass.py
+	Sugar/Lang/SugarsweetCompiler/JavaScript.pm tests/test_class.sugarsweet > tests/TestClass.js
+	nodejs tests/TestClass.js
+	Sugar/Lang/SugarsweetCompiler/CSharp.pm tests/test_class.sugarsweet > tests/TestClass.cs
 	mcs tests/TestClass.cs
 	./tests/TestClass.exe
 

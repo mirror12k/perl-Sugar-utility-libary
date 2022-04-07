@@ -340,7 +340,7 @@ string sub compile_expression (tree expression) {
 		'split_expression': {
 			string left_expression = self.compile_expression(expression.left_expression);
 			string right_expression = self.compile_expression(expression.right_expression);
-			return "[ split(quotemeta($left_expression), $right_expression) ]";
+			return "($right_expression).split($left_expression)";
 		}
 		'flatten_expression': {
 			string sub_expression = self.compile_expression(expression.expression);
@@ -598,8 +598,8 @@ string sub compile_string_expression (string string_token) {
 			}
 
 			if (variable_access) {
-				compiled_string += "\" + $variable_match\.";
-				compiled_string += join '', map { "{$_}" } split ".", variable_access;
+				compiled_string += "\" + $variable_match";
+				compiled_string += join '', map { "[\"$_\"]" } split ".", variable_access;
 				compiled_string += " + \"";
 			} else {
 				compiled_string += "\" + $variable_match + \"";
@@ -609,10 +609,11 @@ string sub compile_string_expression (string string_token) {
 				die "undefined variable in string interpolation: $protected_variable_match";
 			}
 			if (protected_variable_access) {
-				compiled_string += "\$$protected_variable_match\->";
-				compiled_string += join '', map { "{$_}" } split ".", protected_variable_access;
+				compiled_string += "\" + $protected_variable_match";
+				compiled_string += join '', map { "[\"$_\"]" } split ".", protected_variable_access;
+				compiled_string += " + \"";
 			} else {
-				compiled_string += "\${$protected_variable_match}";
+				compiled_string += "\" + $protected_variable_match + \"";
 			}
 		}
 	}

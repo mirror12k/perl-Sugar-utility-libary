@@ -241,13 +241,13 @@ use parent 'Sugar::Lang::SugarsweetBaseCompiler';
 		} elsif (($expression->{type} eq 'empty_list_expression')) {
 			return "(new ArrayObject([]))";
 		} elsif (($expression->{type} eq 'empty_tree_expression')) {
-			return "(new ArrayObject([]))";
+			return "(new ArrayObject([], ArrayObject::ARRAY_AS_PROPS))";
 		} elsif (($expression->{type} eq 'list_constructor_expression')) {
 			my $expression_list = $self->compile_expression_list($expression->{expression_list});
 			return "(new ArrayObject([ $expression_list ]))";
 		} elsif (($expression->{type} eq 'tree_constructor_expression')) {
 			my $expression_list = $self->compile_tree_constructor($expression->{expression_list});
-			return "(new ArrayObject([ $expression_list ]))";
+			return "(new ArrayObject([ $expression_list ], ArrayObject::ARRAY_AS_PROPS))";
 		} elsif (($expression->{type} eq 'not_expression')) {
 			my $sub_expression = $self->compile_expression($expression->{expression});
 			return "!($sub_expression)";
@@ -258,7 +258,7 @@ use parent 'Sugar::Lang::SugarsweetBaseCompiler';
 		} elsif (($expression->{type} eq 'split_expression')) {
 			my $left_expression = $self->compile_expression($expression->{left_expression});
 			my $right_expression = $self->compile_expression($expression->{right_expression});
-			return "(new ArrayObject([ explode($left_expression, $right_expression) ]))";
+			return "(new ArrayObject(explode($left_expression, $right_expression), ArrayObject::ARRAY_AS_PROPS))";
 		} elsif (($expression->{type} eq 'flatten_expression')) {
 			my $sub_expression = $self->compile_expression($expression->{expression});
 			return "call_user_func_array('array_merge', $sub_expression->getArrayCopy())";
@@ -455,20 +455,22 @@ use parent 'Sugar::Lang::SugarsweetBaseCompiler';
 					die "undefined variable in string interpolation: $variable_match";
 				}
 				if ($variable_access) {
-					$compiled_string .= "\$$variable_match\->";
-					$compiled_string .= join('', @{[ map { "{$_}" } @{[ split(quotemeta("."), $variable_access) ]} ]});
+					$compiled_string .= "{\$$variable_match";
+					$compiled_string .= join('', @{[ map { "->$_" } @{[ split(quotemeta("."), $variable_access) ]} ]});
+					$compiled_string .= "}";
 				} else {
-					$compiled_string .= "\$$variable_match";
+					$compiled_string .= "{\$$variable_match}";
 				}
 			} else {
 				if (not (exists($self->{variable_scope}->{$protected_variable_match}))) {
 					die "undefined variable in string interpolation: $protected_variable_match";
 				}
 				if ($protected_variable_access) {
-					$compiled_string .= "\$$protected_variable_match\->";
-					$compiled_string .= join('', @{[ map { "{$_}" } @{[ split(quotemeta("."), $protected_variable_access) ]} ]});
+					$compiled_string .= "{\$$protected_variable_match";
+					$compiled_string .= join('', @{[ map { "->$_" } @{[ split(quotemeta("."), $protected_variable_access) ]} ]});
+					$compiled_string .= "}";
 				} else {
-					$compiled_string .= "\${$protected_variable_match}";
+					$compiled_string .= "{\$$protected_variable_match}";
 				}
 			}
 		}

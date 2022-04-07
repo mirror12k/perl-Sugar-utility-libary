@@ -255,7 +255,7 @@ def tryglobalmatch(r, s):
 		} elsif (($expression->{type} eq 'split_expression')) {
 			my $left_expression = $self->compile_expression($expression->{left_expression});
 			my $right_expression = $self->compile_expression($expression->{right_expression});
-			return "[ split(quotemeta($left_expression), $right_expression) ]";
+			return "str($right_expression).split($left_expression)";
 		} elsif (($expression->{type} eq 'flatten_expression')) {
 			my $sub_expression = $self->compile_expression($expression->{expression});
 			return "[ map \@\$_, \@{$sub_expression} ]";
@@ -452,8 +452,8 @@ def tryglobalmatch(r, s):
 					die "undefined variable in string interpolation: $variable_match";
 				}
 				if ($variable_access) {
-					$compiled_string .= "\" + str($variable_match\.";
-					$compiled_string .= join('', @{[ map { "{$_}" } @{[ split(quotemeta("."), $variable_access) ]} ]});
+					$compiled_string .= "\" + str($variable_match";
+					$compiled_string .= join('', @{[ map { "[\"$_\"]" } @{[ split(quotemeta("."), $variable_access) ]} ]});
 					$compiled_string .= ") + \"";
 				} else {
 					$compiled_string .= "\" + str($variable_match) + \"";
@@ -463,10 +463,11 @@ def tryglobalmatch(r, s):
 					die "undefined variable in string interpolation: $protected_variable_match";
 				}
 				if ($protected_variable_access) {
-					$compiled_string .= "\$$protected_variable_match\->";
-					$compiled_string .= join('', @{[ map { "{$_}" } @{[ split(quotemeta("."), $protected_variable_access) ]} ]});
+					$compiled_string .= "\" + str($protected_variable_match";
+					$compiled_string .= join('', @{[ map { "[\"$_\"]" } @{[ split(quotemeta("."), $protected_variable_access) ]} ]});
+					$compiled_string .= ") + \"";
 				} else {
-					$compiled_string .= "\${$protected_variable_match}";
+					$compiled_string .= "\" + str($protected_variable_match) + \"";
 				}
 			}
 		}

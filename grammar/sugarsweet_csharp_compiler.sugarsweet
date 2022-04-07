@@ -11,6 +11,7 @@ list sub code_file_preamble() {
 		"#pragma warning disable 0649",
 		"",
 		"using System;",
+		"using System.Linq;",
 		"using System.Collections.Generic;",
 		"using System.Text.RegularExpressions;",
 		"",
@@ -385,7 +386,7 @@ string sub compile_expression (tree expression) {
 		'split_expression': {
 			string left_expression = self.compile_expression(expression.left_expression);
 			string right_expression = self.compile_expression(expression.right_expression);
-			return "[ split(quotemeta($left_expression), $right_expression) ]";
+			return "((string)$right_expression).Split($left_expression).ToList()";
 		}
 		'flatten_expression': {
 			string sub_expression = self.compile_expression(expression.expression);
@@ -653,9 +654,12 @@ string sub compile_string_expression (string string_token) {
 			}
 
 			if (variable_access) {
-				compiled_string += "\" + $variable_match\.";
-				compiled_string += join '', map { "{$_}" } split ".", variable_access;
-				compiled_string += " + \"";
+				string compiled_piece = "$variable_match";
+				foreach (string access_piece in split ".", variable_access) {
+					compiled_piece = "((Dictionary<string, object>)$compiled_piece)";
+					compiled_piece += "[\"$access_piece\"]";
+				}
+				compiled_string += "\" + $compiled_piece + \"";
 			} else {
 				compiled_string += "\" + $variable_match + \"";
 			}
@@ -664,10 +668,14 @@ string sub compile_string_expression (string string_token) {
 				die "undefined variable in string interpolation: $protected_variable_match";
 			}
 			if (protected_variable_access) {
-				compiled_string += "\$$protected_variable_match\->";
-				compiled_string += join '', map { "{$_}" } split ".", protected_variable_access;
+				string compiled_piece = "$protected_variable_match";
+				foreach (string access_piece in split ".", protected_variable_access) {
+					compiled_piece = "((Dictionary<string, object>)$compiled_piece)";
+					compiled_piece += "[\"$access_piece\"]";
+				}
+				compiled_string += "\" + $compiled_piece + \"";
 			} else {
-				compiled_string += "\${$protected_variable_match}";
+				compiled_string += "\" + $protected_variable_match + \"";
 			}
 		}
 	}

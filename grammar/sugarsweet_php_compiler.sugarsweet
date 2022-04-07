@@ -316,7 +316,7 @@ string sub compile_expression (tree expression) {
 			return "(new ArrayObject([]))";
 		}
 		'empty_tree_expression': {
-			return "(new ArrayObject([]))";
+			return "(new ArrayObject([], ArrayObject::ARRAY_AS_PROPS))";
 		}
 		'list_constructor_expression': {
 			string expression_list = self.compile_expression_list(expression.expression_list);
@@ -324,7 +324,7 @@ string sub compile_expression (tree expression) {
 		}
 		'tree_constructor_expression': {
 			string expression_list = self.compile_tree_constructor(expression.expression_list);
-			return "(new ArrayObject([ $expression_list ]))";
+			return "(new ArrayObject([ $expression_list ], ArrayObject::ARRAY_AS_PROPS))";
 		}
 		'not_expression': {
 			string sub_expression = self.compile_expression(expression.expression);
@@ -338,7 +338,7 @@ string sub compile_expression (tree expression) {
 		'split_expression': {
 			string left_expression = self.compile_expression(expression.left_expression);
 			string right_expression = self.compile_expression(expression.right_expression);
-			return "(new ArrayObject([ explode($left_expression, $right_expression) ]))";
+			return "(new ArrayObject(explode($left_expression, $right_expression), ArrayObject::ARRAY_AS_PROPS))";
 		}
 		'flatten_expression': {
 			string sub_expression = self.compile_expression(expression.expression);
@@ -588,20 +588,22 @@ string sub compile_string_expression (string string_token) {
 			}
 
 			if (variable_access) {
-				compiled_string += "\$$variable_match\->";
-				compiled_string += join '', map { "{$_}" } split ".", variable_access;
+				compiled_string += "{\$$variable_match";
+				compiled_string += join '', map { "->$_" } split ".", variable_access;
+				compiled_string += "}";
 			} else {
-				compiled_string += "\$$variable_match";
+				compiled_string += "{\$$variable_match}";
 			}
 		} else {
 			unless (contains self.variable_scope[protected_variable_match]) {
 				die "undefined variable in string interpolation: $protected_variable_match";
 			}
 			if (protected_variable_access) {
-				compiled_string += "\$$protected_variable_match\->";
-				compiled_string += join '', map { "{$_}" } split ".", protected_variable_access;
+				compiled_string += "{\$$protected_variable_match";
+				compiled_string += join '', map { "->$_" } split ".", protected_variable_access;
+				compiled_string += "}";
 			} else {
-				compiled_string += "\${$protected_variable_match}";
+				compiled_string += "{\$$protected_variable_match}";
 			}
 		}
 	}

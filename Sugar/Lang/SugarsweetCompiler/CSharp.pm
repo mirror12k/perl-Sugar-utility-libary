@@ -8,7 +8,7 @@ use parent 'Sugar::Lang::SugarsweetBaseCompiler';
 
 	sub code_file_preamble {
 		my ($self) = @_;
-		return [ "#pragma warning disable 0168", "#pragma warning disable 0169", "#pragma warning disable 0649", "", "using System;", "using System.Collections.Generic;", "using System.Text.RegularExpressions;", "", "", "" ];
+		return [ "#pragma warning disable 0168", "#pragma warning disable 0169", "#pragma warning disable 0649", "", "using System;", "using System.Linq;", "using System.Collections.Generic;", "using System.Text.RegularExpressions;", "", "", "" ];
 	}
 	
 	sub code_file_postamble {
@@ -287,7 +287,7 @@ use parent 'Sugar::Lang::SugarsweetBaseCompiler';
 		} elsif (($expression->{type} eq 'split_expression')) {
 			my $left_expression = $self->compile_expression($expression->{left_expression});
 			my $right_expression = $self->compile_expression($expression->{right_expression});
-			return "[ split(quotemeta($left_expression), $right_expression) ]";
+			return "((string)$right_expression).Split($left_expression).ToList()";
 		} elsif (($expression->{type} eq 'flatten_expression')) {
 			my $sub_expression = $self->compile_expression($expression->{expression});
 			return "[ map \@\$_, \@{$sub_expression} ]";
@@ -495,9 +495,12 @@ use parent 'Sugar::Lang::SugarsweetBaseCompiler';
 					die "undefined variable in string interpolation: $variable_match";
 				}
 				if ($variable_access) {
-					$compiled_string .= "\" + $variable_match\.";
-					$compiled_string .= join('', @{[ map { "{$_}" } @{[ split(quotemeta("."), $variable_access) ]} ]});
-					$compiled_string .= " + \"";
+					my $compiled_piece = "$variable_match";
+					foreach my $access_piece (@{[ split(quotemeta("."), $variable_access) ]}) {
+						$compiled_piece = "((Dictionary<string, object>)$compiled_piece)";
+						$compiled_piece .= "[\"$access_piece\"]";
+					}
+					$compiled_string .= "\" + $compiled_piece + \"";
 				} else {
 					$compiled_string .= "\" + $variable_match + \"";
 				}
@@ -506,10 +509,14 @@ use parent 'Sugar::Lang::SugarsweetBaseCompiler';
 					die "undefined variable in string interpolation: $protected_variable_match";
 				}
 				if ($protected_variable_access) {
-					$compiled_string .= "\$$protected_variable_match\->";
-					$compiled_string .= join('', @{[ map { "{$_}" } @{[ split(quotemeta("."), $protected_variable_access) ]} ]});
+					my $compiled_piece = "$protected_variable_match";
+					foreach my $access_piece (@{[ split(quotemeta("."), $protected_variable_access) ]}) {
+						$compiled_piece = "((Dictionary<string, object>)$compiled_piece)";
+						$compiled_piece .= "[\"$access_piece\"]";
+					}
+					$compiled_string .= "\" + $compiled_piece + \"";
 				} else {
-					$compiled_string .= "\${$protected_variable_match}";
+					$compiled_string .= "\" + $protected_variable_match + \"";
 				}
 			}
 		}
